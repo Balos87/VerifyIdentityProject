@@ -29,8 +29,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("NFC not supported or not enabled.");
                 return;
             }
-
-            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcA | NfcReaderFlags.SkipNdefCheck, null);
+            //byta till nfcb?
+            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck, null);
         }
 
         public void StopListening()
@@ -49,7 +49,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     isoDep.Connect();
-
+                    //ta bort sista 0x00?
                     byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00 };
                     byte[] response = isoDep.Transceive(selectApdu);
                     if (!IsSuccessfulResponse(response))
@@ -63,11 +63,9 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     Console.WriteLine("Performing BAC...");
 
-                    string passportNumber = ""; 
-                    string birthDate = "";         
-                    string expiryDate = "";        
+                    string mrzData = "";  // Passnummer + Födelsedatum + Utgångsdatum
 
-                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(passportNumber, birthDate, expiryDate);
+                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
                     Console.WriteLine($"Derived Keys:\nKEnc: {BitConverter.ToString(KEnc)}\nKMac: {BitConverter.ToString(KMac)}");
 
@@ -112,16 +110,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] challengeCommand = new byte[] { 0x00, 0x84, 0x00, 0x00, 0x08 };
                 byte[] challengeResponse = isoDep.Transceive(challengeCommand);
 
+                Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
                 if (!IsSuccessfulResponse(challengeResponse))
                 {
                     Console.WriteLine("Failed to get challenge response.");
-                    return false;
-                }
-
-                Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
-                if (challengeResponse.Length != 8)
-                {
-                    Console.WriteLine("Invalid challenge response length.");
                     return false;
                 }
 
@@ -129,7 +121,16 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Decrypted challenge: {BitConverter.ToString(decryptedChallenge)}");
 
                 byte[] mutualAuthCommand = BuildMutualAuthCommand(decryptedChallenge, KEnc, KMac);
+
+
                 byte[] mutualAuthResponse = isoDep.Transceive(mutualAuthCommand);
+
+
+
+                Console.WriteLine($"MutualAuthResponse Length: {mutualAuthResponse.Length}");
+                Console.WriteLine($"MutualAuthResponse Data: {BitConverter.ToString(mutualAuthResponse)}");
+
+
 
                 if (!IsSuccessfulResponse(mutualAuthResponse))
                 {
@@ -149,38 +150,76 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] DecryptWithKEnc(byte[] data, byte[] KEnc)
         {
+            // Pad the data to 16 bytes
+            int blockSize = 16;
+            int paddedLength = (data.Length + blockSize - 1) / blockSize * blockSize;
+            byte[] paddedData = new byte[paddedLength];
+            Array.Copy(data, paddedData, data.Length);
+
+            Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+
             using (var aes = Aes.Create())
             {
                 aes.Key = KEnc;
-                aes.Mode = CipherMode.ECB;
+                aes.Mode = CipherMode.CBC; //changed from EBC to CBC
                 aes.Padding = PaddingMode.None;
+                aes.IV = new byte[16];
 
                 using (var decryptor = aes.CreateDecryptor())
                 {
-                    return decryptor.TransformFinalBlock(data, 0, data.Length);
+                    return decryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
                 }
             }
         }
 
+
         private byte[] BuildMutualAuthCommand(byte[] challenge, byte[] KEnc, byte[] KMac)
         {
+            // Kryptera challenge med KEnc
             byte[] encryptedChallenge = EncryptWithKEnc(challenge, KEnc);
+
+            Console.WriteLine($"Encrypted Challenge: {BitConverter.ToString(encryptedChallenge)}");
+            Console.WriteLine($"Encrypted Challenge Length: {encryptedChallenge.Length}");
+
+            Console.WriteLine($"Data for MAC: {BitConverter.ToString(encryptedChallenge)}");
+
+            // Beräkna MAC på krypterad challenge
             byte[] mac = ComputeMac(encryptedChallenge, KMac);
 
-            return encryptedChallenge.Concat(mac).ToArray();
+            Console.WriteLine($"MAC: {BitConverter.ToString(mac)}");
+            Console.WriteLine($"MAC Length: {mac.Length}");
+
+            // Bygg hela kommandot: krypterad challenge + MAC
+            byte[] mutualAuthCommand = encryptedChallenge.Concat(mac).ToArray();
+
+            Console.WriteLine($"MutualAuthCommand Length: {mutualAuthCommand.Length}");
+            Console.WriteLine($"MutualAuthCommand Data: {BitConverter.ToString(mutualAuthCommand)}");
+
+
+
+            return mutualAuthCommand;
         }
+
 
         private byte[] EncryptWithKEnc(byte[] data, byte[] KEnc)
         {
+            // Pad the data to a multiple of 16 bytes (AES block size)
+            int blockSize = 16;
+            int paddedLength = (data.Length + blockSize - 1) / blockSize * blockSize;
+            byte[] paddedData = new byte[paddedLength];
+            Array.Copy(data, paddedData, data.Length);
+            Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+
             using (var aes = Aes.Create())
             {
                 aes.Key = KEnc;
-                aes.Mode = CipherMode.ECB;
+                aes.Mode = CipherMode.CBC; // Ändrat till CBC-läge
                 aes.Padding = PaddingMode.None;
+                aes.IV = new byte[16];
 
                 using (var encryptor = aes.CreateEncryptor())
                 {
-                    return encryptor.TransformFinalBlock(data, 0, data.Length);
+                    return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
                 }
             }
         }
@@ -189,15 +228,25 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             using (var hmac = new HMACSHA1(KMac))
             {
-                return hmac.ComputeHash(data).Take(8).ToArray();
+                byte[] mac = hmac.ComputeHash(data);
+                Console.WriteLine($"Generated MAC: {BitConverter.ToString(mac)}");
+                return mac.Take(8).ToArray();  // Ta de första 8 byte för MAC
             }
         }
 
 
+        //Kontrollerar om svaret är korrekt enligt ISO 7816-4 (APDU-kommandon)
         private bool IsSuccessfulResponse(byte[] response)
         {
             return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
         }
+
+
+
+
+
+
+
 
         private byte[] BuildReadBinaryCommand(int fileId)
         {
