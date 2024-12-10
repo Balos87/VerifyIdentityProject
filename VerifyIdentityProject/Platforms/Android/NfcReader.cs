@@ -51,6 +51,8 @@ namespace VerifyIdentityProject.Platforms.Android
                     isoDep.Connect();
                     //ta bort sista 0x00?
                     byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00 };
+                    //byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xD2, 0x76, 0x00, 0x00, 0x85, 0x01, 0x01, 0x00 }; //experiment
+                    
                     byte[] response = isoDep.Transceive(selectApdu);
                     if (!IsSuccessfulResponse(response))
                     {
@@ -64,6 +66,19 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("Performing BAC...");
 
                     string mrzData = "";  // Passnummer + Födelsedatum + Utgångsdatum
+
+                    if (InitializePACE(isoDep, mrzData))
+                    {
+                        Console.WriteLine("PACE protocol initialized.");
+                    }
+                    else
+                    {
+                        Console.WriteLine("PACE initialization failed.");
+                        isoDep.Close();
+                        return;
+                    }
+
+                    Console.WriteLine("PACE completed successfully!");
 
                     var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
@@ -103,11 +118,116 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
+        //PACE
+        private bool InitializePACE(IsoDep isoDep, string mrzData)
+        {
+            try
+            {
+                // Steg 1: Läs OID från EF.CardAccess (om tillämpligt)
+                byte[] oid = new byte[] { 0xA0, 0x00, 0x00, 0x01, 0x17 }; // Exempel för AES-128, kontrollera kortets OID
+
+                // Steg 2: Initiera PACE med MSE:Set AT
+                if (!SetPACEProtocol(isoDep, oid, mrzData))
+                {
+                    return false;
+                }
+
+                // Steg 3: Genomför General Authenticate för PACE
+                byte[] dynamicAuthData = new byte[] { /* Generera dynamiska data enligt PACE */ };
+                if (!PerformGeneralAuthenticate(isoDep, dynamicAuthData))
+                {
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during PACE initialization: {ex.Message}");
+                return false;
+            }
+        }
+        //PACE
+        private bool SetPACEProtocol(IsoDep isoDep, byte[] oid, string mrzData)
+        {
+            try
+            {
+                // Konvertera MRZ och CAN till bytes
+                byte[] mrzBytes = Encoding.ASCII.GetBytes(mrzData);
+                //byte[] canBytes = Encoding.ASCII.GetBytes(can);
+
+                // Bygg PACE-dataobjektet
+                List<byte> data = new List<byte>();
+                data.AddRange(oid);                 // Lägg till OID
+                data.Add(0x83);                     // Nyckelreferens för MRZ
+                data.AddRange(mrzBytes);            // Lägg till MRZ
+                //data.AddRange(canBytes);            // Lägg till CAN
+
+                // Skicka MSE:Set AT-kommandot
+                byte[] setAtCommand = new byte[]
+                {
+                    0x00, 0x22, 0xC1, 0xA4  // MSE:Set AT kommando
+                };
+
+                byte[] response = isoDep.Transceive(setAtCommand.Concat(data).ToArray());
+
+                if (IsSuccessfulResponse(response))
+                {
+                    Console.WriteLine("PACE protocol selected and initialized.");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine("Failed to initialize PACE protocol.");
+                    Console.WriteLine($"MutualAuthResponse Data: {BitConverter.ToString(response)}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in SetPACEProtocol: {ex.Message}");
+                return false;
+            }
+        }
+        //PACE
+        private bool PerformGeneralAuthenticate(IsoDep isoDep, byte[] dynamicAuthData)
+        {
+            try
+            {
+                // Skapa GENERAL AUTHENTICATE-kommandot
+                byte[] generalAuthenticateCommand = new byte[]
+                {
+                    0x00, 0x86, 0x00, 0x00  // GENERAL AUTHENTICATE
+                };
+
+                byte[] response = isoDep.Transceive(generalAuthenticateCommand.Concat(dynamicAuthData).ToArray());
+
+                if (IsSuccessfulResponse(response))
+                {
+                    Console.WriteLine("General Authentication successful.");
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine("General Authentication failed.");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during General Authentication: {ex.Message}");
+                return false;
+            }
+        }
+
+
+
         private bool PerformBacAuthentication(IsoDep isoDep, byte[] KEnc, byte[] KMac)
         {
             try
             {
                 byte[] challengeCommand = new byte[] { 0x00, 0x84, 0x00, 0x00, 0x08 };
+                //byte[] challengeCommand = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 }; //experiment
                 byte[] challengeResponse = isoDep.Transceive(challengeCommand);
 
                 Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
