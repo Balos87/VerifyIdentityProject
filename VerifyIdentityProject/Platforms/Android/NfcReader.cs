@@ -30,7 +30,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return;
             }
 
-            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcA | NfcReaderFlags.SkipNdefCheck, null);
+            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck, null);
         }
 
         public void StopListening()
