@@ -62,12 +62,10 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("Application selected.");
 
                     Console.WriteLine("Performing BAC...");
+       
+                    string mrzData = "";
 
-                    string passportNumber = ""; 
-                    string birthDate = "";         
-                    string expiryDate = "";        
-
-                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(passportNumber, birthDate, expiryDate);
+                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
                     Console.WriteLine($"Derived Keys:\nKEnc: {BitConverter.ToString(KEnc)}\nKMac: {BitConverter.ToString(KMac)}");
 
@@ -119,6 +117,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
+                Console.WriteLine($"Challenge response: {challengeResponse}");
                 if (challengeResponse.Length != 8)
                 {
                     Console.WriteLine("Invalid challenge response length.");
@@ -152,7 +151,7 @@ namespace VerifyIdentityProject.Platforms.Android
             using (var aes = Aes.Create())
             {
                 aes.Key = KEnc;
-                aes.Mode = CipherMode.ECB;
+                aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
 
                 using (var decryptor = aes.CreateDecryptor())
@@ -175,7 +174,7 @@ namespace VerifyIdentityProject.Platforms.Android
             using (var aes = Aes.Create())
             {
                 aes.Key = KEnc;
-                aes.Mode = CipherMode.ECB;
+                aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
 
                 using (var encryptor = aes.CreateEncryptor())
