@@ -52,8 +52,17 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     isoDep.Connect();
-
-                    byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00 };
+                    isoDep.Timeout = 7000;
+                    byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
+                    //byte[] selectApdu = new byte[] {
+                    //    0x00, // CLA
+                    //    0xA4, // INS
+                    //    0x04, // P1
+                    //    0x0C, // P2 (Corrected)
+                    //    0x07, // Lc (Length of AID)
+                    //    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 // AID
+                    //    // Removed extra 0x00 byte
+                    //};
                     byte[] response = isoDep.Transceive(selectApdu);
                     if (!IsSuccessfulResponse(response))
                     {

@@ -16,6 +16,7 @@ public static class BacHelper
 
         // Use the first 16 bytes of the hash as Kseed
         //byte[] kseed = { 0x23, 0x9A, 0xB9, 0xCB, 0x28, 0x2D, 0xAF, 0x66, 0x23, 0x1D, 0xC5, 0xA4, 0xDF, 0x6B, 0xFB, 0xAE };
+
         byte[] kseed = new byte[16];
         Array.Copy(sha1Hash, kseed, 16);
         Console.WriteLine($"kseed16: {BitConverter.ToString(kseed)}");
