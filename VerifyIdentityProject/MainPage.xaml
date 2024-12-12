@@ -23,10 +23,12 @@
                 SemanticProperties.HeadingLevel="Level2"
                 SemanticProperties.Description="Welcome to dot net Multi platform App U I" />
 
-            <Button
-                Text="Start NFC Listening"
-                Command="{Binding StartNfcCommand}"
-                HorizontalOptions="Fill" />
+            <Button 
+                Text="Start NFC with BAC" 
+                Command="{Binding StartNfcCommand}" />
+
+            <Label Text="{Binding PassportData}" />
+
 
             <Label
                 Text="{Binding PassportData}"

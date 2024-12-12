@@ -23,8 +23,15 @@ namespace VerifyIdentityProject
         {
             StartNfcCommand = new Command(() =>
             {
-                nfcReader.StartListening();
-                PassportData = "Listening for passport data...";
+                try
+                {
+                    nfcReader.StartListening();
+                    PassportData = "NFC Reader started. Waiting for a tag...";
+                }
+                catch (Exception ex)
+                {
+                    PassportData = $"Error starting NFC: {ex.Message}";
+                }
             });
         }
 
