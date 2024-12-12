@@ -53,16 +53,17 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     isoDep.Connect();
                     isoDep.Timeout = 7000;
-                    byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
-                    //byte[] selectApdu = new byte[] {
-                    //    0x00, // CLA
-                    //    0xA4, // INS
-                    //    0x04, // P1
-                    //    0x0C, // P2 (Corrected)
-                    //    0x07, // Lc (Length of AID)
-                    //    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 // AID
-                    //    // Removed extra 0x00 byte
-                    //};
+
+                    byte[] selectApdu = new byte[] {
+                        0x00, // CLA
+                        0xA4, // INS - INS (Instruction) field, specifying the operation to be performed, which is application selection.
+                        0x04, // P1
+                        0x0C, // P2 (Corrected)
+                        0x07, // Lc (Length of AID)
+                        0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,
+                        0x00// AID
+                    };
+                    Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
                     byte[] response = isoDep.Transceive(selectApdu);
                     if (!IsSuccessfulResponse(response))
                     {
@@ -79,7 +80,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
-                    Console.WriteLine($"Derived Keys:\nKEnc: {BitConverter.ToString(KEnc)}\nKMac: {BitConverter.ToString(KMac)}");
 
                     if (KEnc == null || KMac == null || KEnc.Length != 16 || KMac.Length != 16)
                     {
@@ -128,6 +128,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------1. Request an 8 byte random number from the eMRTD’s contactless IC
                 byte[] challengeCommand = new byte[] { 0x00, 0x84, 0x00, 0x00, 0x08 };
                 byte[] challengeResponse = isoDep.Transceive(challengeCommand);
+                Console.WriteLine($"challengeCommand: {BitConverter.ToString(challengeCommand)}");
 
                 if (!IsSuccessfulResponse(challengeResponse))
                 {
@@ -149,10 +150,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 //--------------------------------------------------------------------2. Generate an 8 byte random and a 16 byte random
                 RandomNumberGenerator rng = RandomNumberGenerator.Create();
+
                 // Generera RND.IFD (8 bytes)
                 byte[] rndIfd = new byte[8];
                 rng.GetBytes(rndIfd);
                 Console.WriteLine($"RND.IFD: {BitConverter.ToString(rndIfd)}");
+
                 // Generera KIFD (16 bytes)
                 byte[] kIfd = new byte[16];
                 rng.GetBytes(kIfd);
@@ -167,15 +170,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 //--------------------------------------------------------------------4.Encrypt S with 3DES key KEnc:
                 byte[] Eifd = EncryptWithKEnc3DES(s, KEnc);
-                Console.WriteLine($"E:IFD-Encrypted S: {BitConverter.ToString(Eifd)}");
+                Console.WriteLine($"(Eifd) Encrypted S: {BitConverter.ToString(Eifd)}");
 
 
                 //--------------------------------------------------------------------5. Compute MAC over EIFD with 3DES key KMAC: MIFD = ‘5F1448EEA8AD90A7’
-                //byte[] mac = ComputeMac(encryptedS, KMac);
                 byte[] MIFD = ComputeMac3DES(Eifd, KMac);
-                Console.WriteLine($"Generated MIFD: {BitConverter.ToString(MIFD)}");
-
-
+                Console.WriteLine($"(MAC) Generated MIFD: {BitConverter.ToString(MIFD)}");
 
 
                 //-------------------------------------------------------------------- 6.Construct command data for EXTERNAL AUTHENTICATE and send command APDU to the eMRTD’s contactless IC

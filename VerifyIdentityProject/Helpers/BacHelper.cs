@@ -39,6 +39,32 @@ public static class BacHelper
     }
 
 
+    static byte[] DeriveKey(byte[] kseed, int counter)
+    {
+        // Convert counter to a 4-byte big-endian array
+        byte[] counterBytes = BitConverter.GetBytes(counter);
+        if (BitConverter.IsLittleEndian)
+        {
+            Array.Reverse(counterBytes);
+        }
+
+        // Concatenate Kseed and counter
+        byte[] data = new byte[kseed.Length + counterBytes.Length];
+        Buffer.BlockCopy(kseed, 0, data, 0, kseed.Length);
+        Buffer.BlockCopy(counterBytes, 0, data, kseed.Length, counterBytes.Length);
+
+        // Compute SHA-1 hash of the concatenated data
+        byte[] derivedHash;
+        using (SHA1 sha1 = SHA1.Create())
+        {
+            derivedHash = sha1.ComputeHash(data);
+        }
+
+        // Return the first 16 bytes of the hash
+        byte[] key = new byte[16];
+        Array.Copy(derivedHash, key, 16);
+        return key;
+    }
 
     static byte[] AdjustAndSplitKey(byte[] key)
     {
@@ -89,32 +115,5 @@ public static class BacHelper
             b >>= 1;
         }
         return count;
-    }
-
-    static byte[] DeriveKey(byte[] kseed, int counter)
-    {
-        // Convert counter to a 4-byte big-endian array
-        byte[] counterBytes = BitConverter.GetBytes(counter);
-        if (BitConverter.IsLittleEndian)
-        {
-            Array.Reverse(counterBytes);
-        }
-
-        // Concatenate Kseed and counter
-        byte[] data = new byte[kseed.Length + counterBytes.Length];
-        Buffer.BlockCopy(kseed, 0, data, 0, kseed.Length);
-        Buffer.BlockCopy(counterBytes, 0, data, kseed.Length, counterBytes.Length);
-
-        // Compute SHA-1 hash of the concatenated data
-        byte[] derivedHash;
-        using (SHA1 sha1 = SHA1.Create())
-        {
-            derivedHash = sha1.ComputeHash(data);
-        }
-
-        // Return the first 16 bytes of the hash
-        byte[] key = new byte[16];
-        Array.Copy(derivedHash, key, 16);
-        return key;
     }
 }
