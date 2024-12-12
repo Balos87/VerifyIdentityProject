@@ -30,7 +30,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return;
             }
 
-            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcA | NfcReaderFlags.SkipNdefCheck, null);
+            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck, null);
         }
 
         public void StopListening()
@@ -43,8 +43,10 @@ namespace VerifyIdentityProject.Platforms.Android
     {
         public void OnTagDiscovered(Tag tag)
         {
+            Console.WriteLine("Tag detected!");
             try
             {
+
                 IsoDep isoDep = IsoDep.Get(tag);
                 if (isoDep != null)
                 {

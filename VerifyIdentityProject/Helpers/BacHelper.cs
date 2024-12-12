@@ -24,6 +24,11 @@ public static class BacHelper
 
     public static (byte[] KEnc, byte[] KMac) GenerateBacKeys(string passportNumber, string birthDate, string expiryDate)
     {
+        string mrzLine2 = "94279521<5SWE9004089M2303060199004082898<<44";
+        passportNumber = mrzLine2.Substring(0, 9); ; // Example passport number
+        birthDate = mrzLine2.Substring(12, 6);  // Example birth date (YYMMDD)
+        expiryDate = mrzLine2.Substring(20, 6); // Example expiry date (YYMMDD)
+
         byte[] key = DeriveKey(passportNumber, birthDate, expiryDate);
 
         if (key.Length != 20)
