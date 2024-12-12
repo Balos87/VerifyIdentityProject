@@ -66,7 +66,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     Console.WriteLine("Performing BAC...");
        
-                    string mrzData = "L898902C<369080619406236";
+                    string mrzData = "";
 
                     var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
@@ -195,7 +195,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 if (!IsSuccessfulResponse(apduResponse))
                 {
-                    Console.WriteLine("apduResponse failed.");
+                    Console.WriteLine($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
                     return false;
                 }
 
