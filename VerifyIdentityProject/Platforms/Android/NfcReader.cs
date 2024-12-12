@@ -52,7 +52,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     isoDep.Connect();
-                    isoDep.Timeout = 7000;
+                    isoDep.Timeout = 20000;
 
                     byte[] selectApdu = new byte[] {
                         0x00, // CLA
