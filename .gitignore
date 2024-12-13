@@ -3,6 +3,12 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+# dotenv environment variables file
+.env
+secrets.json
+Resources/secrets.json
+VerifyIdentityProject/Resources/secrets.json
+
 # User-specific files
 *.rsuser
 *.suo

@@ -8,6 +8,9 @@ using Android.App;
 using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
 using System.Security.Cryptography;
+using Xamarin.Google.Crypto.Tink.Subtle;
+using Microsoft.Maui.Controls;
+using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -30,8 +33,15 @@ namespace VerifyIdentityProject.Platforms.Android
                 return;
             }
 
-            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcA | NfcReaderFlags.SkipNdefCheck, null);
+            // Enable both NfcA and NfcB for wider compatibility.
+            _nfcAdapter.EnableReaderMode(
+                _activity,
+                new NfcReaderCallback(),
+                NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
+                null
+            );
         }
+
 
         public void StopListening()
         {
@@ -45,24 +55,56 @@ namespace VerifyIdentityProject.Platforms.Android
         private byte[] _kSMac;
         public void OnTagDiscovered(Tag tag)
         {
+            Console.WriteLine("Tag detected!");
             try
             {
+                // Identify the type of NFC chip
+                string[] techList = tag.GetTechList();
+
+                Console.WriteLine("Supported NFC Technologies:");
+                foreach (string tech in techList)
+                {
+                    Console.WriteLine(tech);
+                }
+
+                // Check for specific NFC card types
+                if (techList.Contains("android.nfc.tech.NfcA"))
+                {
+                    Console.WriteLine("NfcA (Type A) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcB"))
+                {
+                    Console.WriteLine("NfcB (Type B) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcF"))
+                {
+                    Console.WriteLine("NfcF (Type F) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcV"))
+                {
+                    Console.WriteLine("NfcV (Type V/ISO15693) detected.");
+                }
+                else
+                {
+                    Console.WriteLine("Unknown NFC type detected.");
+                }
+
                 IsoDep isoDep = IsoDep.Get(tag);
                 if (isoDep != null)
                 {
                     isoDep.Connect();
+                    isoDep.Timeout = 20000;
 
-                    //byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x00, 0x07, 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00 };
                     byte[] selectApdu = new byte[] {
                         0x00, // CLA
-                        0xA4, // INS
+                        0xA4, // INS - INS (Instruction) field, specifying the operation to be performed, which is application selection.
                         0x04, // P1
                         0x0C, // P2 (Corrected)
                         0x07, // Lc (Length of AID)
-                        0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 // AID
-                        // Removed extra 0x00 byte
+                        0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,
+                        0x00// AID
                     };
-
+                    Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
                     byte[] response = isoDep.Transceive(selectApdu);
                     Console.WriteLine($"Select APDU: {BitConverter.ToString(selectApdu)}");
                     Console.WriteLine($"Select Response: {BitConverter.ToString(response)}");
@@ -80,9 +122,16 @@ namespace VerifyIdentityProject.Platforms.Android
                     string birthDate = "871118";
                     string expiryDate = "280302";
 
-                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(passportNumber, birthDate, expiryDate);
-                    Console.WriteLine($"KEnc: {BitConverter.ToString(KEnc)}");
-                    Console.WriteLine($"KMac: {BitConverter.ToString(KMac)}");
+                    string mrzData = "";
+
+                    var secrets = GetSecrets.FetchSecrets();
+                    if (secrets != null)
+                    {
+                        mrzData = secrets.MRZ_NUMBERS;
+                        Console.WriteLine("MRZ data read from secret successfull!");
+                    }
+                    var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
+
 
                     if (KEnc == null || KMac == null || KEnc.Length != 16 || KMac.Length != 16)
                     {
@@ -90,6 +139,12 @@ namespace VerifyIdentityProject.Platforms.Android
                         isoDep.Close();
                         return;
                     }
+
+                    //byte[] enc = { 0xAB, 0x94, 0xFD, 0xEC, 0xF2, 0x67, 0x4F, 0xDF, 0xB9, 0xB3, 0x91, 0xF8, 0x5D, 0x7F, 0x76, 0xF2 };
+                    //byte[] mac = { 0x79, 0x62, 0xD9, 0xEC, 0xE0, 0x3D, 0x1A, 0xCD, 0x4C, 0x76, 0x08, 0x9D, 0xCE, 0x13, 0x15, 0x43 };
+                    //Console.WriteLine("Kenc--" + BitConverter.ToString(enc));
+                    //Console.WriteLine("Kmac--" + BitConverter.ToString(mac));
+
 
                     if (!PerformBacAuthentication(isoDep, KEnc, KMac))
                     {
@@ -171,79 +226,108 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             try
             {
-                // Step 1: Get the random challenge (RND.IC)
+                //--------------------------------------------------------------------1. Request an 8 byte random number from the eMRTD’s contactless IC
                 byte[] challengeCommand = new byte[] { 0x00, 0x84, 0x00, 0x00, 0x08 };
                 byte[] challengeResponse = isoDep.Transceive(challengeCommand);
-                Console.WriteLine($"Challenge Response: {BitConverter.ToString(challengeResponse)}");
+                Console.WriteLine($"challengeCommand: {BitConverter.ToString(challengeCommand)}");
 
                 if (!IsSuccessfulResponse(challengeResponse))
                 {
                     Console.WriteLine("Failed to get challenge response.");
                     return false;
                 }
+                Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
+                Console.WriteLine($"Challenge response: {BitConverter.ToString(challengeResponse)}");
 
-                byte[] rndIC = challengeResponse.Take(8).ToArray();
-                Console.WriteLine($"Random IC: {BitConverter.ToString(rndIC)}");
+                byte[] rndIc = challengeResponse.Take(challengeResponse.Length - 2).ToArray();
+                Console.WriteLine($"rndIc response length: {rndIc.Length}");
+                Console.WriteLine($"rndIc response: {BitConverter.ToString(rndIc)}");
 
-                // Step 2: Generate random RND.IFD and K.IFD
-                var (rndIFD, kIFD) = GenerateRandoms();
-                Console.WriteLine($"Random IFD: {BitConverter.ToString(rndIFD)}");
-                Console.WriteLine($"K.IFD: {BitConverter.ToString(kIFD)}");
-
-                // Step 3: Concatenate S = RND.IFD || RND.IC || K.IFD
-                byte[] s = rndIFD.Concat(rndIC).Concat(kIFD).ToArray();
-                Console.WriteLine($"S (concatenated): {BitConverter.ToString(s)}");
-
-                // Step 4-5: Use BuildMutualAuthCommand to construct the mutual authentication command
-                byte[] mutualAuthCommandData = BuildMutualAuthCommand(s, KEnc, KMac);
-                Console.WriteLine($"Mutual Authentication Command Data: {BitConverter.ToString(mutualAuthCommandData)}");
-
-                // Step 6: Wrap in APDU format //TEST P2 = 0x0C instead of 0x00.
-                byte[] mutualAuthCommand = BuildApduCommand(0x00, 0x82, 0x00, 0x00, mutualAuthCommandData);
-
-                Console.WriteLine($"Final APDU Command: {BitConverter.ToString(mutualAuthCommand)}");
-
-                // Step 7: Send APDU to chip
-                byte[] mutualAuthResponse = isoDep.Transceive(mutualAuthCommand);
-
-                Console.WriteLine($"Raw Mutual Authentication Response: {BitConverter.ToString(mutualAuthResponse)}");
-
-                // Check response status bytes
-                if (mutualAuthResponse.Length >= 2)
-                {
-                    byte sw1 = mutualAuthResponse[^2];
-                    byte sw2 = mutualAuthResponse[^1];
-                    Console.WriteLine($"Response Status Bytes: SW1={sw1:X2}, SW2={sw2:X2}");
-
-                    // Check if the response indicates success
-                    if (sw1 != 0x90 || sw2 != 0x00)
-                    {
-                        Console.WriteLine("Mutual authentication failed with status bytes.");
-                        return false;
-                    }
-                }
-                else
+                if (rndIc.Length != 8)
                 {
                     Console.WriteLine("Mutual authentication failed: Response is too short.");
                     return false;
                 }
 
-                if (!IsSuccessfulResponse(mutualAuthResponse))
+                //--------------------------------------------------------------------2. Generate an 8 byte random and a 16 byte random
+                RandomNumberGenerator rng = RandomNumberGenerator.Create();
+
+                // Generera RND.IFD (8 bytes)
+                byte[] rndIfd = new byte[8];
+                rng.GetBytes(rndIfd);
+                Console.WriteLine($"RND.IFD: {BitConverter.ToString(rndIfd)}");
+
+                // Generera KIFD (16 bytes)
+                byte[] kIfd = new byte[16];
+                rng.GetBytes(kIfd);
+                Console.WriteLine($"KIFD: {BitConverter.ToString(kIfd)}");
+
+
+                //--------------------------------------------------------------------3.Concatenate RND.IFD, RND.IC and KIFD
+                byte[] s = rndIfd.Concat(rndIc).Concat(kIfd).ToArray();
+                Console.WriteLine($"S: {BitConverter.ToString(s)}");
+
+                //byte[] ss = { 0x78, 0x17, 0x23, 0x86, 0x0C, 0x06, 0xC2, 0x26, 0x46, 0x08, 0xF9, 0x19, 0x88, 0x70, 0x22, 0x12, 0x0B, 0x79, 0x52, 0x40, 0xCB, 0x70, 0x49, 0xB0, 0x1C, 0x19, 0xB3, 0x3E, 0x32, 0x80, 0x4F, 0x0B };
+
+                //--------------------------------------------------------------------4.Encrypt S with 3DES key KEnc:
+                byte[] Eifd = EncryptWithKEnc3DES(s, KEnc);
+                Console.WriteLine($"(Eifd) Encrypted S: {BitConverter.ToString(Eifd)}");
+
+
+                //--------------------------------------------------------------------5. Compute MAC over EIFD with 3DES key KMAC: MIFD = ‘5F1448EEA8AD90A7’
+                byte[] MIFD = ComputeMac3DES(Eifd, KMac);
+                Console.WriteLine($"(MAC) Generated MIFD: {BitConverter.ToString(MIFD)}");
+
+
+                //-------------------------------------------------------------------- 6.Construct command data for EXTERNAL AUTHENTICATE and send command APDU to the eMRTD’s contactless IC
+                byte[] cmd_data = Eifd.Concat(MIFD).ToArray();
+                Console.WriteLine($"cmd_data: {BitConverter.ToString(cmd_data)}");
+
+                //new byte[6 + cmd_data.Length] betyder: new byte[46]
+                byte[] apduCommand = new byte[6 + cmd_data.Length];
+                apduCommand[0] = 0x00;  // CLA
+                apduCommand[1] = 0x82;  // INS
+                apduCommand[2] = 0x00;  // P1
+                apduCommand[3] = 0x00;  // P2
+                apduCommand[4] = (byte)cmd_data.Length;  // Lc
+                Array.Copy(cmd_data, 0, apduCommand, 5, cmd_data.Length);  // Kopiera cmd_data (källa, KällanstartIndex,destination, destinIndex,längden)
+                apduCommand[5 + cmd_data.Length] = 0x28;  // Le
+
+                Console.WriteLine($"apduCommand: {BitConverter.ToString(apduCommand)}");
+
+                // Skicka kommandot till kortet
+                byte[] apduResponse = isoDep.Transceive(apduCommand);
+
+                Console.WriteLine($"APDU Response: {BitConverter.ToString(apduResponse)}");
+
+
+
+
+                if (!IsSuccessfulResponse(apduResponse))
                 {
-                    Console.WriteLine("Mutual authentication failed.");
+                    Console.WriteLine($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
                     return false;
                 }
 
-                // Step 7: Derive session keys
-                var (KSEnc, KSMac) = BacHelper.DeriveSessionKeys(KEnc, KMac, rndIFD, rndIC);
-                Console.WriteLine($"Session Keys:\nKSEnc: {BitConverter.ToString(KSEnc)}\nKSMac: {BitConverter.ToString(KSMac)}");
-
-                // Store the session keys
-                _kSEnc = KSEnc;
-                _kSMac = KSMac;
-
-                // Use KSEnc and KSMac for secure messaging
+                Console.WriteLine("apduResponse succeeded.");
                 return true;
+
+                //--------------------------------------------------------------------------------------------------
+
+                //byte[] decryptedChallenge = DecryptWithKEnc(s, KEnc);
+                //Console.WriteLine($"Decrypted challenge: {BitConverter.ToString(decryptedChallenge)}");
+
+                //byte[] mutualAuthCommand = BuildMutualAuthCommand(decryptedChallenge, KEnc, KMac);
+                //byte[] mutualAuthResponse = isoDep.Transceive(mutualAuthCommand);
+
+                //if (!IsSuccessfulResponse(mutualAuthResponse))
+                //{
+                //    Console.WriteLine("Mutual authentication failed.");
+                //    return false;
+                //}
+
+                //Console.WriteLine("Mutual authentication succeeded.");
+                //return true;
             }
             catch (Exception ex)
             {
@@ -252,25 +336,50 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private (byte[] rndIFD, byte[] kIFD) GenerateRandoms()
-        {
-            byte[] rndIFD = new byte[8];
-            byte[] kIFD = new byte[16];
-            using (var rng = RandomNumberGenerator.Create())
-            {
-                rng.GetBytes(rndIFD);
-                rng.GetBytes(kIFD);
-            }
-            Console.WriteLine($"Generated rndIFD: {BitConverter.ToString(rndIFD)}");
-            Console.WriteLine($"Generated kIFD: {BitConverter.ToString(kIFD)}");
-            return (rndIFD, kIFD);
-        }
+        //private byte[] DecryptWithKEnc(byte[] data, byte[] KEnc)
+        //{
+        //    using (var aes = Aes.Create())
+        //    {
+        //        aes.Key = KEnc;
+        //        aes.Mode = CipherMode.CBC;
+        //        aes.Padding = PaddingMode.None;
+        //        aes.IV = new byte[16];
 
-        private byte[] BuildSecureReadCommand(int fileId, int offset = 0, int length = 256)
+        //        using (var decryptor = aes.CreateDecryptor())
+        //        {
+        //            return decryptor.TransformFinalBlock(data, 0, data.Length);
+        //        }
+        //    }
+        //}
+
+        //private byte[] BuildMutualAuthCommand(byte[] challenge, byte[] KEnc, byte[] KMac)
+        //{
+        //    byte[] encryptedChallenge = EncryptWithKEnc(challenge, KEnc);
+        //    byte[] mac = ComputeMac(encryptedChallenge, KMac);
+
+        //    return encryptedChallenge.Concat(mac).ToArray();
+        //}
+
+
+        private byte[] EncryptWithKEnc3DES(byte[] data, byte[] KEnc)
         {
-            if (_kSEnc == null || _kSMac == null)
+            using (var tripleDes = TripleDES.Create())
             {
-                throw new InvalidOperationException("Session keys are not initialized. Perform BAC authentication first.");
+                tripleDes.Key = KEnc;               // 3DES-nyckel (24 bytes)
+                tripleDes.Mode = CipherMode.CBC;    // CBC-läge
+                tripleDes.Padding = PaddingMode.None; // Ingen padding
+                tripleDes.IV = new byte[8];         // IV sätts till 8 nollbytes (3DES använder 8-byte block)
+
+                // Padding till blockstorlek (8 bytes för 3DES)
+                int blockSize = 8;
+                int paddedLength = (data.Length + blockSize - 1) / blockSize * blockSize;
+                byte[] paddedData = new byte[paddedLength];
+                Array.Copy(data, paddedData, data.Length);
+
+                using (var encryptor = tripleDes.CreateEncryptor())
+                {
+                    return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
+                }
             }
             Console.WriteLine($"Using KSEnc: {BitConverter.ToString(_kSEnc)}");
             Console.WriteLine($"Using KSMac: {BitConverter.ToString(_kSMac)}");
@@ -287,51 +396,80 @@ namespace VerifyIdentityProject.Platforms.Android
             return encryptedCommand.Concat(mac).ToArray();
         }
 
-        private byte[] PadToBlockSize(byte[] data, int blockSize)
+
+
+        //private byte[] EncryptWithKEnc(byte[] data, byte[] KEnc)
+        //{
+        //    using (var aes = Aes.Create())
+        //    {
+        //        aes.Key = KEnc;
+        //        aes.Mode = CipherMode.CBC;
+        //        aes.Padding = PaddingMode.None;
+        //        aes.IV = new byte[16];
+
+        //        using (var encryptor = aes.CreateEncryptor())
+        //        {
+        //            return encryptor.TransformFinalBlock(data, 0, data.Length);
+        //        }
+        //    }
+        //}
+
+        public static byte[] ComputeMac3DES(byte[] eifd, byte[] KMac)
         {
-            int paddedLength = ((data.Length + blockSize - 1) / blockSize) * blockSize;
+            if (KMac.Length != 16 && KMac.Length != 24)
+                throw new ArgumentException("Key length must be 16 or 24 bytes for 3DES");
+
+            // Dela upp nyckeln för 3DES
+            byte[] key1 = new byte[8];
+            byte[] key2 = new byte[8];
+            Array.Copy(KMac, 0, key1, 0, 8);
+            Array.Copy(KMac, 8, key2, 0, 8);
+
+            using (var des1 = DES.Create())
+            using (var des2 = DES.Create())
+            {
+                des1.Key = key1;
+                des1.Mode = CipherMode.CBC;
+                des1.Padding = PaddingMode.None;
+                des1.IV = new byte[8];
+
+                des2.Key = key2;
+                des2.Mode = CipherMode.CBC;
+                des2.Padding = PaddingMode.None;
+                des2.IV = new byte[8];
+
+                // Lägg till padding till EIFD
+                byte[] paddedData = PadIso9797Method2(eifd);
+
+                // MAC steg 1: Kryptera med nyckel 1
+                byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
+
+                // MAC steg 2: Dekryptera slutet med nyckel 2
+                byte[] finalBlock = des2.CreateDecryptor().TransformFinalBlock(intermediate, intermediate.Length - 8, 8);
+
+                // MAC steg 3: Kryptera igen med nyckel 1
+                byte[] mac = des1.CreateEncryptor().TransformFinalBlock(finalBlock, 0, 8);
+
+                // Returnera de första 8 byten av MAC
+                byte[] result = new byte[8];
+                Array.Copy(mac, 0, result, 0, 8);
+                return result;
+            }
+        }
+
+        private static byte[] PadIso9797Method2(byte[] data)
+        {
+            int blockSize = 8;
+            int paddedLength = ((data.Length + blockSize) / blockSize) * blockSize;
             byte[] paddedData = new byte[paddedLength];
             Array.Copy(data, paddedData, data.Length);
-            return paddedData; // Padded with zeros by default
+            paddedData[data.Length] = 0x80; // Längdbyte
+            return paddedData;
         }
 
-        private byte[] EncryptWithKEnc(byte[] data, byte[] KEnc)
-        {
-            Console.WriteLine($"Original data length: {data.Length}");
-            Console.WriteLine($"Original data: {BitConverter.ToString(data)}");
 
-            data = PadToBlockSize(data, 16);
 
-            Console.WriteLine($"Padded data length: {data.Length}");
-            Console.WriteLine($"Padded data: {BitConverter.ToString(data)}");
 
-            // Ensure input data length is a multiple of the block size
-            if (data.Length % 16 != 0)
-            {
-                Console.WriteLine($"Data before padding: {BitConverter.ToString(data)}");
-                data = PadToBlockSize(data, 16); // Pad to 16-byte blocks
-                Console.WriteLine($"Data after padding: {BitConverter.ToString(data)}");
-            }
-
-            using (var des = TripleDES.Create())
-            {
-                des.Key = KEnc;
-                des.Mode = CipherMode.ECB;
-                des.Padding = PaddingMode.None;
-
-                using (var encryptor = des.CreateEncryptor())
-                {
-                    return encryptor.TransformFinalBlock(data, 0, data.Length);
-                }
-            }
-        }
-        private byte[] ComputeMac(byte[] data, byte[] KMac)
-        {
-            using (var hmac = new HMACSHA1(KMac))
-            {
-                return hmac.ComputeHash(data).Take(8).ToArray();
-            }
-        }
 
         private bool IsSuccessfulResponse(byte[] response)
         {
