@@ -8,6 +8,7 @@ using Android.App;
 using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
 using System.Security.Cryptography;
+using DotNetEnv;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -65,9 +66,14 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     Console.WriteLine("Performing BAC...");
 
-                    string passportNumber = ""; 
-                    string birthDate = "";         
-                    string expiryDate = "";        
+                    
+                    string passportNumber = Env.GetString("DOC_NUMBER");
+                    string birthDate = Env.GetString("BIRTH_DATE");
+                    string expiryDate = Env.GetString("EXPIRE_DATE");
+
+                    Console.WriteLine(passportNumber);
+                    Console.WriteLine(birthDate);
+                    Console.WriteLine(expiryDate);
 
                     var (KEnc, KMac) = BacHelper.GenerateBacKeys(passportNumber, birthDate, expiryDate);
 
