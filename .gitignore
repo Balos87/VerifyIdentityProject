@@ -5,6 +5,8 @@
 
 # dotenv environment variables file
 .env
+secrets.json
+Resources/secrets.json
 
 # User-specific files
 *.rsuser
