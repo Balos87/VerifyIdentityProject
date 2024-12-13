@@ -66,9 +66,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Update="Resources\secrets.json">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
+		<EmbeddedResource Include="Resources\secrets.json" />
 	</ItemGroup>
 
 </Project>
