@@ -118,9 +118,9 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("Application selected.");
 
                     Console.WriteLine("Performing BAC...");
-                    string passportNumber = "AA3374113";
-                    string birthDate = "871118";
-                    string expiryDate = "280302";
+                    string passportNumber = "";
+                    string birthDate = "";
+                    string expiryDate = "";
 
                     string mrzData = "";
 
