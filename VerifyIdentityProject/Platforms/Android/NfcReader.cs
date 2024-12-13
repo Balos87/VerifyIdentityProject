@@ -77,8 +77,11 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("Application selected.");
 
                     Console.WriteLine("Performing BAC...");
-       
-                    string mrzData = "";
+
+                    var secrets = GetSecrets.FetchSecrets();
+
+                    string mrzData = secrets.MRZ_NUMBERS;
+                    Console.WriteLine(mrzData);
 
                     var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
