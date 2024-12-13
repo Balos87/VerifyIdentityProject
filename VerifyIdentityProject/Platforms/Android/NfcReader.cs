@@ -33,8 +33,15 @@ namespace VerifyIdentityProject.Platforms.Android
                 return;
             }
 
-            _nfcAdapter.EnableReaderMode(_activity, new NfcReaderCallback(), NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck, null);
+            // Enable both NfcA and NfcB for wider compatibility.
+            _nfcAdapter.EnableReaderMode(
+                _activity,
+                new NfcReaderCallback(),
+                NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
+                null
+            );
         }
+
 
         public void StopListening()
         {
@@ -49,6 +56,36 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("Tag detected!");
             try
             {
+                // Identify the type of NFC chip
+                string[] techList = tag.GetTechList();
+
+                Console.WriteLine("Supported NFC Technologies:");
+                foreach (string tech in techList)
+                {
+                    Console.WriteLine(tech);
+                }
+
+                // Check for specific NFC card types
+                if (techList.Contains("android.nfc.tech.NfcA"))
+                {
+                    Console.WriteLine("NfcA (Type A) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcB"))
+                {
+                    Console.WriteLine("NfcB (Type B) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcF"))
+                {
+                    Console.WriteLine("NfcF (Type F) detected.");
+                }
+                else if (techList.Contains("android.nfc.tech.NfcV"))
+                {
+                    Console.WriteLine("NfcV (Type V/ISO15693) detected.");
+                }
+                else
+                {
+                    Console.WriteLine("Unknown NFC type detected.");
+                }
 
                 IsoDep isoDep = IsoDep.Get(tag);
                 if (isoDep != null)
