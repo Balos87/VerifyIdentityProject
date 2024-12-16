@@ -49,11 +49,8 @@ namespace VerifyIdentityProject.Platforms.Android
         }
     }
 
-    // Need..
     public class NfcReaderCallback : Java.Lang.Object, NfcAdapter.IReaderCallback
     {
-        private byte[] _kSEnc;
-        private byte[] _kSMac;
         public void OnTagDiscovered(Tag tag)
         {
             Console.WriteLine("Tag detected!");
@@ -107,8 +104,6 @@ namespace VerifyIdentityProject.Platforms.Android
                     };
                     Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
                     byte[] response = isoDep.Transceive(selectApdu);
-                    Console.WriteLine($"Select APDU: {BitConverter.ToString(selectApdu)}");
-                    Console.WriteLine($"Select Response: {BitConverter.ToString(response)}");
                     if (!IsSuccessfulResponse(response))
                     {
                         Console.WriteLine("Failed to select passport application.");
@@ -119,9 +114,6 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("Application selected.");
 
                     Console.WriteLine("Performing BAC...");
-                    string passportNumber = "";
-                    string birthDate = "";
-                    string expiryDate = "";
 
                     string mrzData = "";
 
@@ -156,71 +148,22 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     Console.WriteLine("BAC authentication succeeded!");
 
-                    Console.WriteLine("Accessing DG1...");
-
-                    //byte[] selectDG1Command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1E };
-                    //byte[] selectDG1Response = isoDep.Transceive(selectDG1Command);
-
-                    byte[] selectDG1Command = BuildSecureReadCommand(0x01);
-                    byte[] selectDG1Response = isoDep.Transceive(selectDG1Command);
-
-                    if (!IsSuccessfulResponse(selectDG1Response))
-                    {
-                        Console.WriteLine("Failed to select DG1 file.");
-                        isoDep.Close();
-                        return;
-                    }
-                    Console.WriteLine("DG1 file selected.");
-
-                    byte[] readCommand = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
-                    byte[] dg1Response = isoDep.Transceive(readCommand);
-
+                    byte[] dg1Command = BuildReadBinaryCommand(0x01);
+                    byte[] dg1Response = isoDep.Transceive(dg1Command);
                     if (!IsSuccessfulResponse(dg1Response))
                     {
-                        Console.WriteLine("Failed to read DG1 data.");
+                        Console.WriteLine("Failed to read DG1.");
                         isoDep.Close();
                         return;
                     }
 
-                    byte[] dg1Data = dg1Response.Take(dg1Response.Length - 2).ToArray();
-                    Console.WriteLine($"DG1 Data (raw): {BitConverter.ToString(dg1Data)}");
-
-                    DecodePassportData(dg1Data);
-
+                    DecodePassportData(dg1Response);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during NFC processing: {ex.Message}");
             }
-        }
-
-        private byte[] BuildMutualAuthCommand(byte[] challenge, byte[] KEnc, byte[] KMac)
-        {
-            Console.WriteLine($"Challenge (S): {BitConverter.ToString(challenge)}");
-
-            byte[] encryptedChallenge = EncryptWithKEnc(challenge, KEnc);
-            Console.WriteLine($"Encrypted Challenge (eS): {BitConverter.ToString(encryptedChallenge)}");
-
-            byte[] mac = ComputeMac(encryptedChallenge, KMac);
-            Console.WriteLine($"MAC: {BitConverter.ToString(mac)}");
-
-            byte[] mutualAuthCommand = encryptedChallenge.Concat(mac).ToArray();
-            Console.WriteLine($"Mutual Authentication Command: {BitConverter.ToString(mutualAuthCommand)}");
-
-            return mutualAuthCommand;
-        }
-
-        private byte[] BuildApduCommand(byte cla, byte ins, byte p1, byte p2, byte[] data)
-        {
-            byte lc = (byte)(data.Length & 0xFF); // Safeguard the length to fit within a single byte
-
-            // Log the APDU fields
-            Console.WriteLine($"APDU Fields - CLA: {cla:X2}, INS: {ins:X2}, P1: {p1:X2}, P2: {p2:X2}, Lc: {lc:X2}");
-
-            return new byte[] { cla, ins, p1, p2, lc }
-                .Concat(data)
-                .ToArray();
         }
 
         private bool PerformBacAuthentication(IsoDep isoDep, byte[] KEnc, byte[] KMac)
@@ -246,7 +189,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 if (rndIc.Length != 8)
                 {
-                    Console.WriteLine("Mutual authentication failed: Response is too short.");
+                    Console.WriteLine("Invalid challenge response length.");
                     return false;
                 }
 
@@ -382,19 +325,6 @@ namespace VerifyIdentityProject.Platforms.Android
                     return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
                 }
             }
-            Console.WriteLine($"Using KSEnc: {BitConverter.ToString(_kSEnc)}");
-            Console.WriteLine($"Using KSMac: {BitConverter.ToString(_kSMac)}");
-
-            byte[] command = new byte[] { 0x0C, 0xB0, (byte)((offset >> 8) & 0xFF), (byte)(offset & 0xFF), (byte)length };
-            byte[] encryptedCommand = EncryptWithKEnc(command, _kSEnc);
-            byte[] mac = ComputeMac(encryptedCommand, _kSMac);
-
-            Console.WriteLine($"Command Before Encryption: {BitConverter.ToString(command)}");
-            Console.WriteLine($"Encrypted Command: {BitConverter.ToString(encryptedCommand)}");
-            Console.WriteLine($"MAC: {BitConverter.ToString(mac)}");
-
-
-            return encryptedCommand.Concat(mac).ToArray();
         }
 
 
@@ -477,6 +407,11 @@ namespace VerifyIdentityProject.Platforms.Android
             return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
         }
 
+        private byte[] BuildReadBinaryCommand(int fileId)
+        {
+            return new byte[] { 0x00, 0xB0, (byte)((fileId >> 8) & 0xFF), (byte)(fileId & 0xFF), 0x00 };
+        }
+
         private void DecodePassportData(byte[] data)
         {
             var parser = new Asn1DerParser();
@@ -515,21 +450,17 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine($"Value: {BitConverter.ToString(value)}");
 
-                if (tag == 0x61)
-                {
-                    Console.WriteLine("DG1 Sequence:");
-                    Parse(value);
-                }
-                else if (tag == 0x5F1F)
-                {
-                    string mrz = Encoding.UTF8.GetString(value);
-                    Console.WriteLine("Decoded MRZ:");
-                    Console.WriteLine(mrz);
-                }
-                else if ((tag & 0x20) == 0x20)
+                if ((tag & 0x20) == 0x20)
                 {
                     Console.WriteLine("Parsing constructed type...");
                     Parse(value);
+                }
+                else
+                {
+                    if (tag == 0x0C)
+                    {
+                        Console.WriteLine($"Decoded String: {Encoding.UTF8.GetString(value)}");
+                    }
                 }
             }
         }
