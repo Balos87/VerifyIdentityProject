@@ -49,6 +49,7 @@ namespace VerifyIdentityProject.Platforms.Android
         }
     }
 
+    // Need..
     public class NfcReaderCallback : Java.Lang.Object, NfcAdapter.IReaderCallback
     {
         private byte[] _kSEnc;
