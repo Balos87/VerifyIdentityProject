@@ -49,6 +49,7 @@ namespace VerifyIdentityProject.Platforms.Android
         }
     }
 
+    // Need..
     public class NfcReaderCallback : Java.Lang.Object, NfcAdapter.IReaderCallback
     {
         public void OnTagDiscovered(Tag tag)
