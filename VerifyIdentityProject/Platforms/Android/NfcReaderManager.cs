@@ -25,22 +25,33 @@ namespace VerifyIdentityProject.Platforms.Android
             _nfcAdapter = NfcAdapter.GetDefaultAdapter(_activity);
         }
 
+        /// <summary>
+        /// Starts listening for NFC tags.
+        /// </summary>
+        /// <remarks>
+        /// This method checks if the NFC adapter is available and enabled.
+        /// If valid, it enables NFC reader mode with specified flags and a callback to handle NFC tag discovery.
+        /// </remarks>
+        /// <param name="NfcReaderFlags">Flags specifying the types of NFC tags to detect (e.g., NfcA, NfcB).</param>
+        /// <exception cref="InvalidOperationException">Thrown if the NFC adapter is not available or enabled.</exception>
         public void StartListening()
         {
+            // Check if NFC adapter is available and enabled
             if (_nfcAdapter == null || !_nfcAdapter.IsEnabled)
             {
                 Console.WriteLine("NFC not supported or not enabled.");
                 return;
             }
 
-            // Tags that we are reading now.
+            // Enable NFC reader mode
             _nfcAdapter.EnableReaderMode(
-                _activity,
-                new BacProcessor(this),
+                _activity, // The current activity
+                new BacProcessor(this), // Callback for handling NFC tag discovery
                 NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
                 null
             );
         }
+
 
         public void StopListening()
         {
