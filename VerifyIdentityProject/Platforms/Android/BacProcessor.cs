@@ -166,20 +166,70 @@ namespace VerifyIdentityProject.Platforms.Android
                 Array.Copy(cmd_data, 0, apduCommand, 5, cmd_data.Length);  // Kopiera cmd_data (källa, KällanstartIndex,destination, destinIndex,längden)
                 apduCommand[5 + cmd_data.Length] = 0x28;  // Le
 
-                Console.WriteLine($"apduCommand: {BitConverter.ToString(apduCommand)}");
 
-                // Skicka kommandot till kortet
+                //-------------------------------------------------------------------- 6.Send command APDU to the eMRTD’s contactless IC
+                Console.WriteLine($"apduCommand: {BitConverter.ToString(apduCommand)}");
                 byte[] apduResponse = isoDep.Transceive(apduCommand);
 
-                Console.WriteLine($"APDU Response: {BitConverter.ToString(apduResponse)}");
+                byte[] rndIfd2 = { 0x78, 0x17, 0x23, 0x86, 0x0C, 0x06, 0xC2, 0x26 };
+                byte[] apduResponse2 = { 0x46, 0xB9, 0x34, 0x2A, 0x41, 0x39, 0x6C, 0xD7, 0x38, 0x6B, 0xF5, 0x80, 0x31, 0x04, 0xD7, 0xCE, 0xDC, 0x12, 0x2B, 0x91, 0x32, 0x13, 0x9B, 0xAF, 0x2E, 0xED, 0xC9, 0x4E, 0xE1, 0x78, 0x53, 0x4F, 0x2F, 0x2D, 0x23, 0x5D, 0x07, 0x4D, 0x74, 0x49, };
+                byte[] KEnc2 = { 0xAB, 0x94, 0xFD, 0xEC, 0xF2, 0x67, 0x4F, 0xDF, 0xB9, 0xB3, 0x91, 0xF8, 0x5D, 0x7F, 0x76, 0xF2 };
+                byte[] kIfd2 = { 0x0B, 0x79, 0x52, 0x40, 0xCB, 0x70, 0x49, 0xB0, 0x1C, 0x19, 0xB3, 0x3E, 0x32, 0x80, 0x4F, 0x0B };
+                byte[] rndIc2 = { 0x46, 0x08, 0xF9, 0x19, 0x88, 0x70, 0x22, 0x12 };
 
+                //-------------------------------------------------------------------- 7. cmd_resp if successfull or not
+                Console.WriteLine($"APDU Response: {BitConverter.ToString(apduResponse)}");
                 if (!IsSuccessfulResponse(apduResponse))
                 {
                     Console.WriteLine($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
                     return false;
                 }
-
                 Console.WriteLine("apduResponse succeeded.");
+
+
+                //-------------------------------------------------------------------- 1.Decrypt and verify received data and compare received RND.IFD with generated RND.IFD
+
+                //-------------------------------------------------------------------- 1.1 Seperate `Eifd`, `MIC`, och `SW1-SW2` from cmd_resp
+                byte[] eIc = apduResponse2.Take(32).ToArray();
+                byte[] mIc = apduResponse2.Skip(32).Take(8).ToArray();
+                //byte[] status = apduResponse.Skip(40).ToArray();
+
+                Console.WriteLine($"Eifd: {BitConverter.ToString(eIc)}");
+                Console.WriteLine($"MIC: {BitConverter.ToString(mIc)}");
+                // Console.WriteLine($"Status: {BitConverter.ToString(status)}");
+
+                // status control - 90 00
+                //if (!status.SequenceEqual(new byte[] { 0x90, 0x00 }))
+                //{
+                //    Console.WriteLine("Error: Invalid response status.");
+                //    return false;
+                //}
+                //-------------------------------------------------------------------- 1.2 Get (r) by Decrypt eIc with help of kEnc.
+                byte[] r = DecryptWithKEnc3DES(eIc, KEnc2);
+                Console.WriteLine($"(R) Response Data: {BitConverter.ToString(r)}");
+
+
+                //-------------------------------------------------------------------- 1.3 seperate (r) and take out Recieved-rndIfd to compare to rndIfd. If success fetch/store kIc.
+                var kIc = CheckRndIfd(r, rndIfd2);
+
+                //-------------------------------------------------------------------- 2.Calculate XOR of KIFD and KIC. That gets out Kseed.
+                byte[] kSeed = ComputeKSeed(kIfd2, kIc);
+
+                //-------------------------------------------------------------------- 3. Calculate session keys (KSEnc and KSMAC) according to Section 9.7.1/Appendix D.1
+                byte[] kSEnc = DeriveKey(kSeed, 1); // Counter = 1 för KSEnc
+                byte[] kSMac = DeriveKey(kSeed, 2); // Counter = 2 för KSMac
+
+                byte[] KSEncParitet = AdjustAndSplitKey(kSEnc);
+                byte[] KSMacParitet = AdjustAndSplitKey(kSMac);
+                Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEncParitet)}");
+                Console.WriteLine($"KSMac: {BitConverter.ToString(KSMacParitet)}");
+
+                //-------------------------------------------------------------------- 4. Calculate send sequence counter (SSC)
+                byte[] ssc = ComputeSSC(rndIc2, rndIfd2);
+                Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
+
+                //--------------------------------------------------------------------  D.4 SECURE MESSAGING
+
                 return true;
 
             }
@@ -189,6 +239,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return false;
             }
         }
+
 
         private byte[] EncryptWithKEnc3DES(byte[] data, byte[] KEnc)
         {
@@ -264,6 +315,165 @@ namespace VerifyIdentityProject.Platforms.Android
             paddedData[data.Length] = 0x80; // Längdbyte
             return paddedData;
         }
+
+        private byte[] DecryptWithKEnc3DES(byte[] eIc, byte[] KEnc)
+        {
+            using (var tripleDes = TripleDES.Create())
+            {
+                tripleDes.Key = KEnc;               // 3DES-nyckel (24 bytes)
+                tripleDes.Mode = CipherMode.CBC;
+                tripleDes.Padding = PaddingMode.None;
+                tripleDes.IV = new byte[8];         // IV = 8 nollbytes
+
+
+                var ngt = tripleDes.CreateDecryptor().TransformFinalBlock(eIc, 0, eIc.Length);
+
+                Console.WriteLine($"Decrypted DATAA: {BitConverter.ToString(ngt)}");
+
+                return ngt;
+            }
+        }
+
+        private byte[] CheckRndIfd(byte[] decryptedR, byte[] rndIfd)
+        {
+            byte[] receivedRndIifd = decryptedR.Skip(8).Take(8).ToArray(); // Nästa 8 bytes
+            byte[] receivedRndIc = decryptedR.Take(8).ToArray();   // Första 8 bytes
+            byte[] receivedKic = decryptedR.Skip(16).Take(16).ToArray(); // Sista 16 bytes
+
+            Console.WriteLine($"rndIfd: {BitConverter.ToString(rndIfd)}");
+
+            Console.WriteLine($"received-RndIfd: {BitConverter.ToString(receivedRndIifd)}");
+            Console.WriteLine($"received-RndIc: {BitConverter.ToString(receivedRndIc)}");
+            Console.WriteLine($"received-Kic: {BitConverter.ToString(receivedKic)}");
+
+
+            // Jämför `RND.IFD` med genererad `RND.IFD`
+            if (!receivedRndIifd.SequenceEqual(rndIfd)) // `rndIfd` är din genererade data
+            {
+                Console.WriteLine("Error: Received RND.IFD does not match generated RND.IFD.");
+            }
+            Console.WriteLine("RND.IFD successfully verified.");
+            return receivedKic;
+        }
+
+        byte[] ComputeKSeed(byte[] kIfd, byte[] kIc)
+        {
+            if (kIfd.Length != 16 || kIc.Length != 16)
+            {
+                throw new ArgumentException("KIFD and KIC must be 16 bytes long.");
+            }
+
+            byte[] kSeed = new byte[16];
+            for (int i = 0; i < 16; i++)
+            {
+                kSeed[i] = (byte)(kIfd[i] ^ kIc[i]);
+            }
+
+            Console.WriteLine($"(kSeed) Response Data: {BitConverter.ToString(kSeed)}");
+            return kSeed;
+        }
+
+        static byte[] DeriveKey(byte[] kseed, int counter)
+        {
+            // Convert counter to a 4-byte big-endian array
+            byte[] counterBytes = BitConverter.GetBytes(counter);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(counterBytes);
+            }
+
+            // Concatenate Kseed and counter
+            byte[] data = new byte[kseed.Length + counterBytes.Length];
+            Buffer.BlockCopy(kseed, 0, data, 0, kseed.Length);
+            Buffer.BlockCopy(counterBytes, 0, data, kseed.Length, counterBytes.Length);
+
+            // Compute SHA-1 hash of the concatenated data
+            byte[] derivedHash;
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                derivedHash = sha1.ComputeHash(data);
+            }
+
+            // Return the first 16 bytes of the hash
+            byte[] key = new byte[16];
+            Array.Copy(derivedHash, key, 16);
+            return key;
+
+        }
+
+        static byte[] AdjustAndSplitKey(byte[] key)
+        {
+            if (key.Length != 16)
+                throw new ArgumentException("Key must be 16 bytes long for 3DES");
+
+            // Dela nyckeln i två delar
+            byte[] KaPrime = key.Take(8).ToArray();  // Första 8 bytes
+            byte[] KbPrime = key.Skip(8).Take(8).ToArray();  // Sista 8 bytes
+
+            // Justera paritetsbitarna
+            byte[] Ka = AdjustParityBitsExact(KaPrime);
+            byte[] Kb = AdjustParityBitsExact(KbPrime);
+
+            return Ka.Concat(Kb).ToArray();
+        }
+
+        static byte[] AdjustParityBitsExact(byte[] key)
+        {
+            byte[] adjustedKey = new byte[key.Length];
+
+            for (int i = 0; i < key.Length; i++)
+            {
+                byte currentByte = key[i];
+                int numSetBits = CountSetBits(currentByte);
+
+                // Om antalet '1'-bitar är jämnt, justera sista biten
+                if (numSetBits % 2 == 0)
+                {
+                    adjustedKey[i] = (byte)(currentByte ^ 1); // Ändra sista biten
+                }
+                else
+                {
+                    adjustedKey[i] = currentByte; // Behåll byte som den är
+                }
+            }
+
+            return adjustedKey;
+        }
+
+        // Räknar antalet '1'-bitar i en byte
+        static int CountSetBits(byte b)
+        {
+            int count = 0;
+            while (b != 0)
+            {
+                count += b & 1;
+                b >>= 1;
+            }
+            return count;
+        }
+
+        byte[] ComputeSSC(byte[] rndIc2, byte[] rndIfd2)
+        {
+            // Kontrollera att input är minst 8 bytes
+            if (rndIc2.Length < 8 || rndIfd2.Length < 8)
+            {
+                throw new ArgumentException("RND.IC and RND.IFD must be at least 8 bytes long.");
+            }
+
+            // Ta de sista 4 bytes från RND.IC och RND.IFD
+            byte[] ssc = new byte[8];
+            Array.Copy(rndIc2, rndIc2.Length - 4, ssc, 0, 4); // Sista 4 bytes från RND.IC
+            Array.Copy(rndIfd2, rndIfd2.Length - 4, ssc, 4, 4); // Sista 4 bytes från RND.IFD
+
+            Console.WriteLine($"ssc: {BitConverter.ToString(ssc)}");
+            return ssc;
+        }
+
+
+
+
+
+
 
         private bool IsSuccessfulResponse(byte[] response)
         {
