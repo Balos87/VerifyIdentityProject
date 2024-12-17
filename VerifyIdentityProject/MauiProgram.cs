@@ -21,7 +21,7 @@ public static class MauiProgram
         builder.Services.AddTransient<MainPage>();
 
 #if ANDROID
-        builder.Services.AddSingleton<INfcReader, VerifyIdentityProject.Platforms.Android.NfcReader>();
+        builder.Services.AddSingleton<INfcReaderManager, VerifyIdentityProject.Platforms.Android.NfcReaderManager>();
 #endif
 
         var app = builder.Build();

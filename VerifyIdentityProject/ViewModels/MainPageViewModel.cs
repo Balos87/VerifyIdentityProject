@@ -19,13 +19,13 @@ namespace VerifyIdentityProject
 
         public ICommand StartNfcCommand { get; }
 
-        public MainPageViewModel(INfcReader nfcReader)
+        public MainPageViewModel(INfcReaderManager nfcReaderManager)
         {
             StartNfcCommand = new Command(() =>
             {
                 try
                 {
-                    nfcReader.StartListening();
+                    nfcReaderManager.StartListening();
                     PassportData = "NFC Reader started. Waiting for a tag...";
                 }
                 catch (Exception ex)
