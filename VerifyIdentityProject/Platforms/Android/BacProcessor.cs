@@ -12,6 +12,8 @@ using Android.App;
 using Xamarin.Google.Crypto.Tink.Subtle;
 using Microsoft.Maui.Controls;
 using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
+using System.Runtime.Intrinsics.X86;
+using System.Reflection.PortableExecutable;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -225,10 +227,59 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"KSMac: {BitConverter.ToString(KSMacParitet)}");
 
                 //-------------------------------------------------------------------- 4. Calculate send sequence counter (SSC)
-                byte[] ssc = ComputeSSC(rndIc2, rndIfd2);
-                Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
+                byte[] SSC = ComputeSSC(rndIc2, rndIfd2);
+                Console.WriteLine($"SSC: {BitConverter.ToString(SSC)}");
 
                 //--------------------------------------------------------------------  D.4 SECURE MESSAGING
+
+                //--------------------------------------------------------------------  1. Mask class byte and pad command header:CmdHeader = ‘0CA4020C80000000’
+                byte[] cmdHeader = new byte[]
+                {
+                    0x0C, 0xA4, 0x02, 0x0C, // CLA, INS, P1, P2
+                    0x80, 0x00, 0x00, 0x00  // Padding (Mask)
+                };
+                Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
+
+
+                //--------------------------------------------------------------------  1.1 Pad data: Data = ‘011E800000000000’
+                byte[] data = new byte[]
+                {
+                    0x01, 0x1E,  // File ID för EF.COM
+                    0x80, 0x00, 0x00, 0x00, 0x00  // Padding
+                };
+                Console.WriteLine($"-Data-: {BitConverter.ToString(data)}");
+
+
+                //--------------------------------------------------------------------  1.2 Encrypt data with KSEnc:EncryptedData = ‘63-75-43-29-08-C0-44-F6’ 63-75-43-29-08-C0-44-F6 - RÄTT
+                byte[] encryptedData = EncryptWithKEnc3DES(data, KSEncParitet);
+                Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
+
+                //--------------------------------------------------------------------  1.3 Build DO‘87’: DO87 = ‘87-09-01-63-75-43-29-08-C0-44-F6’ 87-09-01-63-75-43-29-08-C0-44-F6 - RÄTT
+                byte[] DO87 = BuildDO87(encryptedData);
+                Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
+
+                //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO‘87’: M = ‘0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6’ - RÄTT
+                //                                                                                                                 0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6
+                byte[] M = cmdHeader.Concat(DO87).ToArray();
+                Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
+
+                //--------------------------------------------------------------------  2. Compute MAC of M:
+
+                //--------------------------------------------------------------------  2.1 Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-27’ - Rätt
+                IncrementSSC(ref SSC);
+                Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
+
+                //--------------------------------------------------------------------  2.2 Concatenate SSC and M and add padding: N = ‘887022120C06C2270CA4020C80000000 8709016375432908C044F68000000000’ - Rätt
+                byte[] N = SSC.Concat(M).ToArray();
+                N = PadIso9797Method2(N);
+                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+
+                //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF8B92D635FF24F8’ - fel
+                byte[] CC = ComputeMac3DES(N, KSMacParitet);
+                Console.WriteLine($"-MAC-: {BitConverter.ToString(CC)}");
+
+
+
 
                 return true;
 
@@ -263,7 +314,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        public static byte[] ComputeMac3DES(byte[] eifd, byte[] KMac)
+        public static byte[] ComputeMac3DES(byte[] data, byte[] KMac)
         {
             if (KMac.Length != 16 && KMac.Length != 24)
                 throw new ArgumentException("Key length must be 16 or 24 bytes for 3DES");
@@ -288,7 +339,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 des2.IV = new byte[8];
 
                 // Lägg till padding till EIFD
-                byte[] paddedData = PadIso9797Method2(eifd);
+                byte[] paddedData = PadIso9797Method2(data);
 
                 // MAC steg 1: Kryptera med nyckel 1
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
@@ -429,7 +480,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 // Om antalet '1'-bitar är jämnt, justera sista biten
                 if (numSetBits % 2 == 0)
                 {
-                    adjustedKey[i] = (byte)(currentByte ^ 1); // Ändra sista biten
+                    adjustedKey[i] = (byte)(currentByte ^ 1); // Ändra sista biten för att det ska bli Parity
                 }
                 else
                 {
@@ -469,7 +520,23 @@ namespace VerifyIdentityProject.Platforms.Android
             return ssc;
         }
 
+        byte[] BuildDO87(byte[] encryptedData)
+        {
+            byte[] DO87 = new byte[1 + 1 + 1 + encryptedData.Length];
+            DO87[0] = 0x87; // Tag för DO87
+            DO87[1] = (byte)(1 + encryptedData.Length); // Längd
+            DO87[2] = 0x01; // Indikator för krypterat data
+            Array.Copy(encryptedData, 0, DO87, 3, encryptedData.Length);
+            return DO87;
+        }
 
+        private void IncrementSSC(ref byte[] SSC)
+        {
+            for (int i = SSC.Length - 1; i >= 0; i--)
+            {
+                if (++SSC[i] != 0) break;
+            }
+        }
 
 
 
