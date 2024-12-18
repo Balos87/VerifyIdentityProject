@@ -12,6 +12,7 @@ using Android.App;
 using Xamarin.Google.Crypto.Tink.Subtle;
 using Microsoft.Maui.Controls;
 using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
+using VerifyIdentityProject.Platforms.Android.Commands;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -50,12 +51,24 @@ namespace VerifyIdentityProject.Platforms.Android
                 isoDep.Connect();
                 isoDep.Timeout = 20000;
 
-                byte[] selectApdu = new byte[] {
-                    0x00, 0xA4, 0x04, 0x0C, 0x07,
-                    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00
+                // New design?
+                var selectCommand = new ApduCommand
+                {
+                    Class = CLA.SelectFile,
+                    Instruction = INS.Select,
+                    Parameter1 = P1.SelectById,
+                    Parameter2 = P2.FirstOrOnlyOccurrence,
+                    Data = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 }
                 };
 
+                // Old news.
+                //byte[] selectApdu = new byte[] {
+                //    0x00, 0xA4, 0x04, 0x0C, 0x07,
+                //    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00                };
+
+                byte[] selectApdu = selectCommand.ToByteArray();
                 Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
+
                 byte[] response = isoDep.Transceive(selectApdu);
 
                 if (!IsSuccessfulResponse(response))
