@@ -14,6 +14,7 @@ using Microsoft.Maui.Controls;
 using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
 using System.Runtime.Intrinsics.X86;
 using System.Reflection.PortableExecutable;
+using System.Runtime.Intrinsics.Arm;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -295,7 +296,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU)}");
 
                 byte[] RAPDU2 = { 0x99 ,0x02 ,0x90 ,0x00 ,0x8E ,0x08 ,0xFA ,0x85 ,0x5A ,0x5D ,0x4C ,0x50 ,0xA8 ,0xED ,0x90 ,0x00 }; // - Dummy/test data
-                Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU2)}");
+                Console.WriteLine($"APDU2 Response: {BitConverter.ToString(RAPDU2)}");
 
                 //----------------------------------------------------------------------- 4. Verify RAPDU CC by computing MAC of DO‘99’:
 
@@ -316,6 +317,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] ccMac = ComputeMac3DES(kNoPad, KSMacParitet);
                 Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
+                //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES.
                 var extractedDO8E = ExtractDO8E(RAPDU2);
                 bool isEqual = ccMac.SequenceEqual(extractedDO8E);
                 if ( isEqual )
@@ -325,7 +327,55 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
 
+                //----------------------------------------------------------------------- 1 Read Binary of first four bytes
 
+                //----------------------------------------------------------------------- 1.1 CmdHeader = ‘0CB0000080000000’Read Binary of first four bytes  - RÄTT
+                byte[] rBCmdHeader = new byte[]
+                {
+                    0x0C, 0xB0, 0x00, 0x00, // CLA, INS, P1, P2
+                    0x80, 0x00, 0x00, 0x00  // Padding (Mask) 
+                };
+                Console.WriteLine($"CmdHeader (RB): {BitConverter.ToString(rBCmdHeader)}");
+
+                //----------------------------------------------------------------------- 1.2 Build DO‘97’: DO97 = ‘970104’  - RÄTT
+                byte[] DO97 = new byte[] { 0x97, 0x01, 0x04 };
+                Console.WriteLine($"DO97: {BitConverter.ToString(DO97)}");
+
+                //----------------------------------------------------------------------- 1.3 Concatenate CmdHeader and DO‘97’: M = ‘0C-B0-00-00-80-00-00-00-97-01-04 - Recieved: 0C-B0-00-04-80-00-00-00-97-01-04 - RÄTT
+                byte[] rbM = rBCmdHeader.Concat(DO97).ToArray();
+                Console.WriteLine($"M (RB): {BitConverter.ToString(rbM)}");
+
+                //----------------------------------------------------------------------- 1.4 Compute MAC of M:
+
+                //----------------------------------------------------------------------- 1.4.1 Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-29’ - Recieved: 88-70-22-12-0C-06-C2-29 - RÄTT
+                IncrementSSC(ref SSC);
+                Console.WriteLine($"Incremented SSC (RB): {BitConverter.ToString(SSC)}");
+
+                //----------------------------------------------------------------------- 1.4.2 Concatenate SSC and M and add padding: N = ‘88-70-22-12-0C-06-C2-29-0C-B0-00-00-80-00-00-00-97-01-04-80-00-00-00-00 - RÄTT
+                //                                                                                                                Recieved: 88-70-22-12-0C-06-C2-29-0C-B0-00-00-80-00-00-00-97-01-04-80-00-00-00-00
+                byte[] rbN = PadIso9797Method2(SSC.Concat(rbM).ToArray());
+                Console.WriteLine($"N - (RB) Padded data for MAC: {BitConverter.ToString(rbN)}");
+
+                //----------------------------------------------------------------------- 1.4.3 Compute MAC over N with KSMAC CC = ‘ED-67-05-41-7E-96-BA-55’ - Recieved: ED-67-05-41-7E-96-BA-55 - RÄTT
+                byte[] nNoPad = SSC.Concat(rbM).ToArray(); //removed pad so compute can work!
+                byte[] nCC = ComputeMac3DES(nNoPad, KSMacParitet);
+                Console.WriteLine($"CC (RB) Computed MAC: {BitConverter.ToString(nCC)}");
+
+                //----------------------------------------------------------------------- 1.5 Build DO‘8E’: DO8E = ‘8E-08-ED-67-05-41-7E-96-BA-55' - Recieved: 8E-08-ED-67-05-41-7E-96-BA-55’ - RÄTT
+                byte[] DO8Erb = BuildDO8E(nCC);
+                Console.WriteLine($"DO8E (RB): {BitConverter.ToString(DO8Erb)}");
+
+                //----------------------------------------------------------------------- 1.6 Construct and send protected APDU: ProtectedAPDU = ‘0C-B0-00-00-0D-97-01-04-8E-08-ED-67-05-41-7E-96-BA-55-00’ - RÄTT
+                //                                                                                                                      Recieved: 0C-B0-00-00-0D-97-01-04-8E-08-ED-67-05-41-7E-96-BA-55-00
+                byte[] protectedAPDURb = ConstructProtectedAPDU(rBCmdHeader, DO97, DO8Erb);
+                Console.WriteLine($"Protected APDU (RB): {BitConverter.ToString(protectedAPDURb)}");
+
+                //------------------------------------------------------ 1.7 Send and Receive response APDU of eMRTD’s contactless IC: RAPDU = ‘87-09-01-9F-F0-EC-34-F9-92-26-51-99-02-90-00-8E-08-AD-55-CC-17-14-0B-2D-ED-90-00’ - RÄTT
+                //                                                                                                                 Recieved: 87-09-01-4E-37-E5-E5-D8-C2-E7-AF-99-02-90-00-8E-08-A1-A6-98-3B-8D-6A-0D-54-90-00
+                byte[] RAPDUrb = isoDep.Transceive(protectedAPDURb);
+                Console.WriteLine($"APDU Response (RB): {BitConverter.ToString(RAPDUrb)}");
+
+                //----------------------------------------------------------------------- 1. Verify RAPDU CC by computing MAC of concatenation DO‘87’ and DO‘99’:
 
                 return true;
 
