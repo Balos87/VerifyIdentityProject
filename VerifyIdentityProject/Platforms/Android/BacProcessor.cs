@@ -471,6 +471,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] DO8ERb2 = BuildDO8E(CCRb2);
                 Console.WriteLine($"DO8E -Read Binary2: {BitConverter.ToString(DO8ERb2)}");
 
+                //-----------------------------------------------------------------------f. Construct and send protected APDU: ProtectedAPDU = ‘0C-B0-00-04-0D-97-01-12-8E-08-2E-A2-8A-70-F3-C7-B5-35-00’
+                //                                                                                                                    Recieved: 0C-B0-00-04-0D-97-01-12-8E-08-2E-A2-8A-70-F3-C7-B5-35-00
+                byte[] protectedAPDURb2 = ConstructProtectedAPDU(cmdHeaderRb2, DO97Rb2, DO8ERb2);
+                Console.WriteLine($"Protected APDU -Read Binary2: {BitConverter.ToString(protectedAPDURb2)}");
 
                 return true;
 
