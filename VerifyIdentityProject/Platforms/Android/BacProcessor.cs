@@ -434,6 +434,43 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 //----------------------------------------------------------------------- 3.Read Binary of remaining 18 bytes from offset 4:
+                Console.WriteLine("----------------------------------------------------------------------- 3.Read Binary of remaining 18 bytes from offset 4: ");
+                byte[] SSC3 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2A };
+                byte[] KsEncPart3 = { 0x97 ,0x9E ,0xC1 ,0x3B ,0x1C ,0xBF ,0xE9 ,0xDC ,0xD0 ,0x1A ,0xB0 ,0xFE ,0xD3 ,0x07 ,0xEA ,0xE5 };
+                byte[] KsMacPart3 = { 0xF1, 0xCB, 0x1F, 0x1F, 0xB5, 0xAD, 0xF2, 0x08, 0x80, 0x6B, 0x89, 0xDC, 0x57, 0x9D, 0xC1, 0xF8 };
+
+
+                //-----------------------------------------------------------------------a Mask class byte and pad command header: CmdHeader = ‘0C-B0-00-04-80-00-00-00’ - 0C-B0-00-04-80-00-00-00 - Rätt
+                byte[] cmdHeaderRb2 = { 0x0C, 0xB0, 0x00, 0x04, 0x80, 0x00, 0x00, 0x00 }; 
+                Console.WriteLine($"CmdHeader -Read Binary2: {BitConverter.ToString(cmdHeaderRb2)}");
+
+                //-----------------------------------------------------------------------b: Build DO‘97’: DO97 = ‘97-01-12 - 97-01-12 - Rätt
+                byte[] DO97Rb2 = { 0x97, 0x01, 0x12 }; // Le = 18 (0x12)
+                Console.WriteLine($"DO97 -Read Binary2: {BitConverter.ToString(DO97Rb2)}");
+
+                ////-----------------------------------------------------------------------c:Concatenate CmdHeader and DO‘97’: M = ‘0C-B0-00-04-80-00-00-00-97-01-12’ - 0C-B0-00-04-80-00-00-00-97-01-12 - Rätt
+                byte[] mRb2 = cmdHeaderRb2.Concat(DO97Rb2).ToArray();
+                Console.WriteLine($"M -Read Binary2: {BitConverter.ToString(mRb2)}");
+
+                //-----------------------------------------------------------------------d: Compute MAC of M:
+                //-----------------------------------------------------------------------i. Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-2B’ - 88-70-22-12-0C-06-C2-2B - Rätt
+                IncrementSSC(ref SSC3);
+                Console.WriteLine($"SSC -Read Binary2: {BitConverter.ToString(SSC3)}");
+
+                //-----------------------------------------------------------------------ii. Concatenate SSC and M and add padding: N = ‘88-70-22-12-0C-06-C2-2B-0C-B0-00-04-80-00-00-00-97-01-12-80-00-00-00-00 - Rätt
+                //                                                                                                             Recieved: 88-70-22-12-0C-06-C2-2B-0C-B0-00-04-80-00-00-00-97-01-12-80-00-00-00-00
+                byte[] paddedN = PadIso9797Method2(SSC3.Concat(mRb2).ToArray());
+                Console.WriteLine($"Padded N -Read Binary2: {BitConverter.ToString(paddedN)}");
+
+                byte[] noPadN = SSC3.Concat(mRb2).ToArray();
+                //-----------------------------------------------------------------------iii. Compute MAC over N with KSMAC: CC = ‘2E-A2-8A-70-F3-C7-B5-35’ - 2E-A2-8A-70-F3-C7-B5-35 - Rätt
+                byte[] CCRb2 = ComputeMac3DES(noPadN, KsMacPart3);
+                Console.WriteLine($"CC -Read Binary2: {BitConverter.ToString(CCRb2)}");
+
+                //-----------------------------------------------------------------------e. Build DO‘8E’: DO8E = ‘8E-08-2E-A2-8A-70-F3-C7-B5-35’ - 8E-08-2E-A2-8A-70-F3-C7-B5-35
+                byte[] DO8ERb2 = BuildDO8E(CCRb2);
+                Console.WriteLine($"DO8E -Read Binary2: {BitConverter.ToString(DO8ERb2)}");
+
 
                 return true;
 
