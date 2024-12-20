@@ -476,6 +476,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] protectedAPDURb2 = ConstructProtectedAPDU(cmdHeaderRb2, DO97Rb2, DO8ERb2);
                 Console.WriteLine($"Protected APDU -Read Binary2: {BitConverter.ToString(protectedAPDURb2)}");
 
+                //-----------------------------------------------------------------------g. Receive response APDU of eMRTD’s contactless IC:
+                //RAPDU = ‘871901FB9235F4E4037F2327DCC8964F1F9B8C30F42C8E2FFF224A990290008E08C8B2787EAEA07D749000
+                byte[] respApdu = isoDep.Transceive(protectedAPDURb2);
+                Console.WriteLine($"RAPDU -Read Binary2: {BitConverter.ToString(respApdu)}");
+
+
                 return true;
 
             }
