@@ -437,7 +437,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("----------------------------------------------------------------------- 3.Read Binary of remaining 18 bytes from offset 4: ");
                 byte[] SSC3 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2A };
                 byte[] KsEncPart3 = { 0x97 ,0x9E ,0xC1 ,0x3B ,0x1C ,0xBF ,0xE9 ,0xDC ,0xD0 ,0x1A ,0xB0 ,0xFE ,0xD3 ,0x07 ,0xEA ,0xE5 };
-                byte[] KsMacPart3 = { 0xF1, 0xCB, 0x1F, 0x1F, 0xB5, 0xAD, 0xF2, 0x08, 0x80, 0x6B, 0x89, 0xDC, 0x57, 0x9D, 0xC1, 0xF8 };
+                byte[] KSMacParitet3 = { 0xF1, 0xCB, 0x1F, 0x1F, 0xB5, 0xAD, 0xF2, 0x08, 0x80, 0x6B, 0x89, 0xDC, 0x57, 0x9D, 0xC1, 0xF8 };
 
 
                 //-----------------------------------------------------------------------a Mask class byte and pad command header: CmdHeader = ‘0C-B0-00-04-80-00-00-00’ - 0C-B0-00-04-80-00-00-00 - Rätt
@@ -454,33 +454,72 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 //-----------------------------------------------------------------------d: Compute MAC of M:
                 //-----------------------------------------------------------------------i. Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-2B’ - 88-70-22-12-0C-06-C2-2B - Rätt
-                IncrementSSC(ref SSC3);
-                Console.WriteLine($"SSC -Read Binary2: {BitConverter.ToString(SSC3)}");
+                IncrementSSC(ref SSC);
+                Console.WriteLine($"SSC -Read Binary2: {BitConverter.ToString(SSC)}");
 
                 //-----------------------------------------------------------------------ii. Concatenate SSC and M and add padding: N = ‘88-70-22-12-0C-06-C2-2B-0C-B0-00-04-80-00-00-00-97-01-12-80-00-00-00-00 - Rätt
                 //                                                                                                             Recieved: 88-70-22-12-0C-06-C2-2B-0C-B0-00-04-80-00-00-00-97-01-12-80-00-00-00-00
-                byte[] paddedN = PadIso9797Method2(SSC3.Concat(mRb2).ToArray());
+                byte[] paddedN = PadIso9797Method2(SSC.Concat(mRb2).ToArray());
                 Console.WriteLine($"Padded N -Read Binary2: {BitConverter.ToString(paddedN)}");
 
-                byte[] noPadN = SSC3.Concat(mRb2).ToArray();
+                byte[] noPadN = SSC.Concat(mRb2).ToArray();
                 //-----------------------------------------------------------------------iii. Compute MAC over N with KSMAC: CC = ‘2E-A2-8A-70-F3-C7-B5-35’ - 2E-A2-8A-70-F3-C7-B5-35 - Rätt
-                byte[] CCRb2 = ComputeMac3DES(noPadN, KsMacPart3);
+                byte[] CCRb2 = ComputeMac3DES(noPadN, KSMacParitet); //KSMacParitet
                 Console.WriteLine($"CC -Read Binary2: {BitConverter.ToString(CCRb2)}");
 
-                //-----------------------------------------------------------------------e. Build DO‘8E’: DO8E = ‘8E-08-2E-A2-8A-70-F3-C7-B5-35’ - 8E-08-2E-A2-8A-70-F3-C7-B5-35
+                //-----------------------------------------------------------------------e. Build DO‘8E’: DO8E = ‘8E-08-2E-A2-8A-70-F3-C7-B5-35’ - 8E-08-2E-A2-8A-70-F3-C7-B5-35 -Rätt
                 byte[] DO8ERb2 = BuildDO8E(CCRb2);
                 Console.WriteLine($"DO8E -Read Binary2: {BitConverter.ToString(DO8ERb2)}");
 
-                //-----------------------------------------------------------------------f. Construct and send protected APDU: ProtectedAPDU = ‘0C-B0-00-04-0D-97-01-12-8E-08-2E-A2-8A-70-F3-C7-B5-35-00’
+                //-----------------------------------------------------------------------f. Construct and send protected APDU: ProtectedAPDU = ‘0C-B0-00-04-0D-97-01-12-8E-08-2E-A2-8A-70-F3-C7-B5-35-00’ -Rätt
                 //                                                                                                                    Recieved: 0C-B0-00-04-0D-97-01-12-8E-08-2E-A2-8A-70-F3-C7-B5-35-00
                 byte[] protectedAPDURb2 = ConstructProtectedAPDU(cmdHeaderRb2, DO97Rb2, DO8ERb2);
                 Console.WriteLine($"Protected APDU -Read Binary2: {BitConverter.ToString(protectedAPDURb2)}");
 
-                //-----------------------------------------------------------------------g. Receive response APDU of eMRTD’s contactless IC:
-                //RAPDU = ‘871901FB9235F4E4037F2327DCC8964F1F9B8C30F42C8E2FFF224A990290008E08C8B2787EAEA07D749000
+                //-----------------------------------------------------------------------g. Receive response APDU of eMRTD’s contactless IC:                - ?-Rätt
+                //RAPDU = ‘87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00-8E-08-C8-B2-78-7E-AE-A0-7D-74-90-00  
+                //Recieved:87-19-01-C0-A5-32-C4-18-BD-7E-F1-FF-B0-84-EB-3F-D5-3F-EE-31-C2-8D-56-F2-6C-22-F2-99-02-90-00-8E-08-FC-7E-92-72-18-DC-21-E0-90-00 This answer is with my passport. dummyData shows 69-88.
                 byte[] respApdu = isoDep.Transceive(protectedAPDURb2);
                 Console.WriteLine($"RAPDU -Read Binary2: {BitConverter.ToString(respApdu)}");
 
+                byte[] respApdu2 = { 0x87, 0x19, 0x01, 0xFB, 0x92, 0x35, 0xF4, 0xE4, 0x03, 0x7F, 0x23, 0x27, 0xDC, 0xC8, 0x96, 0x4F, 0x1F, 0x9B, 0x8C, 0x30, 0xF4, 0x2C, 0x8E, 0x2F, 0xFF, 0x22, 0x4A, 0x99, 0x02, 0x90, 0x00, 0x8E, 0x08, 0xC8, 0xB2, 0x78, 0x7E, 0xAE, 0xA0, 0x7D, 0x74, 0x90, 0x00 };
+
+                //-----------------------------------------------------------------------h. Verify RAPDU CC by computing MAC of concatenation DO‘87’ and DO‘99’
+
+                //-----------------------------------------------------------------------i.Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-2C’ - 88-70-22-12-0C-06-C2-2C -Rätt
+                IncrementSSC(ref SSC);
+                Console.WriteLine($"SSC -Read Binary2 RAPDU: {BitConverter.ToString(SSC)}");
+
+                //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
+                //                                                                          K = ‘88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00’ - Rätt
+                //                                                                     Recieved: 88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-7D-74-90-00
+                byte[] extractedDO87Erb2 = ExtractDO87FromRAPDU(respApdu);
+                Console.WriteLine($"Extracted DO87E -Read Binary2: {BitConverter.ToString(extractedDO87Erb2)}");
+                byte[] Do99rb2 = ExtractDO99FromRAPDU(respApdu);
+                Console.WriteLine($"Extracted DO99 -Read Binary2: {BitConverter.ToString(Do99rb2)}");
+                //byte[] kRb2 = PadIso9797Method2(SSC.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray()); //comment this out because it added extra padding(80) at the end. EC-74-6B-6A-C9-2F-E5-F2
+                byte[] kRb2 = SSC.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray();
+                Console.WriteLine($"K - (Read Binary2) Padded-data: {BitConverter.ToString(kRb2)}");
+
+                //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’
+                byte[] CC3 = ComputeMac3DES(kRb2, KSMacParitet); //KSMacParitet
+                Console.WriteLine($"CC -Read Binary2 RAPDU: {BitConverter.ToString(CC3)}");
+
+                //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8B2787EAEA07D74’ ? YES.
+                byte[] extractedDO8E2 = ExtractDO8E(respApdu);
+                Console.WriteLine($"DO8E -Read Binary2 RAPDU: {BitConverter.ToString(extractedDO8E2)}");
+
+                if (!CC3.SequenceEqual(extractedDO8E2))
+                {
+                    Console.WriteLine("CC mismatch! RAPDU validation failed.");
+                }
+                else
+                {
+                Console.WriteLine("CC verification succeeded.");
+
+                }
+                //-----------------------------------------------------------------------ivv) Decrypt data of DO‘87’ with KSEnc: DecryptedData = ‘04303130365F36063034303030305C026175’
+                //----------------------------------------------------------------------- RESULT: EF.COM data = ‘60145F0104303130365F36063034303030305C026175
 
                 return true;
 
@@ -871,6 +910,27 @@ namespace VerifyIdentityProject.Platforms.Android
             throw new InvalidOperationException("DO87 not found in RAPDU.");
         }
 
+        private byte[] ExtractDO99FromRAPDU(byte[] rapdu)
+        {
+            // Kontrollera att RAPDU är tillräckligt lång för att innehålla DO99 och SW1-SW2
+            if (rapdu.Length < 4)
+            {
+                throw new ArgumentException("RAPDU är för kort för att innehålla DO99 och statusbytes (SW1-SW2).");
+            }
+
+            // DO99 är vanligtvis precis innan SW1-SW2 i RAPDU
+            int do99Length = 4; // DO99 är 4 bytes: tag (1 byte), längd (1 byte), och data (2 bytes)
+            int do99StartIndex = rapdu.Length - do99Length;
+
+            // Extrahera DO99
+            byte[] do99 = new byte[do99Length];
+            Array.Copy(rapdu, do99StartIndex, do99, 0, do99Length);
+
+            // Logga resultatet
+            Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
+
+            return do99;
+        }
 
 
         private bool IsSuccessfulResponse(byte[] response)
