@@ -490,23 +490,32 @@ namespace VerifyIdentityProject.Platforms.Android
                 IncrementSSC(ref SSC);
                 Console.WriteLine($"SSC -Read Binary2 RAPDU: {BitConverter.ToString(SSC)}");
 
+                byte[] SSC4 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2C };
+                Console.WriteLine($"SSC4 -Read Binary2 RAPDU: {BitConverter.ToString(SSC4)}");
+
+
                 //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
                 //                                                                          K = ‘88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00’ - Rätt
-                //                                                                     Recieved: 88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-7D-74-90-00
-                byte[] extractedDO87Erb2 = ExtractDO87FromRAPDU(respApdu);
+                //                                                 [DOTNET] RAPDU -Read Binary2: 88-70-22-12-0C-06-C2-2A-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00
+                byte[] extractedDO87Erb2 = ExtractDO87FromRAPDU(respApdu2);
                 Console.WriteLine($"Extracted DO87E -Read Binary2: {BitConverter.ToString(extractedDO87Erb2)}");
-                byte[] Do99rb2 = ExtractDO99FromRAPDU(respApdu);
+                byte[] Do99rb2 = ExtractDO99FromRAPDU(respApdu2);
                 Console.WriteLine($"Extracted DO99 -Read Binary2: {BitConverter.ToString(Do99rb2)}");
                 //byte[] kRb2 = PadIso9797Method2(SSC.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray()); //comment this out because it added extra padding(80) at the end. EC-74-6B-6A-C9-2F-E5-F2
-                byte[] kRb2 = SSC.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray();
+                byte[] kRb2 = SSC4.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray();
                 Console.WriteLine($"K - (Read Binary2) Padded-data: {BitConverter.ToString(kRb2)}");
 
-                //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’
-                byte[] CC3 = ComputeMac3DES(kRb2, KSMacParitet); //KSMacParitet
+                Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
+
+                VerifyRapduCC(respApdu2, SSC4, KSMacParitet3);
+                Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
+
+                //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’ - C8-B2-78-7E-AE-A0-7D-74
+                byte[] CC3 = ComputeMac3DES(kRb2, KSMacParitet3); //KSMacParitet
                 Console.WriteLine($"CC -Read Binary2 RAPDU: {BitConverter.ToString(CC3)}");
 
                 //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8B2787EAEA07D74’ ? YES.
-                byte[] extractedDO8E2 = ExtractDO8E(respApdu);
+                byte[] extractedDO8E2 = ExtractDO8E(respApdu2);
                 Console.WriteLine($"DO8E -Read Binary2 RAPDU: {BitConverter.ToString(extractedDO8E2)}");
 
                 if (!CC3.SequenceEqual(extractedDO8E2))
@@ -530,6 +539,118 @@ namespace VerifyIdentityProject.Platforms.Android
                 return false;
             }
         }
+        //----------------------------------------------------------------------- K och CC rätt
+
+        public void VerifyRapduCC(byte[] rapdu, byte[] ssc, byte[] ksMac)
+        {
+            Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
+
+            // 1. Extrahera DO87 och DO99 från RAPDU
+            byte[] do87 = ExtractDO87(rapdu);
+            byte[] do99 = ExtractDO99(rapdu);
+
+            Console.WriteLine($"ksMac: {BitConverter.ToString(ksMac)}");
+            Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
+            Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
+            Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
+
+            
+            Console.WriteLine($"Updated SSC: {BitConverter.ToString(ssc)}");
+
+            // 3. Bygg N = SSC || DO87 || DO99 och lägg till padding
+            byte[] concatenatedData = ssc.Concat(do87).Concat(do99).ToArray();
+            byte[] paddedData = PadIso9797Method2(concatenatedData);
+
+            Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
+            Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+
+            // 4. Beräkna MAC över N med KSMAC
+            byte[] calculatedMac = ComputeMac3DES2(concatenatedData, ksMac);
+            Console.WriteLine($"Calculated MAC: {BitConverter.ToString(calculatedMac)}");
+
+            // 5. Extrahera CC från DO8E i RAPDU
+            byte[] do8e = ExtractDO8E2(rapdu);
+            Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
+
+            byte[] ccFromRapdu = do8e.Skip(11).Take(8).ToArray(); // Tar ut CC från DO8E (första 2 bytes är tag och längd)
+
+            Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
+
+            // 6. Jämför MAC med CC från RAPDU
+            if (calculatedMac.SequenceEqual(ccFromRapdu))
+            {
+                Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
+            }
+            else
+            {
+                Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
+            }
+        }
+        private byte[] ComputeMac3DES2(byte[] data, byte[] ksMac)
+        {
+            if (ksMac.Length != 16 && ksMac.Length != 24)
+                throw new ArgumentException("Key length must be 16 or 24 bytes for 3DES.");
+
+            // Dela upp nyckeln
+            byte[] key1 = ksMac.Take(8).ToArray();
+            byte[] key2 = ksMac.Skip(8).Take(8).ToArray();
+
+            using (var des1 = DES.Create())
+            using (var des2 = DES.Create())
+            {
+                des1.Key = key1;
+                des1.Mode = CipherMode.CBC;
+                des1.Padding = PaddingMode.None;
+                des1.IV = new byte[8];
+
+                des2.Key = key2;
+                des2.Mode = CipherMode.CBC;
+                des2.Padding = PaddingMode.None;
+                des2.IV = new byte[8];
+
+                // Lägg till padding
+                byte[] paddedData = PadIso9797Method2(data);
+
+                // MAC steg 1: Kryptera
+                byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
+
+                // MAC steg 2: Dekryptera
+                byte[] decrypted = des2.CreateDecryptor().TransformFinalBlock(intermediate, intermediate.Length - 8, 8);
+
+                // MAC steg 3: Kryptera igen
+                return des1.CreateEncryptor().TransformFinalBlock(decrypted, 0, 8);
+            }
+        }
+
+        private byte[] ExtractDO8E2(byte[] rapdu)
+        {
+            // DO8E startar med taggen 0x8E
+            int index = Array.IndexOf(rapdu, (byte)0x8E);
+            if (index == -1) throw new InvalidOperationException("DO8E not found in RAPDU.");
+
+            int length = rapdu[index + 1]; // DO8E längd
+            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Längd + Data
+        }
+
+        private byte[] ExtractDO87(byte[] rapdu)
+        {
+            // DO87 startar med taggen 0x87
+            int index = Array.IndexOf(rapdu, (byte)0x87);
+            if (index == -1) throw new InvalidOperationException("DO87 not found in RAPDU.");
+
+            int length = rapdu[index + 1]; // DO87 längd
+            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Längd + Data
+        }
+
+        private byte[] ExtractDO99(byte[] rapdu)
+        {
+            // DO99 startar med taggen 0x99
+            int index = Array.IndexOf(rapdu, (byte)0x99);
+            if (index == -1) throw new InvalidOperationException("DO99 not found in RAPDU.");
+
+            return rapdu.Skip(index).Take(4).ToArray(); // Tag (0x99) + 2 bytes data + 2 bytes SW
+        }
+        //----------------------------------------------------------------------- K och CC rätt
 
 
         private byte[] EncryptWithKEnc3DES(byte[] data, byte[] KEnc)
