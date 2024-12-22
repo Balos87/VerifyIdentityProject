@@ -544,6 +544,7 @@ namespace VerifyIdentityProject.Platforms.Android
         public void VerifyRapduCC(byte[] rapdu, byte[] ssc, byte[] ksMac)
         {
             Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
+            byte[] KsEncPart3 = { 0x97, 0x9E, 0xC1, 0x3B, 0x1C, 0xBF, 0xE9, 0xDC, 0xD0, 0x1A, 0xB0, 0xFE, 0xD3, 0x07, 0xEA, 0xE5 };
 
             // 1. Extrahera DO87 och DO99 från RAPDU
             byte[] do87 = ExtractDO87(rapdu);
@@ -585,6 +586,10 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
             }
+
+            byte[] DecryptedData = DecryptDO87WithKSEnc(do8e, KsEncPart3);
+            Console.WriteLine($"DecryptedData: {BitConverter.ToString(DecryptedData)}");
+
         }
         private byte[] ComputeMac3DES2(byte[] data, byte[] ksMac)
         {
@@ -650,6 +655,59 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return rapdu.Skip(index).Take(4).ToArray(); // Tag (0x99) + 2 bytes data + 2 bytes SW
         }
+        //----------------------------------------------------------------------- last in not sure
+
+        private byte[] DecryptDO87WithKSEnc(byte[] do87, byte[] ksEnc)
+        {
+            // Kontrollera att DO87 är korrekt strukturerad
+            if (do87[0] != 0x87) throw new InvalidOperationException("Invalid DO87 structure. Missing 0x87 tag.");
+
+            // Extrahera den krypterade datan från DO87
+            int dataLength = do87[1] - 1; // Minska 1 för indikator (0x01)
+            if (dataLength <= 0 || dataLength + 2 > do87.Length)
+                throw new InvalidOperationException("Invalid DO87 data length.");
+
+            byte[] encryptedData = do87.Skip(3).Take(dataLength).ToArray();
+            Console.WriteLine($"Encrypted Data: {BitConverter.ToString(encryptedData)}");
+
+            // Dekryptera med KSEnc
+            using (var tripleDes = TripleDES.Create())
+            {
+                tripleDes.Key = ksEnc;
+                tripleDes.Mode = CipherMode.CBC;
+                tripleDes.Padding = PaddingMode.None;
+                tripleDes.IV = new byte[8]; // IV = 8 nollbytes
+
+                using (var decryptor = tripleDes.CreateDecryptor())
+                {
+                    byte[] decryptedData = decryptor.TransformFinalBlock(encryptedData, 0, encryptedData.Length);
+                    Console.WriteLine($"Decrypted Data: {BitConverter.ToString(decryptedData)}");
+
+                    // Returnera utan padding
+                    return RemovePadding(decryptedData);
+                }
+            }
+        }
+
+        private byte[] RemovePadding(byte[] data)
+        {
+            int unpaddedLength = data.Length;
+            while (unpaddedLength > 0 && data[unpaddedLength - 1] == 0x00)
+            {
+                unpaddedLength--;
+            }
+
+            // Kontrollera ISO-9797-1 Padding Metod 2 (sista byte ska vara 0x80)
+            if (unpaddedLength > 0 && data[unpaddedLength - 1] == 0x80)
+            {
+                unpaddedLength--;
+            }
+
+            return data.Take(unpaddedLength).ToArray();
+        }
+        //----------------------------------------------------------------------- last in
+
+
         //----------------------------------------------------------------------- K och CC rätt
 
 
