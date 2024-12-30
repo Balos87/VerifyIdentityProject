@@ -493,42 +493,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] SSC4 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2C };
                 Console.WriteLine($"SSC4 -Read Binary2 RAPDU: {BitConverter.ToString(SSC4)}");
 
-
-                //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
-                //                                                                          K = ‘88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00’ - Rätt
-                //                                                 [DOTNET] RAPDU -Read Binary2: 88-70-22-12-0C-06-C2-2A-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00
-                byte[] extractedDO87Erb2 = ExtractDO87FromRAPDU(respApdu2);
-                Console.WriteLine($"Extracted DO87E -Read Binary2: {BitConverter.ToString(extractedDO87Erb2)}");
-                byte[] Do99rb2 = ExtractDO99FromRAPDU(respApdu2);
-                Console.WriteLine($"Extracted DO99 -Read Binary2: {BitConverter.ToString(Do99rb2)}");
-                //byte[] kRb2 = PadIso9797Method2(SSC.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray()); //comment this out because it added extra padding(80) at the end. EC-74-6B-6A-C9-2F-E5-F2
-                byte[] kRb2 = SSC4.Concat(extractedDO87Erb2).Concat(Do99rb2).ToArray();
-                Console.WriteLine($"K - (Read Binary2) Padded-data: {BitConverter.ToString(kRb2)}");
-
                 Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
 
-                VerifyRapduCC(respApdu2, SSC4, KSMacParitet3);
+                VerifyRapduCC(respApdu, SSC, KSMacParitet, KSEncParitet);
+                //----------------------------------------------------------------------- RESULT: EF.COM data = ‘60-14-5F-01-04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75
+                //                                                                                               60-14-5F-01-04-30-31-30-37-5F-36-06-30-34-30-30-30-30-5C-06-61-75
                 Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
-
-                //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’ - C8-B2-78-7E-AE-A0-7D-74
-                byte[] CC3 = ComputeMac3DES(kRb2, KSMacParitet3); //KSMacParitet
-                Console.WriteLine($"CC -Read Binary2 RAPDU: {BitConverter.ToString(CC3)}");
-
-                //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8B2787EAEA07D74’ ? YES.
-                byte[] extractedDO8E2 = ExtractDO8E(respApdu2);
-                Console.WriteLine($"DO8E -Read Binary2 RAPDU: {BitConverter.ToString(extractedDO8E2)}");
-
-                if (!CC3.SequenceEqual(extractedDO8E2))
-                {
-                    Console.WriteLine("CC mismatch! RAPDU validation failed.");
-                }
-                else
-                {
-                Console.WriteLine("CC verification succeeded.");
-
-                }
-                //-----------------------------------------------------------------------ivv) Decrypt data of DO‘87’ with KSEnc: DecryptedData = ‘04303130365F36063034303030305C026175’
-                //----------------------------------------------------------------------- RESULT: EF.COM data = ‘60145F0104303130365F36063034303030305C026175
 
                 return true;
 
@@ -541,12 +511,15 @@ namespace VerifyIdentityProject.Platforms.Android
         }
         //----------------------------------------------------------------------- K och CC rätt
 
-        public void VerifyRapduCC(byte[] rapdu, byte[] ssc, byte[] ksMac)
+        public void VerifyRapduCC(byte[] rapdu, byte[] ssc, byte[] ksMac, byte[] ksEnc)
         {
             Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
-            byte[] KsEncPart3 = { 0x97, 0x9E, 0xC1, 0x3B, 0x1C, 0xBF, 0xE9, 0xDC, 0xD0, 0x1A, 0xB0, 0xFE, 0xD3, 0x07, 0xEA, 0xE5 };
 
-            // 1. Extrahera DO87 och DO99 från RAPDU
+
+            //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
+            //                                                                          K = ‘88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00’ - Rätt
+            //                                                                     Recieved: 88-70-22-12-0C-06-C2-2C-87-19-01-FB-92-35-F4-E4-03-7F-23-27-DC-C8-96-4F-1F-9B-8C-30-F4-2C-8E-2F-FF-22-4A-99-02-90-00
+            // 1. Extract DO87 and DO99 from RAPDU
             byte[] do87 = ExtractDO87(rapdu);
             byte[] do99 = ExtractDO99(rapdu);
 
@@ -555,30 +528,29 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
             Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
 
-            
-            Console.WriteLine($"Updated SSC: {BitConverter.ToString(ssc)}");
 
-            // 3. Bygg N = SSC || DO87 || DO99 och lägg till padding
+            // 2. build K SSC, DO‘87’ and DO‘99’ and add padding
             byte[] concatenatedData = ssc.Concat(do87).Concat(do99).ToArray();
             byte[] paddedData = PadIso9797Method2(concatenatedData);
 
             Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
             Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
 
-            // 4. Beräkna MAC över N med KSMAC
-            byte[] calculatedMac = ComputeMac3DES2(concatenatedData, ksMac);
-            Console.WriteLine($"Calculated MAC: {BitConverter.ToString(calculatedMac)}");
+            //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’ - C8-B2-78-7E-AE-A0-7D-74 - Rätt
+            byte[] calculatedMacCC = ComputeMac3DES2(concatenatedData, ksMac);
+            Console.WriteLine($"Calculated MAC -(CC)-: {BitConverter.ToString(calculatedMacCC)}");
 
-            // 5. Extrahera CC från DO8E i RAPDU
+            //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8-B2-78-7E-AE-A0-7D-74’ ? YES. - Rätt
+            // 1. Extract DO8E from RAPDU
             byte[] do8e = ExtractDO8E2(rapdu);
             Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
 
-            byte[] ccFromRapdu = do8e.Skip(11).Take(8).ToArray(); // Tar ut CC från DO8E (första 2 bytes är tag och längd)
-
+            // 2. Extract CC from DO8E in RAPDU
+            byte[] ccFromRapdu = do8e.Skip(11).Take(8).ToArray();
             Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
 
-            // 6. Jämför MAC med CC från RAPDU
-            if (calculatedMac.SequenceEqual(ccFromRapdu))
+            // 3. Compare CC’ with data of DO‘8E’
+            if (calculatedMacCC.SequenceEqual(ccFromRapdu))
             {
                 Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
             }
@@ -587,10 +559,24 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
             }
 
-            byte[] DecryptedData = DecryptDO87WithKSEnc(do8e, KsEncPart3);
+
+            //-----------------------------------------------------------------------iVV. Decrypt data of DO‘87’ with KSEnc: DecryptedData = ‘04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75’
+            //                                                                                                                      Recieved: 04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75
+            byte[] DecryptedData = DecryptDO87WithKSEnc(do87, ksEnc);
+            byte[] efComData = BuildEfComData(DecryptedData);
+            Console.WriteLine($"EF.COM data: {BitConverter.ToString(efComData)}");
             Console.WriteLine($"DecryptedData: {BitConverter.ToString(DecryptedData)}");
 
         }
+        private byte[] BuildEfComData(byte[] decryptedData)
+        {
+            // Header för EF.COM data
+            byte[] header = { 0x60, 0x14, 0x5F, 0x01 };
+
+            // Kombinera header och avkodad data
+            return header.Concat(decryptedData).ToArray();
+        }
+
         private byte[] ComputeMac3DES2(byte[] data, byte[] ksMac)
         {
             if (ksMac.Length != 16 && ksMac.Length != 24)
