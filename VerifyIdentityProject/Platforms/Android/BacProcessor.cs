@@ -17,6 +17,7 @@ using System.Reflection.PortableExecutable;
 using System.Runtime.Intrinsics.Arm;
 using Xamarin.Google.Crypto.Tink.Util;
 using Xamarin.Google.Crypto.Tink.Prf;
+using Java.Lang.Ref;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -217,7 +218,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 //-------------------------------------------------------------------- 1.3 seperate (r) and take out Recieved-rndIfd to compare to rndIfd. If success fetch/store kIc.
                 var kIc = CheckRndIfd(r, rndIfd);
 
-                //-------------------------------------------------------------------- 2.Calculate XOR of KIFD and KIC. That gets out Kseed.
+                //-------------------------------------------------------------------- 2.Calculate XOR of KIFD(my random 16 byte random) and KIC. That gets out Kseed.
                 byte[] kSeed = ComputeKSeed(kIfd, kIc);
 
                 //-------------------------------------------------------------------- 3. Calculate session keys (KSEnc and KSMAC) according to Section 9.7.1/Appendix D.1                      -Rätt
@@ -248,7 +249,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------  1.1 Pad data: Data = ‘01-1E-80-00-00-00-00-00’ - 01-1E-80-00-00-00-00-00 - RÄTT
                 byte[] data = new byte[]
                 {
-                    0x01, 0x1E,  // File ID för EF.COM
+                    0x01, 0x01,  // File ID för EF.COM
                 };
                 byte[] paddedData = PadIso9797Method2(data);
                 Console.WriteLine($"-Data-: {BitConverter.ToString(paddedData)}");
@@ -334,6 +335,32 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 //----------------------------------------------------------------------- 1 Read Binary of first four bytes
+                Console.WriteLine("/----------------------------------------------------------------------- 1 Read Binary of first four bytes");
+                List<byte[]> dg1Segments = ReadCompleteDG1(isoDep, KSEncParitet, KSMacParitet, ref SSC);
+                if (dg1Segments.Count > 0)
+                {
+                    byte[] completeDG1 = dg1Segments.SelectMany(segment => segment).ToArray();
+                    Console.WriteLine($"Complete DG1 Data: {BitConverter.ToString(completeDG1)}");
+
+                    Console.WriteLine($"Parsed nya");
+                    var text = MRZByteParser.ParseMRZBytes(completeDG1);
+                    var klar = MRZByteParser.FormatMRZForBAC(text);
+                    Console.WriteLine($"text {text}");
+                    Console.WriteLine($"klar {klar}");
+
+                    var parsedMRZ = ParseMRZ(klar);
+                    foreach (var field in parsedMRZ)
+                    {
+                        Console.WriteLine($"{field.Key}: {field.Value}");
+                    }
+
+                    Console.WriteLine($"Parsed annorlunda");
+                    DG1Parser.ParseAndPresentDG1(completeDG1);
+                }
+                else
+                {
+                    Console.WriteLine("Failed to read DG1.");
+                }
 
                 //----------------------------------------------------------------------- 1.1 CmdHeader = ‘0C-B0-00-00-80-00-00-00’Read Binary of first four bytes -- RÄTT
                 byte[] rBCmdHeader = new byte[]
@@ -420,13 +447,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 var encryptDataFromDO87 = ExtractEncryptedDataFromDO87(extractedDO87);
                 Console.WriteLine($"Extracted Ecnrypted-data from DO87: {BitConverter.ToString(encryptDataFromDO87)}");
 
-                byte[] rapduEncryptedData = DecryptWithKEnc3DES(encryptDataFromDO87, KSEncParitet); //KSEncParitet
-                Console.WriteLine($"Decrypted Data with KsEnc: {BitConverter.ToString(rapduEncryptedData)}");
+                byte[] rapduDecryptedData = DecryptWithKEnc3DES(encryptDataFromDO87, KSEncParitet); //KSEncParitet
+                Console.WriteLine($"Decrypted Data with KsEnc: {BitConverter.ToString(rapduDecryptedData)}");
 
 
                 //----------------------------------------------------------------------- 1.7 Determine length of structure: L = ‘14’ +2 = 22 bytes
                 // Extrahera längden från TLV-strukturen
-                byte lengthField = rapduEncryptedData[1]; // Andra byte är längdfältet
+                byte lengthField = rapduDecryptedData[1]; // Andra byte är längdfältet
                 int L = lengthField + 2; // Lägg till 2 för tag och längdfält
                 Console.WriteLine($"Determined length (L): {L} bytes");
 
@@ -482,7 +509,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] respApdu = isoDep.Transceive(protectedAPDURb2);
                 Console.WriteLine($"RAPDU -Read Binary2: {BitConverter.ToString(respApdu)}");
 
-                byte[] respApdu2 = { 0x87, 0x19, 0x01, 0xFB, 0x92, 0x35, 0xF4, 0xE4, 0x03, 0x7F, 0x23, 0x27, 0xDC, 0xC8, 0x96, 0x4F, 0x1F, 0x9B, 0x8C, 0x30, 0xF4, 0x2C, 0x8E, 0x2F, 0xFF, 0x22, 0x4A, 0x99, 0x02, 0x90, 0x00, 0x8E, 0x08, 0xC8, 0xB2, 0x78, 0x7E, 0xAE, 0xA0, 0x7D, 0x74, 0x90, 0x00 };
+                //byte[] respApdu2 = { 0x87, 0x19, 0x01, 0xFB, 0x92, 0x35, 0xF4, 0xE4, 0x03, 0x7F, 0x23, 0x27, 0xDC, 0xC8, 0x96, 0x4F, 0x1F, 0x9B, 0x8C, 0x30, 0xF4, 0x2C, 0x8E, 0x2F, 0xFF, 0x22, 0x4A, 0x99, 0x02, 0x90, 0x00, 0x8E, 0x08, 0xC8, 0xB2, 0x78, 0x7E, 0xAE, 0xA0, 0x7D, 0x74, 0x90, 0x00 };
 
                 //-----------------------------------------------------------------------h. Verify RAPDU CC by computing MAC of concatenation DO‘87’ and DO‘99’
 
@@ -490,16 +517,29 @@ namespace VerifyIdentityProject.Platforms.Android
                 IncrementSSC(ref SSC);
                 Console.WriteLine($"SSC -Read Binary2 RAPDU: {BitConverter.ToString(SSC)}");
 
-                byte[] SSC4 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2C };
-                Console.WriteLine($"SSC4 -Read Binary2 RAPDU: {BitConverter.ToString(SSC4)}");
+                //byte[] SSC4 = { 0x88, 0x70, 0x22, 0x12, 0x0C, 0x06, 0xC2, 0x2C };
+                //Console.WriteLine($"SSC4 -Read Binary2 RAPDU: {BitConverter.ToString(SSC4)}");
 
                 Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
 
-                VerifyRapduCC(respApdu, SSC, KSMacParitet, KSEncParitet);
+                VerifyRapduCC(respApdu, ref SSC, KSMacParitet, KSEncParitet);
                 //----------------------------------------------------------------------- RESULT: EF.COM data = ‘60-14-5F-01-04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75
                 //                                                                                               60-14-5F-01-04-30-31-30-37-5F-36-06-30-34-30-30-30-30-5C-06-61-75
                 Console.WriteLine("/----------------------------------------------------------------------/----------------------------------------------------------------------");
 
+                //--------------------------------------------------------------------  D.READ DG1
+                Console.WriteLine("/--------------------------------------------------------------------.READ DG1 /-------------------------------------------------------------------- ");
+
+                var svar = SelectDG1Secure(isoDep, KSEncParitet, KSMacParitet, ref SSC);
+                if (svar)
+                {
+                    Console.WriteLine("Lyckad!");
+                }
+                else
+                {
+                    Console.WriteLine("Faild");
+                }
+                Console.WriteLine("/--------------------------------------------------------------------.READ DG1 /-------------------------------------------------------------------- ");
                 return true;
 
             }
@@ -510,8 +550,142 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
         //----------------------------------------------------------------------- K och CC rätt
+        private Dictionary<string, string> ParseMRZ(string cleanMRZ)
+        {
+            // Dela upp MRZ i rader
+            string[] lines = cleanMRZ.Split('\n');
+            if (lines.Length < 2) throw new InvalidOperationException("MRZ måste innehålla minst två rader.");
 
-        public void VerifyRapduCC(byte[] rapdu, byte[] ssc, byte[] ksMac, byte[] ksEnc)
+            // Extrahera data från första raden
+            string line1 = lines[0].PadRight(44); // Säkerställ att raden har 44 tecken
+            string documentType = line1.Substring(0, 2).Trim();
+            string issuingCountry = line1.Substring(2, 3).Trim();
+            string fullName = line1.Substring(5).Replace("<<", " ").Trim();
+
+            // Extrahera data från andra raden
+            string line2 = lines[1].PadRight(44); // Säkerställ att raden har 44 tecken
+            string passportNumber = line2.Substring(0, 9).Trim();
+            char passportNumberCheckDigit = line2[9];
+            string nationality = line2.Substring(10, 3).Trim();
+            string birthDate = line2.Substring(13, 6).Trim();
+            char birthDateCheckDigit = line2[19];
+            string gender = line2.Substring(20, 1).Trim();
+            string expiryDate = line2.Substring(21, 6).Trim();
+            char expiryDateCheckDigit = line2[27];
+            string personalNumber = line2.Substring(28, 14).Trim();
+            char personalNumberCheckDigit = line2[42];
+            char finalCheckDigit = line2[43];
+
+            // Returnera parsad information
+            return new Dictionary<string, string>
+    {
+        { "Document Type", documentType },
+        { "Issuing Country", issuingCountry },
+        { "Full Name", fullName },
+        { "Passport Number", passportNumber },
+        { "Passport Number Check Digit", passportNumberCheckDigit.ToString() },
+        { "Nationality", nationality },
+        { "Birth Date", birthDate },
+        { "Birth Date Check Digit", birthDateCheckDigit.ToString() },
+        { "Gender", gender },
+        { "Expiry Date", expiryDate },
+        { "Expiry Date Check Digit", expiryDateCheckDigit.ToString() },
+        { "Personal Number", personalNumber },
+        { "Personal Number Check Digit", personalNumberCheckDigit.ToString() },
+        { "Final Check Digit", finalCheckDigit.ToString() }
+    };
+        }
+
+        public class MRZByteParser
+        {
+            public static string ParseMRZBytes(byte[] bytes)
+            {
+                if (bytes == null || bytes.Length == 0)
+                    return string.Empty;
+
+                StringBuilder mrz = new StringBuilder();
+                bool startedReading = false;
+
+                for (int i = 0; i < bytes.Length; i++)
+                {
+                    byte b = bytes[i];
+
+                    // Börja läsa efter vi hittar 'P' eller '<'
+                    if (!startedReading && (b == 0x50 || b == 0x3C))
+                    {
+                        startedReading = true;
+                    }
+
+                    if (startedReading)
+                    {
+                        // Inkludera bara giltiga MRZ-tecken
+                        if ((b >= 0x30 && b <= 0x39) ||  // Siffror
+                            (b >= 0x41 && b <= 0x5A) ||  // Stora bokstäver
+                            b == 0x3C)                   // < tecken
+                        {
+                            mrz.Append((char)b);
+                        }
+                    }
+                }
+
+                string result = mrz.ToString();
+
+                // Säkerställ att resultatet har korrekt längd för MRZ (44 tecken per rad)
+                if (result.Length >= 88)
+                {
+                    return result.Substring(0, 88);
+                }
+
+                // Fyll ut med < tecken om det behövs
+                return result.PadRight(88, '<');
+            }
+
+            public static string FormatMRZForBAC(string mrz)
+            {
+                // Säkerställ att vi har exakt två rader med 44 tecken var
+                string[] lines = new string[2];
+
+                if (mrz.Length >= 44)
+                {
+                    lines[0] = mrz.Substring(0, 44);
+                    lines[1] = mrz.Length >= 88 ? mrz.Substring(44, 44) : mrz.Substring(44).PadRight(44, '<');
+                }
+                else
+                {
+                    lines[0] = mrz.PadRight(44, '<');
+                    lines[1] = "".PadRight(44, '<');
+                }
+
+                return lines[0] + "\n" + lines[1];
+            }
+
+            public static (string DocumentNumber, string DateOfBirth, string DateOfExpiry) ExtractBACElements(string mrz)
+            {
+                // Extrahera relevanta delar för BAC
+                string documentNumber = "";
+                string dateOfBirth = "";
+                string dateOfExpiry = "";
+
+                try
+                {
+                    // Dokumentnummer finns vanligtvis i andra raden
+                    string[] lines = mrz.Split('\n');
+                    if (lines.Length >= 2)
+                    {
+                        documentNumber = lines[1].Substring(0, 9).Trim('<');
+                        dateOfBirth = lines[1].Substring(13, 6);
+                        dateOfExpiry = lines[1].Substring(21, 6);
+                    }
+                }
+                catch
+                {
+                    // Vid fel, returnera tomma strängar
+                }
+
+                return (documentNumber, dateOfBirth, dateOfExpiry);
+            }
+        }
+        public void VerifyRapduCC(byte[] rapdu, ref byte[] ssc, byte[] ksMac, byte[] ksEnc)
         {
             Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
 
@@ -546,7 +720,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
 
             // 2. Extract CC from DO8E in RAPDU
-            byte[] ccFromRapdu = do8e.Skip(11).Take(8).ToArray();
+            byte[] ccFromRapdu = do8e.Skip(2).Take(8).ToArray();
             Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
 
             // 3. Compare CC’ with data of DO‘8E’
@@ -564,10 +738,388 @@ namespace VerifyIdentityProject.Platforms.Android
             //                                                                                                                      Recieved: 04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75
             byte[] DecryptedData = DecryptDO87WithKSEnc(do87, ksEnc);
             byte[] efComData = BuildEfComData(DecryptedData);
-            Console.WriteLine($"EF.COM data: {BitConverter.ToString(efComData)}");
             Console.WriteLine($"DecryptedData: {BitConverter.ToString(DecryptedData)}");
+            Console.WriteLine($"EF.COM data: {BitConverter.ToString(efComData)}");
+            byte lengthField = DecryptedData[1]; 
+            int L = lengthField + 2;
+            Console.WriteLine($"Determined length (L): {L} bytes");
 
+
+
+            //var efData = ParseEFComData(efComData);
+
+            //ParseEfComData(efComData);
+            //DG1Parser.ParseAndPresentDG1(DecryptedData);
         }
+        public class DG1Parser
+        {
+            public static void ParseAndPresentDG1(byte[] data)
+            {
+                try
+                {
+                    // Konvertera bytes till string
+                    string mrzData = Encoding.ASCII.GetString(data);
+
+                    // Rensa bort eventuella null-bytes och trimma
+                    mrzData = new string(mrzData.Where(c => c != '\0').ToArray()).Trim();
+
+                    Console.WriteLine("\n=== Passport Data (DG1) ===\n");
+
+                    // Hantera '<' specialtecken och dela upp namnen
+                    string[] nameParts = mrzData.Split(new[] { "<<" }, StringSplitOptions.None);
+
+                    // Extrahera landkod (de första tre tecknen efter P eller I)
+                    string documentType = mrzData.Substring(0, 1);
+                    string countryCode = mrzData.Substring(1, 3);
+
+                    // Extrahera och formatera namn
+                    string surname = nameParts[0].Substring(4).Replace("<", " ").Trim();
+                    string givenNames = nameParts.Length > 1 ? nameParts[1].Replace("<", " ").Trim() : "";
+
+                    // Presentera datan på ett snyggt sätt
+                    Console.WriteLine($"Document Type: {(documentType == "P" ? "Passport" : documentType)}");
+                    Console.WriteLine($"Country Code: {countryCode}");
+                    Console.WriteLine($"Surname: {surname}");
+                    Console.WriteLine($"Given Names: {givenNames}");
+
+                    // Visa även rådatan för verifiering
+                    Console.WriteLine("\nRaw MRZ Data:");
+                    Console.WriteLine(mrzData);
+
+                    // Visa hexadecimal representation
+                    Console.WriteLine("\nHexadecimal representation:");
+                    Console.WriteLine(BitConverter.ToString(data));
+                    Console.WriteLine($"Raw data:{data}");
+
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error parsing DG1 data: {ex.Message}");
+                    Console.WriteLine("Raw data:");
+                    Console.WriteLine(BitConverter.ToString(data));
+                }
+            }
+
+            // Hjälpmetod för att konvertera MRZ-datum till läsbart format
+            private static string FormatMRZDate(string mrzDate)
+            {
+                if (mrzDate.Length != 6) return mrzDate;
+
+                try
+                {
+                    int year = int.Parse(mrzDate.Substring(0, 2));
+                    int month = int.Parse(mrzDate.Substring(2, 2));
+                    int day = int.Parse(mrzDate.Substring(4, 2));
+
+                    // Antag att år 00-99 är 1900-1999
+                    if (year < 50) year += 2000;
+                    else year += 1900;
+
+                    return $"{year:D4}-{month:D2}-{day:D2}";
+                }
+                catch
+                {
+                    return mrzDate;
+                }
+            }
+
+            // Hjälpmetod för att validera checksiffror
+            private static bool ValidateCheckDigit(string data, int checkDigitPosition)
+            {
+                if (checkDigitPosition >= data.Length) return false;
+
+                int sum = 0;
+                int[] weights = { 7, 3, 1 };
+                int weightIndex = 0;
+
+                for (int i = 0; i < checkDigitPosition; i++)
+                {
+                    char c = data[i];
+                    int value;
+
+                    if (char.IsDigit(c))
+                        value = c - '0';
+                    else if (c == '<')
+                        value = 0;
+                    else
+                        value = c - 'A' + 10;
+
+                    sum += value * weights[weightIndex];
+                    weightIndex = (weightIndex + 1) % 3;
+                }
+
+                int checkDigit = sum % 10;
+                return checkDigit.ToString()[0] == data[checkDigitPosition];
+            }
+        }
+        private byte[] ParseEFComData(byte[] efComData)
+        {
+            int index = 0;
+            byte[] value = null;
+
+            Console.WriteLine("Parsing EF.COM data...");
+
+            while (index < efComData.Length)
+            {
+                byte tag = efComData[index++];
+                Console.WriteLine($"Tag: {tag:X2}");
+
+                int length = efComData[index++];
+                Console.WriteLine($"Length: {length}");
+
+                value = efComData.Skip(index).Take(length).ToArray();
+                index += length;
+
+                Console.WriteLine($"Value: {BitConverter.ToString(value)}");
+            }
+                return value;
+        }
+        public static void ParseEfComData(byte[] efComData)
+        {
+            Console.WriteLine("Parsing EF.COM data...");
+            int index = 0;
+
+            if (efComData[index] == 0x60)
+            {
+                Console.WriteLine("Container tag (60) detected.");
+                index++;
+                int containerLength = efComData[index++];
+                Console.WriteLine($"Container Length: {containerLength}");
+                efComData = efComData.Skip(index).Take(containerLength).ToArray();
+                index = 0;
+            }
+
+            while (index < efComData.Length)
+            {
+                try
+                {
+                    int tag = efComData[index++];
+                    if ((tag & 0x1F) == 0x1F)
+                    {
+                        tag = (tag << 8) | efComData[index++];
+                    }
+
+                    int length = efComData[index++];
+
+                    if (tag == 0x5C)
+                    {
+                        Console.WriteLine($"\nAnalyzing Tag 5C (Data Group List):");
+                        Console.WriteLine($"Stated Length: {length} bytes");
+
+                        // Extract all bytes according to stated length
+                        byte[] dgSection = efComData.Skip(index).Take(length).ToArray();
+                        Console.WriteLine($"All bytes in section: {BitConverter.ToString(dgSection)}");
+
+                        Console.WriteLine("\nDetailed byte analysis:");
+                        for (int i = 0; i < dgSection.Length; i++)
+                        {
+                            byte currentByte = dgSection[i];
+                            string byteType;
+
+                            if (currentByte >= 0x61 && currentByte <= 0x75)
+                            {
+                                byteType = $"Valid DG identifier (DG{currentByte - 0x60})";
+                            }
+                            else if (currentByte == 0x00)
+                            {
+                                byteType = "Null byte (possible padding)";
+                            }
+                            else if (currentByte == 0x80)
+                            {
+                                byteType = "Padding marker (BER-TLV padding)";
+                            }
+                            else
+                            {
+                                byteType = "Unknown purpose";
+                            }
+
+                            Console.WriteLine($"Byte {i + 1}: {currentByte:X2} - {byteType}");
+                        }
+
+                        // Calculate actual DG content
+                        var validDGs = dgSection.Where(b => b >= 0x61 && b <= 0x75).ToList();
+                        Console.WriteLine($"\nNumber of valid DG identifiers found: {validDGs.Count}");
+                        Console.WriteLine($"Valid DGs: {string.Join(", ", validDGs.Select(b => $"DG{b - 0x60}"))}");
+
+                        // Show remaining space
+                        int unusedSpace = length - validDGs.Count;
+                        if (unusedSpace > 0)
+                        {
+                            Console.WriteLine($"Unused space: {unusedSpace} bytes");
+                        }
+                    }
+                    else
+                    {
+                        byte[] value = efComData.Skip(index).Take(length).ToArray();
+                        index += length;
+
+                        switch (tag)
+                        {
+                            case 0x5F01:
+                                Console.WriteLine($"LDS Version: {Encoding.ASCII.GetString(value)}");
+                                break;
+                            case 0x5F36:
+                                Console.WriteLine($"Unicode Version: {Encoding.ASCII.GetString(value)}");
+                                break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error during parsing: {ex.Message}");
+                    break;
+                }
+            }
+        }
+
+        private bool SelectDG1Secure(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
+        {
+            try
+            {
+                // 1. Bygg APDU-headern
+                byte[] cmdHeader = new byte[]
+                {
+                0x0C, 0xA4, 0x02, 0x0C, // CLA, INS, P1, P2
+                0x80, 0x00, 0x00, 0x00  // Padding (Mask)
+                };
+                Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
+
+
+                // 2. Lägg till och padd datafältet
+                byte[] data = new byte[] { 0x01, 0x01 }; // File ID för DG1
+                byte[] paddedData = PadIso9797Method2(data);
+                Console.WriteLine($"-Padded Data-: {BitConverter.ToString(paddedData)}");
+
+                // 3. Kryptera datafältet med KSEnc
+                byte[] encryptedData = EncryptWithKEnc3DES(paddedData, KSEnc);
+                Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
+
+
+                // 4. Bygg DO87
+                byte[] DO87 = BuildDO87(encryptedData);
+                Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
+
+
+                // 5. Kombinera CmdHeader och DO87
+                byte[] M = cmdHeader.Concat(DO87).ToArray();
+                Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
+
+
+                // 6. Beräkna MAC för M
+                IncrementSSC(ref SSC); // Öka SSC
+                Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
+
+                byte[] NNopad = SSC.Concat(M).ToArray();
+                byte[] N = PadIso9797Method2(NNopad);
+                Console.WriteLine($"-NNopad-: {BitConverter.ToString(NNopad)}");
+                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+
+
+                byte[] CC = ComputeMac3DES(NNopad, KSMac); // Beräkna MAC utan padding
+                Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
+
+
+                // 7. Bygg DO8E
+                byte[] DO8E = BuildDO8E(CC);
+                Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
+
+
+                // 8. Konstruera och skicka den skyddade APDU:n
+                byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO87, DO8E);
+                Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
+
+                byte[] RAPDU = isoDep.Transceive(protectedAPDU);
+                Console.WriteLine($"RAPDU: {BitConverter.ToString(RAPDU)}");
+
+                // 9. Verifiera RAPDU
+                VerifyRapduCC(RAPDU, ref SSC, KSMac, KSEnc);
+
+                Console.WriteLine("DG1.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during DG1 selection: {ex.Message}");
+                return false;
+            }
+        }
+        public List<byte[]> ReadCompleteDG1(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
+        {
+            try
+            {
+                List<byte[]> fullData = new List<byte[]>();
+                int offset = 0;
+                const int blockSize = 0x20; // Standardstorlek för block i MRTD-kommunikation (32 bytes)
+
+                while (true)
+                {
+                    Console.WriteLine($"Reading DG1 at offset: {offset}");
+
+                    // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
+                    byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00 };
+                    byte[] DO97 = { 0x97, 0x01, (byte)blockSize };
+                    byte[] M = cmdHeader.Concat(DO97).ToArray();
+
+                    IncrementSSC(ref SSC);
+
+                    byte[] NNoPad = SSC.Concat(M).ToArray();
+                    byte[] N = PadIso9797Method2(NNoPad);
+
+                    byte[] CC = ComputeMac3DES(NNoPad, KSMac);
+                    byte[] DO8E = BuildDO8E(CC);
+                    byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO97, DO8E);
+
+                    Console.WriteLine($"Sending Protected APDU: {BitConverter.ToString(protectedAPDU)}");
+
+                    // Steg 2: Skicka kommando till DG1
+                    byte[] RAPDU = isoDep.Transceive(protectedAPDU);
+
+                    if (RAPDU.Length < 2 || RAPDU[^2] != 0x90 || RAPDU[^1] != 0x00)
+                    {
+                        Console.WriteLine($"Error reading DG1: {BitConverter.ToString(RAPDU)}");
+                        break;
+                    }
+                    // Steg 3: Kontrollera svar och verifiera CC
+                    IncrementSSC(ref SSC);
+                    VerifyRapduCC(RAPDU, ref SSC, KSMac, KSEnc);
+
+                    // Extrahera och dekryptera data från RAPDU
+                    byte[] do87 = ExtractDO87(RAPDU);
+                    byte[] encryptedData = ExtractEncryptedDataFromDO87(do87);
+                    byte[] decryptedData = DecryptWithKEnc3DES(encryptedData, KSEnc);
+
+                    // Lägg till dekrypterad data till fullData
+                    fullData.AddRange(decryptedData);
+
+                    Console.WriteLine($"Decrypted Data (Offset {offset}): {BitConverter.ToString(decryptedData)}");
+
+                    // Kontrollera om sista segmentet lästs
+                    if (decryptedData.Length < 0x20) // Mindre än maximalt möjligt per segment
+                    {
+                        Console.WriteLine("End of DG1 reached.");
+                        break;
+                    }
+
+                    // Uppdatera offset för nästa block
+                    offset += 0x20;
+                }
+
+                // Returnera all kombinerad data
+                return fullData;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reading DG1: {ex.Message}");
+                return null;
+            }
+        }
+
+      
+
+
+
+
+
         private byte[] BuildEfComData(byte[] decryptedData)
         {
             // Header för EF.COM data
