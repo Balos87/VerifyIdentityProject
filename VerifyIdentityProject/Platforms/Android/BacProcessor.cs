@@ -342,20 +342,28 @@ namespace VerifyIdentityProject.Platforms.Android
                     byte[] completeDG1 = dg1Segments.SelectMany(segment => segment).ToArray();
                     Console.WriteLine($"Complete DG1 Data: {BitConverter.ToString(completeDG1)}");
 
+
+
                     Console.WriteLine($"Parsed nya");
                     var text = MRZByteParser.ParseMRZBytes(completeDG1);
                     var klar = MRZByteParser.FormatMRZForBAC(text);
                     Console.WriteLine($"text {text}");
                     Console.WriteLine($"klar {klar}");
 
+                    var hel = MRZParser.ParseMRZ(klar);
+                    
+                    var dic = MRZParser.ToDictionary(hel);
+
                     var parsedMRZ = ParseMRZ(klar);
-                    foreach (var field in parsedMRZ)
+
+                    foreach (var field in dic)
                     {
                         Console.WriteLine($"{field.Key}: {field.Value}");
                     }
 
-                    Console.WriteLine($"Parsed annorlunda");
-                    DG1Parser.ParseAndPresentDG1(completeDG1);
+                    var bildbit = DG2Parser.ParseDG2(completeDG1);
+                    Console.WriteLine($"--------------dg2 {bildbit}");
+
                 }
                 else
                 {
@@ -550,6 +558,252 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
         //----------------------------------------------------------------------- K och CC rätt
+
+        public class DG2Parser
+        {
+            public class FaceImageInfo
+            {
+                public byte[] ImageData { get; set; }
+                public string ImageFormat { get; set; }
+                public int Width { get; set; }
+                public int Height { get; set; }
+            }
+
+            public static FaceImageInfo ParseDG2(byte[] rawData)
+            {
+                try
+                {
+                    // Skapa en MemoryStream för att läsa datan
+                    using (var ms = new MemoryStream(rawData))
+                    using (var reader = new BinaryReader(ms))
+                    {
+                        // Hoppa över ASN.1 header och längd
+                        SkipTag(reader);
+
+                        // Hoppa över biometrisk information header
+                        SkipTag(reader);
+
+                        // Läs antal instanser (normalt 1)
+                        SkipTag(reader);
+
+                        // Läs bilddata
+                        return ReadFaceImageData(reader);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Fel vid parsning av DG2 data", ex);
+                }
+            }
+
+            private static void SkipTag(BinaryReader reader)
+            {
+                // Läs tag
+                reader.ReadByte();
+
+                // Läs längd
+                int length = ReadAsn1Length(reader);
+
+                // Hoppa över data
+                if (length > 0)
+                {
+                    reader.BaseStream.Position += length;
+                }
+            }
+
+            private static int ReadAsn1Length(BinaryReader reader)
+            {
+                int length = reader.ReadByte();
+
+                if (length > 0x80)
+                {
+                    int numLengthBytes = length - 0x80;
+                    length = 0;
+
+                    for (int i = 0; i < numLengthBytes; i++)
+                    {
+                        length = (length << 8) | reader.ReadByte();
+                    }
+                }
+
+                return length;
+            }
+
+            private static FaceImageInfo ReadFaceImageData(BinaryReader reader)
+            {
+                var faceInfo = new FaceImageInfo();
+
+                // Läs JPEG eller JPEG2000 header
+                byte[] headerBytes = reader.ReadBytes(2);
+                if (headerBytes[0] == 0xFF && headerBytes[1] == 0xD8)
+                {
+                    faceInfo.ImageFormat = "JPEG";
+                }
+                else if (headerBytes[0] == 0x00 && headerBytes[1] == 0x00)
+                {
+                    faceInfo.ImageFormat = "JPEG2000";
+                }
+                else
+                {
+                    throw new Exception("Okänt bildformat");
+                }
+
+                // Läs bilddata
+                using (var imageMs = new MemoryStream())
+                {
+                    // Skriv tillbaka header
+                    imageMs.Write(headerBytes, 0, headerBytes.Length);
+
+                    // Läs resten av bilddatan
+                    while (reader.BaseStream.Position < reader.BaseStream.Length)
+                    {
+                        imageMs.WriteByte(reader.ReadByte());
+                    }
+
+                    faceInfo.ImageData = imageMs.ToArray();
+                }
+
+                // Om du vill spara bilden till fil
+                // File.WriteAllBytes("passport_photo.jpg", faceInfo.ImageData);
+
+                return faceInfo;
+            }
+
+            // Hjälpmetod för att spara bilden
+            public static void SaveImage(FaceImageInfo faceInfo, string filePath)
+            {
+                if (faceInfo?.ImageData == null)
+                    throw new ArgumentNullException(nameof(faceInfo));
+
+                File.WriteAllBytes(filePath, faceInfo.ImageData);
+            }
+
+            // Hjälpmetod för att konvertera till Base64
+            public static string ConvertToBase64(FaceImageInfo faceInfo)
+            {
+                if (faceInfo?.ImageData == null)
+                    throw new ArgumentNullException(nameof(faceInfo));
+
+                return Convert.ToBase64String(faceInfo.ImageData);
+            }
+        }
+
+        //Funkar bra
+        public class MRZParser
+        {
+            public class MRZData
+            {
+                public string DocumentType { get; set; }
+                public string IssuingCountry { get; set; }
+                public string Surname { get; set; }
+                public string GivenNames { get; set; }
+                public string PassportNumber { get; set; }
+                public char PassportNumberCheckDigit { get; set; }
+                public string Nationality { get; set; }
+                public string BirthDate { get; set; }
+                public char BirthDateCheckDigit { get; set; }
+                public string Gender { get; set; }
+                public string ExpiryDate { get; set; }
+                public char ExpiryDateCheckDigit { get; set; }
+                public string PersonalNumber { get; set; }
+                public char PersonalNumberCheckDigit { get; set; }
+                public char FinalCheckDigit { get; set; }
+
+                // Formaterade datum
+                public DateTime? ParsedBirthDate => ParseDate(BirthDate);
+                public DateTime? ParsedExpiryDate => ParseDate(ExpiryDate);
+            }
+
+            public static MRZData ParseMRZ(string cleanMRZ)
+            {
+               
+
+                // Dela upp MRZ i rader
+                string[] lines = cleanMRZ.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length < 2)
+                    throw new InvalidOperationException("MRZ måste innehålla minst två rader.");
+
+                // Säkerställ att raderna har rätt längd
+                string line1 = lines[0].PadRight(44, '<');
+                string line2 = lines[1].PadRight(44, '<');
+
+                // Hantera namn
+                string fullNamePart = line1.Substring(5);
+                string[] nameParts = fullNamePart.Split(new[] { "<<" }, StringSplitOptions.None);
+                string surname = nameParts[0].Replace("<", "").Trim();
+                string givenNames = nameParts.Length > 1 ? nameParts[1].Replace("<", "").Trim() : "";
+
+                var mrzData = new MRZData
+                {
+                    DocumentType = line1.Substring(0, 2).Replace("<", "").Trim(),
+                    IssuingCountry = line1.Substring(2, 3).Trim(),
+                    Surname = surname,
+                    GivenNames = givenNames,
+                    PassportNumber = line2.Substring(0, 9).Replace("<", "").Trim(),
+                    PassportNumberCheckDigit = line2[9],
+                    Nationality = line2.Substring(10, 3).Trim(),
+                    BirthDate = line2.Substring(13, 6).Trim(),
+                    BirthDateCheckDigit = line2[19],
+                    Gender = line2.Substring(20, 1).Trim(),
+                    ExpiryDate = line2.Substring(21, 6).Trim(),
+                    ExpiryDateCheckDigit = line2[27],
+                    PersonalNumber = line2.Substring(28, 14).Replace("<", "").Trim(),
+                    PersonalNumberCheckDigit = line2[42],
+                    FinalCheckDigit = line2[43]
+                };
+
+                return mrzData;
+            }
+
+            private static DateTime? ParseDate(string date)
+            {
+                if (string.IsNullOrEmpty(date) || date.Length != 6)
+                    return null;
+
+                try
+                {
+                    int year = int.Parse(date.Substring(0, 2));
+                    int month = int.Parse(date.Substring(2, 2));
+                    int day = int.Parse(date.Substring(4, 2));
+
+                    // Hantera århundrade (19xx eller 20xx)
+                    int fullYear = year + (year >= 50 ? 1900 : 2000);
+
+                    return new DateTime(fullYear, month, day);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            // Hjälpmetod för att få data som Dictionary
+            public static Dictionary<string, string> ToDictionary(MRZData data)
+            {
+                return new Dictionary<string, string>
+        {
+            { "Document Type", data.DocumentType },
+            { "Issuing Country", data.IssuingCountry },
+            { "Surname", data.Surname },
+            { "Given Names", data.GivenNames },
+            { "Full Name", $"{data.Surname} {data.GivenNames}".Trim() },
+            { "Passport Number", data.PassportNumber },
+            { "Passport Number Check Digit", data.PassportNumberCheckDigit.ToString() },
+            { "Nationality", data.Nationality },
+            { "Birth Date", data.BirthDate },
+            { "Birth Date Formatted", data.ParsedBirthDate?.ToString("yyyy-MM-dd") ?? "" },
+            { "Birth Date Check Digit", data.BirthDateCheckDigit.ToString() },
+            { "Gender", data.Gender },
+            { "Expiry Date", data.ExpiryDate },
+            { "Expiry Date Formatted", data.ParsedExpiryDate?.ToString("yyyy-MM-dd") ?? "" },
+            { "Expiry Date Check Digit", data.ExpiryDateCheckDigit.ToString() },
+            { "Personal Number", data.PersonalNumber },
+            { "Personal Number Check Digit", data.PersonalNumberCheckDigit.ToString() },
+            { "Final Check Digit", data.FinalCheckDigit.ToString() }
+        };
+            }
+        }
+
         private Dictionary<string, string> ParseMRZ(string cleanMRZ)
         {
             // Dela upp MRZ i rader
@@ -558,7 +812,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
             // Extrahera data från första raden
             string line1 = lines[0].PadRight(44); // Säkerställ att raden har 44 tecken
-            string documentType = line1.Substring(0, 2).Trim();
+            string documentType = line1.Substring(0, 1).Trim();
             string issuingCountry = line1.Substring(2, 3).Trim();
             string fullName = line1.Substring(5).Replace("<<", " ").Trim();
 
@@ -578,24 +832,25 @@ namespace VerifyIdentityProject.Platforms.Android
 
             // Returnera parsad information
             return new Dictionary<string, string>
-    {
-        { "Document Type", documentType },
-        { "Issuing Country", issuingCountry },
-        { "Full Name", fullName },
-        { "Passport Number", passportNumber },
-        { "Passport Number Check Digit", passportNumberCheckDigit.ToString() },
-        { "Nationality", nationality },
-        { "Birth Date", birthDate },
-        { "Birth Date Check Digit", birthDateCheckDigit.ToString() },
-        { "Gender", gender },
-        { "Expiry Date", expiryDate },
-        { "Expiry Date Check Digit", expiryDateCheckDigit.ToString() },
-        { "Personal Number", personalNumber },
-        { "Personal Number Check Digit", personalNumberCheckDigit.ToString() },
-        { "Final Check Digit", finalCheckDigit.ToString() }
-    };
+            {
+                { "Document Type", documentType },
+                { "Issuing Country", issuingCountry },
+                { "Full Name", fullName },
+                { "Passport Number", passportNumber },
+                { "Passport Number Check Digit", passportNumberCheckDigit.ToString() },
+                { "Nationality", nationality },
+                { "Birth Date", birthDate },
+                { "Birth Date Check Digit", birthDateCheckDigit.ToString() },
+                { "Gender", gender },
+                { "Expiry Date", expiryDate },
+                { "Expiry Date Check Digit", expiryDateCheckDigit.ToString() },
+                { "Personal Number", personalNumber },
+                { "Personal Number Check Digit", personalNumberCheckDigit.ToString() },
+                { "Final Check Digit", finalCheckDigit.ToString() }
+            };
         }
 
+        //Funkar bra
         public class MRZByteParser
         {
             public static string ParseMRZBytes(byte[] bytes)
@@ -1043,6 +1298,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 return false;
             }
         }
+
+        //Funkar bra
         public List<byte[]> ReadCompleteDG1(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
             try
