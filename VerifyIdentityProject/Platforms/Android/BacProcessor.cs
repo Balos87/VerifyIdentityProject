@@ -65,6 +65,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Error during NFC processing: {ex.Message}");
             }
         }
+        //[DOTNET] 31-28    -30-12  -06-0A-     04-00-7F-00-07-02-02-04-02-04-  02-01-02-   02-01-10
+        //                  -30-12  -06-0A-     04-00-7F-00-07-02-02-04-04-04-  02-01-02-   02-01-0D
 
         private void ProcessBac(IsoDep isoDep)
         {

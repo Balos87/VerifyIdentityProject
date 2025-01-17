@@ -166,43 +166,61 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return sw1 == 0x69 || sw1 == 0x6A || sw1 == 0x6D;
         }
-        public static void ParseCardAccessData(byte[] cardAccessData)
+        public static void ParseCardAccessData(byte[] data)
         {
             try
             {
-                Console.WriteLine("Tolkar EF.CardAccess-data:\n");
+                if (data.Length >= 2 && data[data.Length - 2] == 0x90 && data[data.Length - 1] == 0x00)
+                {
+                    data = data.Take(data.Length - 2).ToArray();
+                }
+
+                Console.WriteLine("Raw Card Access Data:");
+                Console.WriteLine(BitConverter.ToString(data));
+                Console.WriteLine("\nParsed Data:");
 
                 int index = 0;
-                while (index < cardAccessData.Length)
+                // Outer sequence
+                if (data[index++] == 0x31) // Sequence tag
                 {
-                    // Läs taggen
-                    byte tag = cardAccessData[index];
-                    index++;
+                    int outerLength = data[index++];
+                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
 
-                    // Läs längden
-                    int length = cardAccessData[index];
-                    index++;
-
-                    if (length > 127)
+                    while (index < data.Length)
                     {
-                        // Längden är kodad i flera byte (long form)
-                        int numLengthBytes = length & 0x7F;
-                        length = 0;
-
-                        for (int i = 0; i < numLengthBytes; i++)
+                        // PACEInfo sequence
+                        if (data[index++] == 0x30) // Sequence tag
                         {
-                            length = (length << 8) | cardAccessData[index];
-                            index++;
+                            int sequenceLength = data[index++];
+                            Console.WriteLine("\nPACEInfo:");
+                            Console.WriteLine($"Sequence Length: {sequenceLength}");
+
+                            // OID
+                            if (data[index++] == 0x06) // OID tag
+                            {
+                                int oidLength = data[index++];
+                                byte[] oid = data.Skip(index).Take(oidLength).ToArray();
+                                index += oidLength;
+                                Console.WriteLine($"Protocol ID: {BitConverter.ToString(oid)}");
+                            }
+
+                            // Version
+                            if (data[index++] == 0x02) // Integer tag
+                            {
+                                int versionLength = data[index++];
+                                byte version = data[index++];
+                                Console.WriteLine($"Version: {version}");
+                            }
+
+                            // Parameter ID
+                            if (data[index++] == 0x02) // Integer tag
+                            {
+                                int paramLength = data[index++];
+                                byte paramId = data[index++];
+                                Console.WriteLine($"Parameter ID: 0x{paramId:X2}");
+                            }
                         }
                     }
-
-                    // Läs värdet
-                    byte[] value = new byte[length];
-                    Array.Copy(cardAccessData, index, value, 0, length);
-                    index += length;
-
-                    // Tolka taggar och värden
-                    InterpretTag(tag, value);
                 }
             }
             catch (Exception ex)
@@ -211,44 +229,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private static void InterpretTag(byte tag, byte[] value)
-        {
-            Console.WriteLine($"Tagg: 0x{tag:X2}, Längd: {value.Length}");
-
-            switch (tag)
-            {
-                case 0x31: // Set
-                    Console.WriteLine("  Typ: Set (en grupp av objekt)");
-                    ParseCardAccessData(value); // Rekursiv tolkning av set
-                    break;
-
-                case 0x30: // Sequence
-                    Console.WriteLine("  Typ: Sekvens (ordnad grupp av objekt)");
-                    ParseCardAccessData(value); // Rekursiv tolkning av sekvens
-                    break;
-
-                case 0x06: // Object Identifier
-                    Console.WriteLine("  Typ: Object Identifier");
-                    Console.WriteLine("  Värde (OID): " + BitConverter.ToString(value).Replace("-", " "));
-                    break;
-
-                case 0x02: // Integer
-                    Console.WriteLine("  Typ: Integer");
-                    Console.WriteLine("  Värde: " + BitConverter.ToString(value).Replace("-", " "));
-                    break;
-
-                case 0x90: // Slutlig status
-                    Console.WriteLine("  Typ: Slutlig status (t.ex. 0x9000 för framgång)");
-                    break;
-
-                default:
-                    Console.WriteLine("  Okänd tagg");
-                    Console.WriteLine("  Värde: " + BitConverter.ToString(value).Replace("-", " "));
-                    break;
-            }
-
-            Console.WriteLine();
-        }
 
         // Hjälpmetod för att skicka kommandon
         public static async Task<byte[]> SendCommand(byte[] command, IsoDep isoDep)
