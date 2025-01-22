@@ -11,6 +11,7 @@
 
             // Example: Using the service provider to resolve MainPage
             Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>() });
+
         }
     }
 

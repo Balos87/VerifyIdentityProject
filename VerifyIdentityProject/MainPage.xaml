@@ -27,6 +27,9 @@
                 Text="Start NFC with BAC" 
                 Command="{Binding StartNfcCommand}" />
 
+
+            <Button Text="Capture and Process MRZ" Command="{Binding ScanMrzCommand}" />
+
             <Label Text="{Binding PassportData}" />
 
 

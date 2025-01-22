@@ -6,6 +6,22 @@ namespace VerifyIdentityProject
 {
     public class MainPageViewModel : INotifyPropertyChanged
     {
+
+        private string _processedImagePath;
+
+        public string ProcessedImagePath
+        {
+            get => _processedImagePath;
+            set
+            {
+                if (_processedImagePath != value)
+                {
+                    _processedImagePath = value;
+                    OnPropertyChanged(nameof(ProcessedImagePath));
+                }
+            }
+        }
+
         private string _passportData;
         public string PassportData
         {
