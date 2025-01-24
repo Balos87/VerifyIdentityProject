@@ -1,64 +1,37 @@
 ﻿using System;
-using System.Linq;
 using System.IO;
-using System.Text;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
-using System.Text.RegularExpressions;
-using OpenCvSharp;
-using TesseractOcrMaui;
-using Microsoft.Maui.Storage;
-using Tesseract;
+using Microsoft.Maui.Media;
 
 namespace VerifyIdentityProject.Helpers.MRZReader
 {
     public class MrzReader
     {
-        public Command ScanMrzCommand { get; }
-        private readonly ITesseract _tesseract;
+        private readonly HttpClient _httpClient;
 
-        public MrzReader(ITesseract tesseract)
+        public MrzReader()
         {
-            _tesseract = tesseract ?? throw new ArgumentNullException(nameof(tesseract));
-            ScanMrzCommand = new Command(async () => await ScanMrz());
-            Task.Run(() => EnsureTessDataFileAsync()).Wait(); // Ensure the file is ready
+            _httpClient = new HttpClient
+            {
+                BaseAddress = new Uri("http://192.168.50.26:5000/api/") // Local API URL
+            };
         }
 
-        private async Task EnsureTessDataFileAsync()
-        {
-            // Define the target directory for tessdata
-            string tessDataPath = Path.Combine(FileSystem.CacheDirectory, "tessdata");
-            if (!Directory.Exists(tessDataPath))
-            {
-                Directory.CreateDirectory(tessDataPath);
-            }
-
-            // Define the destination path for eng.traineddata
-            string trainedDataFilePath = Path.Combine(tessDataPath, "eng.traineddata");
-
-            // Check if the file already exists
-            if (!File.Exists(trainedDataFilePath))
-            {
-                // Copy the file from the app package to the target directory
-                using var stream = await FileSystem.OpenAppPackageFileAsync("tessdata/eng.traineddata");
-                using var output = File.Create(trainedDataFilePath);
-                await stream.CopyToAsync(output);
-                Console.WriteLine("eng.traineddata copied to: " + trainedDataFilePath);
-            }
-            else
-            {
-                Console.WriteLine("eng.traineddata already exists at: " + trainedDataFilePath);
-            }
-        }
-
-
-        public async Task ScanMrz()
+        public async Task ScanAndExtractMrzAsync()
         {
             try
             {
+                // Capture photo using the device's camera
                 var photo = await MediaPicker.CapturePhotoAsync();
-                if (photo == null) return;
+                if (photo == null)
+                {
+                    Console.WriteLine("No photo captured.");
+                    return;
+                }
 
-                // Save the photo locally and get the file path
+                // Save the photo locally
                 var filePath = Path.Combine(FileSystem.CacheDirectory, photo.FileName);
                 using (var stream = await photo.OpenReadAsync())
                 using (var fileStream = File.OpenWrite(filePath))
@@ -66,143 +39,57 @@ namespace VerifyIdentityProject.Helpers.MRZReader
                     await stream.CopyToAsync(fileStream);
                 }
 
-                // Read and process MRZ from the image
-                var mrzText = await ReadMrzAsync(filePath);
-                Console.WriteLine($"Extracted MRZ: {mrzText}");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error capturing photo: {ex.Message}");
-            }
-        }
+                // Send the image to the API for MRZ extraction
+                var mrzText = await ExtractMrzFromApiAsync(filePath);
 
-        private async Task<string> ReadMrzAsync(string imagePath)
-        {
-            try
-            {
-                // Define temp image path for Tesseract processing
-                string tempImagePath = Path.Combine(FileSystem.CacheDirectory, "temp_image.jpg");
-
-                // Load and preprocess the image
-                Mat image = Cv2.ImRead(imagePath, ImreadModes.Grayscale);
-                Mat processedImage = PreprocessImage(image);
-
-                // Write the processed image to the temp path
-                Cv2.ImWrite(tempImagePath, processedImage);
-                Console.WriteLine("Image processed and saved to: " + tempImagePath);
-
-                // Extract text using Tesseract
-                string ocrText = await ExtractTextWithTesseract(tempImagePath);
-
-                // Extract MRZ text from OCR results
-                return ExtractMrzText(ocrText);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error reading MRZ: {ex.Message}");
-                return string.Empty;
-            }
-        }
-
-        private Mat PreprocessImage(Mat image)
-        {
-            // Resize the image to half its original size (or any size you prefer)
-            Cv2.Resize(image, image, new OpenCvSharp.Size(image.Width / 2, image.Height / 2));
-
-            // Convert the image to grayscale (if it's not already)
-            if (image.Channels() > 1)
-            {
-                Cv2.CvtColor(image, image, ColorConversionCodes.BGR2GRAY);
-            }
-
-            // You can adjust the adaptive threshold for better OCR results
-            Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 11, 2);
-
-            return image;
-        }
-
-        private async Task<string> ExtractTextWithTesseract(string tempImagePath)
-        {
-            try
-            {
-                if (_tesseract == null)
+                if (string.IsNullOrEmpty(mrzText))
                 {
-                    Console.WriteLine("Tesseract engine is not initialized.");
-                    return string.Empty;
-                }
-
-                Console.WriteLine("Starting OCR process...");
-
-                // Define the target directory for tessdata
-                string tessDataPath = Path.Combine(FileSystem.CacheDirectory, "tessdata");
-                if (!Directory.Exists(tessDataPath))
-                {
-                    Directory.CreateDirectory(tessDataPath);
-                }
-
-                // Define the destination path for eng.traineddata
-                string trainedDataFilePath = Path.Combine(tessDataPath, "eng.traineddata");
-
-                // Check if the file already exists
-                if (!File.Exists(trainedDataFilePath))
-                {
-                    // Copy the file from the app package to the target directory
-                    using var stream = await FileSystem.OpenAppPackageFileAsync("tessdata/eng.traineddata");
-                    using var output = File.Create(trainedDataFilePath);
-                    await stream.CopyToAsync(output);
-                    Console.WriteLine("eng.traineddata copied to: " + trainedDataFilePath);
+                    Console.WriteLine("No MRZ detected in the image.");
                 }
                 else
                 {
-                    Console.WriteLine("eng.traineddata already exists at: " + trainedDataFilePath);
+                    Console.WriteLine($"Extracted MRZ: {mrzText}");
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during MRZ scan: {ex.Message}");
+            }
+        }
 
-                Console.WriteLine($"Tessdata path: {tessDataPath}");
-                Console.WriteLine($"File exists: {File.Exists(Path.Combine(tessDataPath, "eng.traineddata"))}");
+        private async Task<string> ExtractMrzFromApiAsync(string imagePath)
+        {
+            try
+            {
+                Console.WriteLine("Sending image to API...");
 
-                try
+                // Read the image file
+                byte[] imageBytes = await File.ReadAllBytesAsync(imagePath);
+                var content = new MultipartFormDataContent
                 {
-                    Console.WriteLine("Starting OCR process...");
+                    { new ByteArrayContent(imageBytes), "file", Path.GetFileName(imagePath) }
+                };
 
-                    var result = await _tesseract.RecognizeTextAsync(tempImagePath);
-                    Console.WriteLine("OCR process completed.");
+                // Send POST request to the API
+                var response = await _httpClient.PostAsync("mrz/extract", content);
 
-                    if (result.RecognisedText == null || string.IsNullOrWhiteSpace(result.RecognisedText))
-                    {
-                        Console.WriteLine("OCR result is empty.");
-                        return string.Empty;
-                    }
-
-                    Console.WriteLine($"OCR Result: {result.RecognisedText}");
-                    return result.RecognisedText;
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<string>();
+                    Console.WriteLine($"MRZ Extracted: {result}");
+                    return result;
                 }
-                catch (Exception ex)
+                else
                 {
-                    Console.WriteLine($"Error during OCR processing: {ex.Message}");
+                    Console.WriteLine($"API Error: {response.StatusCode} - {response.ReasonPhrase}");
                     return string.Empty;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during OCR processing: {ex.Message}");
+                Console.WriteLine($"Error calling API: {ex.Message}");
                 return string.Empty;
             }
-        }
-
-        private string ExtractMrzText(string ocrText)
-        {
-            // Regex pattern for MRZ lines (44 alphanumeric characters, may include '<')
-            string pattern = @"^[A-Z0-9<]{10,}$";
-
-
-            // Split the OCR output into lines and filter valid MRZ lines
-            var mrzLines = ocrText
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-                .Where(line => Regex.IsMatch(line.Trim(), pattern))
-                .ToList();
-
-            // Combine valid MRZ lines
-            return string.Join("\n", mrzLines);
         }
     }
 }

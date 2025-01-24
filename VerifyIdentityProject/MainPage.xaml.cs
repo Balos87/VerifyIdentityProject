@@ -9,9 +9,8 @@ namespace VerifyIdentityProject
     public partial class MainPage : ContentPage
     {
         private readonly MainPageViewModel _viewModel;
-        private MrzReader _mrzReader;
 
-        public MainPage(MrzReader mrzReader ,MainPageViewModel viewModel)
+        public MainPage(MainPageViewModel viewModel)
         {
             InitializeComponent();
             var copy = new CopySecrets();
@@ -19,9 +18,6 @@ namespace VerifyIdentityProject
 
             _viewModel = viewModel;
             BindingContext = _viewModel;
-
-            _mrzReader = mrzReader;
-            BindingContext = _mrzReader;
         }
     }
 }

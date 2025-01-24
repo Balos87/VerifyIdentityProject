@@ -18,13 +18,10 @@ public static class MauiProgram
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
             });
 
-        builder.Services
-        .AddTesseractOcr();
-
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddTransient<MainPageViewModel>();
         builder.Services.AddTransient<MainPage>();
-        builder.Services.AddTransient<MrzReader>();
+        builder.Services.AddSingleton<MrzReader>();
 
 #if ANDROID
         builder.Services.AddSingleton<INfcReaderManager, VerifyIdentityProject.Platforms.Android.NfcReaderManager>();

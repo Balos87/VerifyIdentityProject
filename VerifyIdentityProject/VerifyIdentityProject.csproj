@@ -56,14 +56,12 @@
 		<MauiFont Include="Resources\Fonts\*" />
 
 		<!-- Raw Assets -->
-		<MauiAsset Include="Resources\Raw\eng.traineddata" LogicalName="%(RecursiveDir)%(Filename)%(Extension)" />
 
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
-		<PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
 		<PackageReference Include="OpenCvSharp4" Version="4.10.0.20241108" />
@@ -91,17 +89,6 @@
 	  <MauiCss Remove="Resources\Raw\tessconfigs\**" />
 	  <MauiXaml Remove="Resources\Raw\tessconfigs\**" />
 	  <None Remove="Resources\Raw\tessconfigs\**" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Remove="Resources\Raw\configs" />
-	  <None Remove="Resources\Raw\LICENSE" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <MauiAsset Include="Resources\Raw\configs" />
-	  <MauiAsset Include="Resources\Raw\eng.traineddata" />
-	  <MauiAsset Include="Resources\Raw\LICENSE" />
 	</ItemGroup>
 
 
