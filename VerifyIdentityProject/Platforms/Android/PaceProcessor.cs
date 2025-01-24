@@ -30,6 +30,13 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Steg 1: Läs CardAccess för att få PACE-parametrar
                 var cardAccess = await ReadCardAccess(isoDep);
+
+                var protocols = EFCardAccessParser.ParseProtocols(cardAccess);
+                Console.WriteLine("Extraherade protokoll:");
+                foreach (var protocol in protocols)
+                {
+                    Console.WriteLine(BitConverter.ToString(protocol));
+                }
                 //var paceInfo = ParsePaceInfo(cardAccess);
 
                 //// Steg 2: MSE:Set AT kommando för att starta PACE
@@ -60,6 +67,43 @@ namespace VerifyIdentityProject.Platforms.Android
             catch (Exception ex)
             {
                 throw new PaceException("PACE-processen misslyckades", ex);
+            }
+        }
+
+        //Taking out the 2 protocolls
+        public class EFCardAccessParser
+        {
+            public static List<byte[]> ParseProtocols(byte[] cardAccessData)
+            {
+                var protocols = new List<byte[]>();
+
+                // Kontrollera om data börjar med rätt tagg (31 = Sequence)
+                if (cardAccessData.Length < 2 || cardAccessData[0] != 0x31)
+                    throw new Exception("Ogiltigt EF.CardAccess-svar!");
+
+                int index = 2; // Hoppa över tagg (31) och total längd (1 byte)
+                while (index < cardAccessData.Length - 2) // Exkludera SW1/SW2
+                {
+                    if (cardAccessData[index] == 0x30) // Protokollblock startar med taggen 0x30
+                    {
+                        int length = cardAccessData[index + 1]; // Längd på protokollblocket
+                        if (index + 2 + length > cardAccessData.Length)
+                            throw new Exception("Ogiltig längd i EF.CardAccess!");
+
+                        // Extrahera protokollblocket
+                        var protocolBlock = cardAccessData.Skip(index).Take(2 + length).ToArray();
+                        protocols.Add(protocolBlock);
+
+                        // Hoppa till nästa block
+                        index += 2 + length;
+                    }
+                    else
+                    {
+                        throw new Exception($"Ovväntad tagg vid index {index}: {cardAccessData[index]:X2}");
+                    }
+                }
+
+                return protocols;
             }
         }
 
@@ -201,7 +245,7 @@ namespace VerifyIdentityProject.Platforms.Android
                                 int oidLength = data[index++];
                                 byte[] oid = data.Skip(index).Take(oidLength).ToArray();
                                 index += oidLength;
-                                Console.WriteLine($"Protocol ID: {BitConverter.ToString(oid)}");
+                                Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
                             }
 
                             // Version
