@@ -31,6 +31,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 // Step 1: Read CardAccess to get PACE parameters
                 var cardAccess = await ReadCardAccess(isoDep);
                 // var paceInfo = ParsePaceInfo(cardAccess);
+                var validOid = ValidateAndSelectPACEInfoWithDescription(cardAccess);
+                Console.WriteLine($"Using PACE Protocol: {validOid}");
 
                 //// Step 2: MSE:Set AT command to initiate PACE
                 // await InitializePace(paceInfo);
@@ -271,6 +273,110 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Exception in SendCommand: {ex.GetType().Name} - {ex.Message}");
                 throw;
             }
+        }
+
+        public static string ValidateAndSelectPACEInfoWithDescription(byte[] cardAccessData)
+        {
+            Console.WriteLine("<-ValidateAndSelectPACEInfoWithDescription->");
+
+            // Dictionary of valid OIDs and their descriptions
+            var oidDescriptions = new Dictionary<string, string>
+            {
+                { "0.4.0.127.0.7.2.2.4.1.1", "id-PACE-DH-GM-3DES-CBC-CBC" },
+                { "0.4.0.127.0.7.2.2.4.1.2", "id-PACE-DH-GM-AES-CBC-CMAC-128" },
+                { "0.4.0.127.0.7.2.2.4.1.3", "id-PACE-DH-GM-AES-CBC-CMAC-192" },
+                { "0.4.0.127.0.7.2.2.4.1.4", "id-PACE-DH-GM-AES-CBC-CMAC-256" },
+                { "0.4.0.127.0.7.2.2.4.2.1", "id-PACE-ECDH-GM-3DES-CBC-CBC" },
+                { "0.4.0.127.0.7.2.2.4.2.2", "id-PACE-ECDH-GM-AES-CBC-CMAC-128" },
+                { "0.4.0.127.0.7.2.2.4.2.3", "id-PACE-ECDH-GM-AES-CBC-CMAC-192" },
+                { "0.4.0.127.0.7.2.2.4.2.4", "id-PACE-ECDH-GM-AES-CBC-CMAC-256" },
+                { "0.4.0.127.0.7.2.2.4.3.1", "id-PACE-DH-IM-3DES-CBC-CBC" },
+                { "0.4.0.127.0.7.2.2.4.3.2", "id-PACE-DH-IM-AES-CBC-CMAC-128" },
+                { "0.4.0.127.0.7.2.2.4.3.3", "id-PACE-DH-IM-AES-CBC-CMAC-192" },
+                { "0.4.0.127.0.7.2.2.4.3.4", "id-PACE-DH-IM-AES-CBC-CMAC-256" },
+                { "0.4.0.127.0.7.2.2.4.4.1", "id-PACE-ECDH-IM-3DES-CBC-CBC" },
+                { "0.4.0.127.0.7.2.2.4.4.2", "id-PACE-ECDH-IM-AES-CBC-CMAC-128" },
+                { "0.4.0.127.0.7.2.2.4.4.3", "id-PACE-ECDH-IM-AES-CBC-CMAC-192" },
+                { "0.4.0.127.0.7.2.2.4.4.4", "id-PACE-ECDH-IM-AES-CBC-CMAC-256" },
+                { "0.4.0.127.0.7.2.2.4.6.2", "id-PACE-ECDH-CAM-AES-CBC-CMAC-128" },
+                { "0.4.0.127.0.7.2.2.4.6.3", "id-PACE-ECDH-CAM-AES-CBC-CMAC-192" },
+                { "0.4.0.127.0.7.2.2.4.6.4", "id-PACE-ECDH-CAM-AES-CBC-CMAC-256" }
+            };
+
+            try
+            {
+                int index = 0;
+
+                // Parse outer sequence
+                if (cardAccessData[index++] == 0x31) // Sequence tag
+                {
+                    int outerLength = cardAccessData[index++];
+                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
+
+                    while (index < cardAccessData.Length)
+                    {
+                        // Parse PACEInfo
+                        if (cardAccessData[index++] == 0x30) // Sequence tag
+                        {
+                            int sequenceLength = cardAccessData[index++];
+
+                            // Parse OID
+                            if (cardAccessData[index++] == 0x06) // OID tag
+                            {
+                                int oidLength = cardAccessData[index++];
+                                byte[] oidBytes = cardAccessData.Skip(index).Take(oidLength).ToArray();
+                                index += oidLength;
+
+                                // Convert OID to string
+                                string oid = ConvertOidToString(oidBytes);
+                                Console.WriteLine($"Found OID: {oid}");
+
+                                // Check if the OID is valid and print description
+                                if (oidDescriptions.TryGetValue(oid, out string description))
+                                {
+                                    Console.WriteLine($"Valid OID found: {oid} ({description})");
+                                    return $"{oid} ({description})"; // Return the OID and description
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"OID is not valid: {oid}");
+                                }
+                            }
+
+                            // Skip other data (Version and Parameter ID)
+                            index += 4; // Skip Version and Parameter ID
+                        }
+                    }
+                }
+
+                throw new PaceException("No valid PACE OID found in CardAccess data.");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during PACEInfo validation: {ex.Message}");
+                throw;
+            }
+        }
+
+
+        // Helper to convert OID bytes to string
+        private static string ConvertOidToString(byte[] oidBytes)
+        {
+            var oid = new List<string>();
+            oid.Add((oidBytes[0] / 40).ToString());
+            oid.Add((oidBytes[0] % 40).ToString());
+            long value = 0;
+
+            for (int i = 1; i < oidBytes.Length; i++)
+            {
+                value = (value << 7) | (oidBytes[i] & 0x7F);
+                if ((oidBytes[i] & 0x80) == 0)
+                {
+                    oid.Add(value.ToString());
+                    value = 0;
+                }
+            }
+            return string.Join(".", oid);
         }
 
     }
