@@ -46,29 +46,15 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             _nfcReaderManager = nfcReaderManager;
         }
-
         public void OnTagDiscovered(Tag tag)
         {
-            Console.WriteLine("Tag detected!");
-            try
-            {
-                _nfcReaderManager.IdentifyTagTechnologies(tag);
-                IsoDep isoDep = IsoDep.Get(tag);
-                PaceProcessor.PerformPace(isoDep);
-                if (isoDep != null)
-                {
-                    ProcessBac(isoDep);
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error during NFC processing: {ex.Message}");
-            }
+            _nfcReaderManager.HandleTagDiscovered(tag);
         }
+
         //[DOTNET] 31-28    -30-12  -06-0A-     04-00-7F-00-07-02-02-04-02-04-  02-01-02-   02-01-10
         //                  -30-12  -06-0A-     04-00-7F-00-07-02-02-04-04-04-  02-01-02-   02-01-0D
 
-        private void ProcessBac(IsoDep isoDep)
+        public void ProcessBac(IsoDep isoDep)
         {
             try
             {
