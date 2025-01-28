@@ -136,8 +136,13 @@ namespace VerifyIdentityAPI.Services
             // Get the last MRZ line (assuming it's the second line of the MRZ)
             string lastLine = mrzLines.Last();
 
-            // Extract characters for BAC: 1-10 and 14-30
-            string bacRelevantPart = lastLine.Substring(0, 10) + lastLine.Substring(13, 16);
+            // Extract characters for BAC: 1-10, 13-19 and 21-27. 
+            string bacRelevantPart = lastLine.Substring(0, 10) + lastLine.Substring(13, 7) + lastLine.Substring(21, 7);
+
+            if(bacRelevantPart.Length != 24)
+            {
+                return string.Empty;
+            }
 
             return bacRelevantPart;
         }

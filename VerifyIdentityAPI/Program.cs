@@ -19,11 +19,6 @@ namespace VerifyIdentityAPI
             // Add services to the container.
             builder.Services.AddAuthorization();
 
-            builder.WebHost.ConfigureKestrel(options =>
-            {
-                options.ListenAnyIP(5000); // Bind to all network interfaces on port 5000
-            });
-
             // Register the Tesseract engine
             builder.Services.AddSingleton<TesseractEngine>(sp =>
             {
@@ -36,14 +31,13 @@ namespace VerifyIdentityAPI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            // Add CORS policy
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", builder =>
+                options.AddDefaultPolicy(policy =>
                 {
-                    builder.AllowAnyOrigin()
-                           .AllowAnyMethod()
-                           .AllowAnyHeader();
+                    policy.AllowAnyOrigin() // Use this only for development testing
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
                 });
             });
 
@@ -74,6 +68,11 @@ namespace VerifyIdentityAPI
                     // Delete the temporary file
                     File.Delete(tempFilePath);
 
+                    if(mrzText == string.Empty)
+                    {
+                        return Results.Ok("Please try again with a diffrent image.");
+                    }
+
                     return Results.Ok(mrzText);
                 }
 
@@ -92,7 +91,10 @@ namespace VerifyIdentityAPI
             }
 
             app.UseHttpsRedirection();
-            app.UseCors("AllowAll");
+            app.UseCors(builder => builder
+                .AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader());
 
             app.Run();
         }
