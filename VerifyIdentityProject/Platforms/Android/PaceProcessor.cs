@@ -42,7 +42,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     if (OidEndsWith(oid, "4.2.4"))
                     {
-                        Console.WriteLine(oid);
+                        Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
                         if (await SendMseSetAt(oid, isoDep))
                         {
                             Console.WriteLine("PACE Protocol set successfully");
@@ -140,7 +140,7 @@ namespace VerifyIdentityProject.Platforms.Android
             //                 $"{birthDate}{ComputeCheckDigit(birthDate)}" +
             //                 $"{expiryDate}{ComputeCheckDigit(expiryDate)}";
 
-            using var sha1 = System.Security.Cryptography.SHA1.Create();
+            using var sha1 = System.Security.Cryptography.SHA256.Create();
             return sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(mrzData));
         }
 
@@ -165,7 +165,7 @@ namespace VerifyIdentityProject.Platforms.Android
         public static async Task<bool> SendMseSetAt(byte[] oid, IsoDep isoDep)
         {
 
-            // Protokoll OID (använder GM-varianten från din logg)
+            // Protocoll OID
             byte[] protocolOID = oid;
 
             // Bygg MSE:SET AT kommandot
@@ -175,24 +175,24 @@ namespace VerifyIdentityProject.Platforms.Android
                 0x22,    // INS (MANAGE SECURITY ENVIRONMENT)
                 0xC1,    // P1
                 0xA4,    // P2 (Set Authentication Template)
-                0x00,    // Lc (längd, vi sätter den senare)
-                0x80,    // Tag för kryptografisk mekanism
-                (byte)protocolOID.Length  // Längd på OID
+                0x00,    // Lc (length, will be updated later)
+                0x80,    // Tag for kryptographic mechanism
+                (byte)protocolOID.Length  // OID length
             };
 
                         // Lägg till OID
             command.AddRange(protocolOID);
 
-            // Lägg till password reference (0x83 tag)
+            //password reference (0x83 tag)
             command.AddRange(new byte[] 
             {
-                0x83,    // Tag för password reference
-                0x01,    // Längd på värdet
-                0x01     // Värde: 0x02 för CAN (eller 0x01 för MRZ)
+                0x83,    // Tag for password reference
+                0x01,    // Length of value
+                0x01     // Value: 0x01 for MRZ (or 0x02 for CAN)
             });
 
-            // Uppdatera Lc (total längd av data)
-            command[4] = (byte)(command.Count - 5);  // Subtrahera header (5 bytes)
+            // Uppdating Lc (total length of data)
+            command[4] = (byte)(command.Count - 5);  // Subtract header (5 bytes)
 
             // Konvertera till array för sändning
             byte[] finalCommand = command.ToArray();
