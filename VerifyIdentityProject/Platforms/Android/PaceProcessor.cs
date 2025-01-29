@@ -56,23 +56,30 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("");
                 Console.WriteLine("<---------------------------------------->");
 
+                //var answr = await GeneralAuthenticate(isoDep);
+                //Console.WriteLine($"answr: {BitConverter.ToString(answr)}");
+
+
 
                 //just for testing
                 var secrets = GetSecrets.FetchSecrets();
                 var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
                 Console.WriteLine($"mrzData: {mrzData}");
 
-                var pass = DerivePasswordFromMRZ(mrzData);
-                Console.WriteLine($"DerivePasswordFromMRZ: {BitConverter.ToString(pass)}");
+                await StartPaceAuthentication(isoDep, mrzData);
+                Console.WriteLine("<---------------------------------------->");
 
-                if (SendPasswordToChip(pass, isoDep))
-                {
-                    Console.WriteLine("Password sent to chip successfully");
-                }
-                else
-                {
-                    Console.WriteLine("Password not sent to chip");
-                }
+                //var pass = DerivePasswordFromMRZ(mrzData);
+                //Console.WriteLine($"DerivePasswordFromMRZ: {BitConverter.ToString(pass)}");
+
+                //if (SendPasswordToChip(pass, isoDep))
+                //{
+                //    Console.WriteLine("Password sent to chip successfully");
+                //}
+                //else
+                //{
+                //    Console.WriteLine("Password not sent to chip");
+                //}
 
 
 
@@ -107,6 +114,63 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 throw new PaceException("The PACE process failed", ex);
             }
+        }
+
+        public static async Task StartPaceAuthentication(IsoDep isoDep, string mrz)
+        {
+            var pace = new PaceProtocol(isoDep, mrz);
+            bool success = await pace.PerformPaceProtocol();
+
+            if (success)
+            {
+                Console.WriteLine("PACE-autentisering lyckades!");
+                // Nu kan du börja läsa data från passet
+            }
+            else
+            {
+                Console.WriteLine("PACE-autentisering misslyckades");
+            }
+        }
+
+        public async static Task<byte[]> GeneralAuthenticate(IsoDep isoDep)
+        {
+            // Första GENERAL AUTHENTICATE kommandot för att få encrypted nonce
+            byte[] getNonceCommand = new byte[]
+            {
+                0x10,    // CLA (command chaining - första kommandot)
+                0x86,    // INS (GENERAL AUTHENTICATE)
+                0x00,    // P1
+                0x00,    // P2
+                0x04,    // Lc (längd på data)
+                0x7C,    // Tag för Dynamic Authentication Data
+                0x00     // Ingen data i första steget
+            };
+
+            byte[] response = await SendCommand(getNonceCommand, isoDep);
+
+            // Analysera svaret (kommer innehålla krypterad nonce)
+            if (response.Length >= 2)
+            {
+                // Kontrollera status bytes
+                byte sw1 = response[response.Length - 2];
+                byte sw2 = response[response.Length - 1];
+
+                if (sw1 == 0x90 && sw2 == 0x00)
+                {
+                    // Ta bort status bytes från svaret
+                    byte[] encryptedNonce = new byte[response.Length - 2];
+                    Array.Copy(response, 0, encryptedNonce, 0, response.Length - 2);
+
+                    Console.WriteLine("Fick krypterad nonce:");
+                    Console.WriteLine(BitConverter.ToString(encryptedNonce));
+                }
+                else
+                {
+                    Console.WriteLine($"GET NONCE misslyckades med status: {sw1:X2}-{sw2:X2}");
+                }
+            }
+            return response;
+
         }
 
         private static bool OidEndsWith(byte[] oidBytes, string suffix)
