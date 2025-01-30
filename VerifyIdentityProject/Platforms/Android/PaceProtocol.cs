@@ -12,67 +12,25 @@ using System.Diagnostics;
 using Org.BouncyCastle.Asn1.Nist;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Security;
+using Org.BouncyCastle.Asn1.TeleTrust;
+using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Math.EC;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
-
-
     public class PaceProtocol
     {
-        private readonly IsoDep isoDep; // Din IsoDep-wrapper
+        private readonly IsoDep isoDep;
         private byte[] sessionKey;
-        private readonly string mrz; // CAN/MRZ kod
-        private ECDiffieHellman ephemeralEcdh;
-        // NIST P-224 generator point coordinates
-        private static readonly byte[] G_X = new byte[] {
-            0xB7, 0x0E, 0x0C, 0xBD, 0x6B, 0xB4, 0xBF, 0x7F,
-            0x32, 0x13, 0x90, 0xB9, 0x4A, 0x03, 0xC1, 0xD3,
-            0x56, 0xC2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xD6,
-            0x11, 0x5C, 0x1D, 0x21
-        };
-
-        private static readonly byte[] G_Y = new byte[] {
-            0xbd, 0x37, 0x63, 0x88, 0xb5, 0xf7, 0x23, 0xfb,
-            0x4c, 0x22, 0xdf, 0xe6, 0xcd, 0x43, 0x75, 0xa0,
-            0x5a, 0x07, 0x47, 0x64, 0x44, 0xd5, 0x81, 0x99,
-            0x85, 0x00, 0x7e, 0x34
-        };
-        // NIST P-224 curve parameters
-        private static readonly BigInteger p224 = BigInteger.Parse("26959946667150639794667015087019630673557916260026308143510066298881");
-        private static readonly BigInteger a224 = BigInteger.Parse("-3");
-        private static readonly BigInteger b224 = BigInteger.Parse("18958286285566608000408668544493926415504680968679321075787234672564");
-
-        // NIST P-224 kurvan konstanter
-        private static readonly byte[] P224_P = new byte[] {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01
-};
-
-        private static readonly byte[] P224_A = new byte[] {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE,
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE
-};
-
-        private static readonly byte[] P224_B = new byte[] {
-    0xB4, 0x05, 0x0A, 0x85, 0x0C, 0x04, 0xB3, 0xAB, 0xF5, 0x41, 0x32, 0x56, 0x50, 0x44, 0xB0, 0xB7,
-    0xD7, 0xBF, 0xD8, 0xBA, 0x27, 0x0B, 0x39, 0x43, 0x23, 0x55, 0xFF, 0xB4
-};
-
-        private static readonly byte[] P224_Order = new byte[] {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x16, 0xA2,
-    0xE0, 0xB8, 0xF0, 0x3E, 0x13, 0xDD, 0x29, 0x45, 0x5C, 0x5C, 0x2A, 0x3D
-};
-
-        private static readonly byte[] P224_Gx = new byte[] {
-    0xB7, 0x0E, 0x0C, 0xBD, 0x6B, 0xB4, 0xBF, 0x7F, 0x32, 0x13, 0x90, 0xB9, 0x4A, 0x03, 0xC1, 0xD3,
-    0x56, 0xC2, 0x11, 0x22, 0x34, 0x32, 0x80, 0xD6, 0x11, 0x5C, 0x1D, 0x21
-};
-
-        private static readonly byte[] P224_Gy = new byte[] {
-    0xBD, 0x37, 0x63, 0x88, 0xB5, 0xF7, 0x23, 0xFB, 0x4C, 0x22, 0xDF, 0xE6, 0xCD, 0x43, 0x75, 0xA0,
-    0x5A, 0x07, 0x47, 0x64, 0x44, 0xD5, 0x81, 0x99, 0x85, 0x00, 0x7E, 0x34
-};
-
+        private readonly string mrz;
+        private Org.BouncyCastle.Math.EC.ECPoint mappedPoint;  // Från Map response
+        private Org.BouncyCastle.Math.EC.ECPoint sharedSecret; // Från Key exchange
+        private AsymmetricKeyParameter privateKey;
+        private ECPrivateKeyParameters privateKeyParameters;
+        private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
+        private Org.BouncyCastle.Math.EC.ECPoint theirPublicKey;      // Deras publika nyckel från Key Agreement (steg 3)
 
         public PaceProtocol(IsoDep isoDep, string mrz)
         {
@@ -90,28 +48,23 @@ namespace VerifyIdentityProject.Platforms.Android
                     return false;
 
                 // 2. Få krypterad nonce
-                Console.WriteLine("GetEncryptedNonce started...");
                 var encryptedNonce = await GetEncryptedNonce();
                 if (encryptedNonce == null)
                     return false;
 
                 // 3. Dekryptera nonce
-                Console.WriteLine("DecryptNonce started...");
                 var decryptedNonce = DecryptNonce(encryptedNonce);
 
                 // 4. Generera och skicka mappade parametrar
-                Console.WriteLine("GenerateAndSendMappedParameters started...");
                 var mappedParams = await GenerateAndSendMappedParameters(decryptedNonce);
                 if (!mappedParams)
                     return false;
 
                 // 5. Utför ECDH nyckelutbyte
-                Console.WriteLine("PerformKeyExchange started...");
                 if (!await PerformKeyExchange())
                     return false;
 
                 // 6. Verifiera autentiseringstoken
-                Console.WriteLine("VerifyAuthenticationToken started...");
                 return await VerifyAuthenticationToken();
             }
             catch (Exception ex)
@@ -128,15 +81,15 @@ namespace VerifyIdentityProject.Platforms.Android
 
             // Bygg MSE:SET AT kommandot
             List<byte> command = new List<byte>
-    {
-        0x00,    // CLA 
-        0x22,    // INS (MANAGE SECURITY ENVIRONMENT)
-        0xC1,    // P1
-        0xA4,    // P2 (Set Authentication Template)
-        0x00,    // Lc (length, will be updated later)
-        0x80,    // Tag for kryptographic mechanism
-        (byte)protocolOID.Length  // OID length
-    };
+            {
+                0x00,    // CLA 
+                0x22,    // INS (MANAGE SECURITY ENVIRONMENT)
+                0xC1,    // P1
+                0xA4,    // P2 (Set Authentication Template)
+                0x00,    // Lc (length, will be updated later)
+                0x80,    // Tag for kryptographic mechanism
+                (byte)protocolOID.Length  // OID length
+            };
 
             // Lägg till OID
             command.AddRange(protocolOID);
@@ -144,17 +97,17 @@ namespace VerifyIdentityProject.Platforms.Android
             // Password reference (0x83 tag)
             command.AddRange(new byte[]
             {
-        0x83,    // Tag for password reference
-        0x01,    // Length of value
-        0x01     // Value: 0x01 for MRZ
+                0x83,    // Tag for password reference
+                0x01,    // Length of value
+                0x01     // Value: 0x01 for MRZ
             });
 
             // Lägg till domain parameters reference (0x84 tag)
             command.AddRange(new byte[]
             {
-        0x84,    // Tag for domain parameters
-        0x01,    // Length of value
-        0x10     // Parameter ID för NIST P-224
+                0x84,    // Tag for domain parameters
+                0x01,    // Length of value
+                0x10     // Parameter ID för NIST P-224
             });
 
             // Uppdating Lc (total length of data)
@@ -171,6 +124,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private async Task<byte[]> GetEncryptedNonce()
         {
+            Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
             var getNonceCommand = new byte[]
             {
                 0x10,    // CLA (command chaining)
@@ -202,6 +156,7 @@ namespace VerifyIdentityProject.Platforms.Android
         // Hjälpmetod för att extrahera nonce från svar
         private byte[] ParseEncryptedNonce(byte[] response)
         {
+            Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
             try
             {
                 // Ta bort status bytes (90 00)
@@ -238,309 +193,247 @@ namespace VerifyIdentityProject.Platforms.Android
         }
         private byte[] DecryptNonce(byte[] encryptedNonce)
         {
-            // Generera 16-byte AES nyckel från CAN/MRZ
-            byte[] key = new byte[16];
+            Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
+
+            // För AES-256 behöver vi 32 bytes nyckel
             using (var sha1 = SHA1.Create())
             {
-                byte[] inputBytes = Encoding.UTF8.GetBytes(mrz);
-                byte[] hash = sha1.ComputeHash(inputBytes);
+               var key = CalculateMRZKey(mrz);
 
-                // Använd de första 16 bytes som AES-nyckel
-                byte[] key2 = new byte[16];
-                Array.Copy(hash, key, 16);
-
-                key = key2;
-            }
-
-            using (Aes aes = Aes.Create())
-            {
-                aes.Key = key;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;  // Ändrat till NoPadding
-                aes.IV = new byte[16]; // Nollställd IV
-
-                using (var decryptor = aes.CreateDecryptor())
+                using (Aes aes = Aes.Create())
                 {
-                    var decyptedNonce = decryptor.TransformFinalBlock(encryptedNonce, 0, encryptedNonce.Length);
-                    Console.WriteLine($"DecryptNonce: {BitConverter.ToString(decyptedNonce)}");
-                    return decyptedNonce;
+                    aes.Key = key;
+                    aes.Mode = CipherMode.CBC;
+                    aes.Padding = PaddingMode.None;
+                    aes.IV = new byte[16];
+
+                    using (var decryptor = aes.CreateDecryptor())
+                    {
+                        var decryptedNonce = decryptor.TransformFinalBlock(encryptedNonce, 0, encryptedNonce.Length);
+                        Console.WriteLine($"DecryptNonce: {BitConverter.ToString(decryptedNonce)}");
+                        return decryptedNonce;
+                    }
                 }
             }
         }
 
+        private byte[] CalculateMRZKey(string mrzData)
+        {
+            // Hash med SHA-1
+            using (var sha1 = SHA1.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(mrzData);
+                byte[] hash = sha1.ComputeHash(inputBytes);
+                byte[] key = new byte[32];  // För AES-256
+                Array.Copy(hash, key, Math.Min(hash.Length, 32));
+                return key;
+            }
+        }
+
+
         private async Task<bool> GenerateAndSendMappedParameters(byte[] decryptedNonce)
         {
-            Console.WriteLine("GenerateAndSendMappedParameters started...");
+            Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
-                var curve = NistNamedCurves.GetByName("P-224");
+                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
                 var domain = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
 
-                // Generera nyckelpar för mapping
-                var keyGen = GeneratorUtilities.GetKeyPairGenerator("ECDH");
-                var keyGenParams = new ECKeyGenerationParameters(domain, new SecureRandom());
-                keyGen.Init(keyGenParams);
-                var keyPair = keyGen.GenerateKeyPair();
+                var mapCommand = new List<byte>
+                {
+                    0x10,    // CLA med command chaining
+                    0x86,    // INS (GENERAL AUTHENTICATE)
+                    0x00,    // P1
+                    0x00,    // P2
+                    0x00,    // Lc (uppdateras senare)
+                    0x7C,    // Dynamic Authentication Data tag
+                    0x00,    // Längd (uppdateras senare)
+                    0x81,    // Map Nonce tag
+                    0x00     // Längd (uppdateras senare)
+                };
 
-                // Bygg Map Nonce kommando (Steg 2)
-                var mappingCommand = new List<byte>
-        {
-            0x10,    // CLA med command chaining
-            0x86,    // INS (GENERAL AUTHENTICATE)
-            0x00,    // P1
-            0x00,    // P2
-            0x00,    // Lc (uppdateras senare)
-            0x7C,    // Dynamic Authentication Data tag
-            0x00,    // Längd (uppdateras senare)
-            0x81,    // Mapping Data tag (enligt spec)
-            0x39     // Längd för punkten
-        };
+                // Konvertera nonce till punkt
+                var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
+                var mappedPoint = domain.G.Multiply(s).Normalize();
+                var encodedPoint = mappedPoint.GetEncoded(false);
 
-                var publicPoint = ((ECPublicKeyParameters)keyPair.Public).Q;
-                var encodedPoint = publicPoint.GetEncoded(false);
+                mapCommand.AddRange(encodedPoint);
 
-                // Lägg till punkten
-                mappingCommand.AddRange(encodedPoint);
+                // Uppdatera längder för 384-bit kurva
+                int pointLength = encodedPoint.Length;
+                mapCommand[8] = (byte)pointLength;
+                mapCommand[6] = (byte)(pointLength + 2);
+                mapCommand[4] = (byte)(mapCommand[6] + 2);
+                mapCommand.Add(0x65);  // Le byte (från tidigare försök där chipet indikerade 0x65)
 
-                // Uppdatera längder
-                var innerLength = encodedPoint.Length;
-                mappingCommand[6] = (byte)(innerLength + 2);  // +2 för tag och längd
-                mappingCommand[4] = (byte)(mappingCommand[6] + 2);  // +2 för outer tag och längd
+                Console.WriteLine($"Using curve: brainpoolP384r1");
+                Console.WriteLine($"Point length: {pointLength}");
+                Console.WriteLine($"Total command length: {mapCommand.Count}");
+                Console.WriteLine($"Mapping command: {BitConverter.ToString(mapCommand.ToArray())}");
 
-                Console.WriteLine($"Encoded point length: {encodedPoint.Length}");
-                Console.WriteLine($"Total command length: {mappingCommand.Count}");
-                Console.WriteLine($"Sending mapping command: {BitConverter.ToString(mappingCommand.ToArray())}");
+                var response = await isoDep.TransceiveAsync(mapCommand.ToArray());
+                Console.WriteLine($"Map response: {BitConverter.ToString(response)}");
 
-                var response = await isoDep.TransceiveAsync(mappingCommand.ToArray());
-                Console.WriteLine($"Mapping response: {BitConverter.ToString(response)}");
+                // Spara mappedPoint från svaret
+                var mappedPointBytes = response.Skip(4).Take(response.Length - 6).ToArray(); // Skippa headers och status
+                this.mappedPoint = curve.Curve.DecodePoint(mappedPointBytes);
 
                 return IsSuccessful(response);
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GenerateAndSendMappedParameters: {ex.Message}");
+                Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
         }
 
-        private List<byte> MapPoint(BigInteger s, byte[] _, byte[] __, ECParameters curveParams)
-        {
-            const int P224_COORD_LENGTH = 28;  // Exakt längd för P-224 koordinater
-
-            // Säkerställ att s är positiv och inom kurvans ordning
-            s = s % p224;
-            if (s < 0) s += p224;
-
-            // Utför punktmultiplikation med trimmat s
-            (BigInteger resultX, BigInteger resultY) = ScalarMultiply(
-                new BigInteger(G_X),
-                new BigInteger(G_Y),
-                s,
-                p224,
-                a224);
-
-            // Formatera punkten exakt som chipet förväntar sig
-            List<byte> mappedPoint = new List<byte>();
-            mappedPoint.Add(0x04);  // Uncompressed point identifier
-
-            // Säkerställ exakt 28 bytes per koordinat
-            byte[] xBytes = resultX.ToByteArray().Reverse().ToArray();
-            byte[] yBytes = resultY.ToByteArray().Reverse().ToArray();
-
-            // Padda till exakt längd om det behövs
-            if (xBytes.Length < P224_COORD_LENGTH)
-            {
-                xBytes = new byte[P224_COORD_LENGTH - xBytes.Length]
-                    .Concat(xBytes)
-                    .ToArray();
-            }
-            else if (xBytes.Length > P224_COORD_LENGTH)
-            {
-                xBytes = xBytes.Skip(xBytes.Length - P224_COORD_LENGTH).ToArray();
-            }
-
-            if (yBytes.Length < P224_COORD_LENGTH)
-            {
-                yBytes = new byte[P224_COORD_LENGTH - yBytes.Length]
-                    .Concat(yBytes)
-                    .ToArray();
-            }
-            else if (yBytes.Length > P224_COORD_LENGTH)
-            {
-                yBytes = yBytes.Skip(yBytes.Length - P224_COORD_LENGTH).ToArray();
-            }
-
-            mappedPoint.AddRange(xBytes);
-            mappedPoint.AddRange(yBytes);
-
-            return mappedPoint;
-        }
-
-        private (BigInteger x, BigInteger y) ScalarMultiply(BigInteger x, BigInteger y, BigInteger scalar, BigInteger p, BigInteger a)
-        {
-            BigInteger resultX = 0;
-            BigInteger resultY = 0;
-            bool isFirst = true;
-
-            // Ersatt TestBit med egen bit-check
-            for (int i = scalar.ToString("X").Length * 4 - 1; i >= 0; i--)
-            {
-                if (!isFirst)
-                {
-                    (resultX, resultY) = PointDouble(resultX, resultY, p, a);
-                }
-
-                // Kontrollera bit utan TestBit
-                if ((scalar & (BigInteger.One << i)) != 0)
-                {
-                    if (isFirst)
-                    {
-                        resultX = x;
-                        resultY = y;
-                        isFirst = false;
-                    }
-                    else
-                    {
-                        (resultX, resultY) = PointAdd(resultX, resultY, x, y, p);
-                    }
-                }
-            }
-
-            return (resultX, resultY);
-        }
-
-        private (BigInteger x, BigInteger y) PointDouble(BigInteger x, BigInteger y, BigInteger p, BigInteger a)
-        {
-            if (y == 0)
-                return (0, 0);
-
-            // s = (3x² + a) / (2y)
-            BigInteger s = ((3 * x * x + a) * ModInverse(2 * y, p)) % p;
-
-            // x' = s² - 2x
-            BigInteger xr = (s * s - 2 * x) % p;
-            if (xr < 0) xr += p;
-
-            // y' = s(x - x') - y
-            BigInteger yr = (s * (x - xr) - y) % p;
-            if (yr < 0) yr += p;
-
-            return (xr, yr);
-        }
-
-        private (BigInteger x, BigInteger y) PointAdd(BigInteger x1, BigInteger y1, BigInteger x2, BigInteger y2, BigInteger p)
-        {
-            if (x1 == 0 && y1 == 0) return (x2, y2);
-            if (x2 == 0 && y2 == 0) return (x1, y1);
-            if (x1 == x2 && y1 == -y2) return (0, 0);
-
-            BigInteger s;
-            if (x1 == x2 && y1 == y2)
-                return PointDouble(x1, y1, p, -3);  // a = -3 för NIST P-256
-
-            // s = (y2 - y1) / (x2 - x1)
-            s = ((y2 - y1) * ModInverse((x2 - x1) % p, p)) % p;
-
-            // x3 = s² - x1 - x2
-            BigInteger x3 = (s * s - x1 - x2) % p;
-            if (x3 < 0) x3 += p;
-
-            // y3 = s(x1 - x3) - y1
-            BigInteger y3 = (s * (x1 - x3) - y1) % p;
-            if (y3 < 0) y3 += p;
-
-            return (x3, y3);
-        }
-
-        private BigInteger ModInverse(BigInteger value, BigInteger modulus)
-        {
-            if (value < 0)
-                value = value % modulus;
-
-            BigInteger a = value;
-            BigInteger b = modulus;
-            BigInteger x = 1;
-            BigInteger y = 0;
-            BigInteger x1 = 0;
-            BigInteger y1 = 1;
-            BigInteger q;
-            BigInteger temp;
-
-            while (b != 0)
-            {
-                q = a / b;
-                temp = a % b;
-                a = b;
-                b = temp;
-
-                temp = x - q * x1;
-                x = x1;
-                x1 = temp;
-
-                temp = y - q * y1;
-                y = y1;
-                y1 = temp;
-            }
-
-            if (x < 0)
-                x += modulus;
-
-            return x;
-        }
 
         private async Task<bool> PerformKeyExchange()
         {
-            // Generera ny ECDH nyckel för nyckelutbytet
-            using (ECDiffieHellman ecdh = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256))
+            Console.WriteLine("-------------------------------------------------------- PerformKeyExchange started...");
+            try
             {
-                var publicKey = ecdh.PublicKey.ExportSubjectPublicKeyInfo();
+                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
+                var domain = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
 
+                // Generera ECDH nyckelpar
+                var keyGen = GeneratorUtilities.GetKeyPairGenerator("ECDH");
+                var keyGenParams = new ECKeyGenerationParameters(domain, new SecureRandom());
+                keyGen.Init(keyGenParams);
+                var keyPair = keyGen.GenerateKeyPair();
+
+                // Spara privata nyckeln för senare
+                this.privateKeyParameters = (ECPrivateKeyParameters)keyPair.Private;
+                // Spara vår publika nyckel
+                this.ourPublicKey = ((ECPublicKeyParameters)keyPair.Public).Q;
+
+                // Bygg kommandot
                 var keyExchangeCommand = new List<byte>
-            {
-                0x10,    // CLA (command chaining)
-                0x86,    // INS
-                0x00,    // P1
-                0x00,    // P2
-                0x00,    // Lc (uppdateras senare)
-                0x7C,    // Dynamic Authentication Data
-                0x00     // Längd (uppdateras senare)
-            };
+                {
+                    0x10,    // CLA (command chaining)
+                    0x86,    // INS
+                    0x00,    // P1
+                    0x00,    // P2
+                    0x00,    // Lc (uppdateras senare)
+                    0x7C,    // Dynamic Authentication Data
+                    0x00,    // Längd (uppdateras senare)
+                    0x83,    // Ephemeral Public Key tag för key agreement
+                    0x00     // Längd (uppdateras senare)
+                };
 
-                keyExchangeCommand.AddRange(publicKey);
+                // Hämta och lägg till publika nyckeln
+                var publicPoint = ((ECPublicKeyParameters)keyPair.Public).Q;
+                var encodedPoint = publicPoint.GetEncoded(false);
+                keyExchangeCommand.AddRange(encodedPoint);
 
                 // Uppdatera längder
-                keyExchangeCommand[6] = (byte)(publicKey.Length);
-                keyExchangeCommand[4] = (byte)(publicKey.Length + 2);
+                int pointLength = encodedPoint.Length;
+                keyExchangeCommand[8] = (byte)pointLength;               // Längd för public key
+                keyExchangeCommand[6] = (byte)(pointLength + 2);         // Längd för data
+                keyExchangeCommand[4] = (byte)(keyExchangeCommand[6] + 2); // Total längd
+                keyExchangeCommand.Add(0x65);                           // Le byte
+
+                Console.WriteLine($"Key exchange point length: {pointLength}");
+                Console.WriteLine($"Sending key exchange command: {BitConverter.ToString(keyExchangeCommand.ToArray())}");
 
                 var response = await isoDep.TransceiveAsync(keyExchangeCommand.ToArray());
-                if (!IsSuccessful(response))
-                    return false;
+                Console.WriteLine($"Key exchange response: {BitConverter.ToString(response)}");
 
-                // Beräkna gemensam hemlighet här
-                // Chipets publika nyckel finns i response
+                // Beräkna shared secret
+                var chipPublicKeyBytes = response.Skip(4).Take(response.Length - 6).ToArray();
+                var chipPublicKey = curve.Curve.DecodePoint(chipPublicKeyBytes);
+                this.sharedSecret = chipPublicKey.Multiply(privateKeyParameters.D).Normalize();
+                // Spara deras publika nyckel
+                this.theirPublicKey = curve.Curve.DecodePoint(chipPublicKeyBytes);
+
+                // Beräkna shared secret som tidigare
+                this.sharedSecret = theirPublicKey.Multiply(privateKeyParameters.D).Normalize();
+
+                if (!IsSuccessful(response))
+                {
+                    Console.WriteLine("Key exchange failed");
+                    return false;
+                }
+
+
                 return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in PerformKeyExchange: {ex.Message}");
+                return false;
             }
         }
 
+
         private async Task<bool> VerifyAuthenticationToken()
         {
-            // Generera och skicka autentiseringstoken
-            var authTokenCommand = new List<byte>
+        Console.WriteLine("-------------------------------------------------------- VerifyAuthenticationToken started...");
+            try
+            {
+                var mac = new CMac(new AesEngine(), 128);
+
+                // Använd shared secret för att generera MAC-nyckel
+                using (var sha256 = SHA256.Create())
+                {
+                    var sharedSecretEncoded = sharedSecret.GetEncoded(false);
+                    var macKey = sha256.ComputeHash(sharedSecretEncoded);
+                    mac.Init(new KeyParameter(macKey));
+                }
+
+                // Bygg data för MAC-beräkning
+                var dataForMac = new List<byte>();
+
+                // Lägg till punkterna i ordning
+                var ourKeyEncoded = ourPublicKey.GetEncoded(false);
+                var theirKeyEncoded = theirPublicKey.GetEncoded(false);
+
+                dataForMac.AddRange(ourKeyEncoded);    // Vår publika nyckel från steg 3
+                dataForMac.AddRange(theirKeyEncoded);  // Deras publika nyckel från steg 3
+
+                // Beräkna MAC
+                mac.BlockUpdate(dataForMac.ToArray(), 0, dataForMac.Count);
+                byte[] authToken = new byte[mac.GetMacSize()];
+                mac.DoFinal(authToken, 0);
+
+                // Bygg kommandot
+                var authTokenCommand = new List<byte>
         {
-            0x00,    // CLA (sista kommandot, ingen chaining)
+            0x00,    // CLA
             0x86,    // INS
             0x00,    // P1
             0x00,    // P2
-            0x00,    // Lc (uppdateras senare)
+            0x00,    // Lc
             0x7C,    // Dynamic Authentication Data
-            0x00     // Längd (uppdateras senare)
+            0x00,    // Length
+            0x85,    // Authentication Token tag
+            (byte)authToken.Length,
         };
 
-            // Beräkna och lägg till autentiseringstoken här
-            // ...
+                authTokenCommand.AddRange(authToken);
 
-            var response = await isoDep.TransceiveAsync(authTokenCommand.ToArray());
-            return IsSuccessful(response);
+                // Uppdatera längder
+                authTokenCommand[6] = (byte)(authToken.Length + 2);
+                authTokenCommand[4] = (byte)(authTokenCommand[6] + 2);
+                authTokenCommand.Add(0x65);
+
+                Console.WriteLine($"Data for MAC length: {dataForMac.Count}");
+                Console.WriteLine($"Our public key length: {ourKeyEncoded.Length}");
+                Console.WriteLine($"Their public key length: {theirKeyEncoded.Length}");
+                Console.WriteLine($"Auth token: {BitConverter.ToString(authToken)}");
+                Console.WriteLine($"Full command: {BitConverter.ToString(authTokenCommand.ToArray())}");
+
+                var response = await isoDep.TransceiveAsync(authTokenCommand.ToArray());
+                Console.WriteLine($"Response: {BitConverter.ToString(response)}");
+
+                return IsSuccessful(response);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error: {ex.Message}");
+                return false;
+            }
+
         }
 
         private byte[] DeriveKey(byte[] input)
