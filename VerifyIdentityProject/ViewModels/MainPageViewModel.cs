@@ -8,19 +8,27 @@ namespace VerifyIdentityProject
     public class MainPageViewModel : INotifyPropertyChanged
     {
 
-        public ICommand ScanMrzCommand { get; }
-
-        private string _processedImagePath;
-
-        public string ProcessedImagePath
+        private string _mrzNotFound;
+        private ICommand _scanMrzCommand;
+        public ICommand ScanMrzCommand
         {
-            get => _processedImagePath;
+            get => _scanMrzCommand;
             set
             {
-                if (_processedImagePath != value)
+                _scanMrzCommand = value;
+                OnPropertyChanged(nameof(ScanMrzCommand)); // Notify the UI about the updated command
+            }
+        }
+
+        public string MrzNotFound
+        {
+            get => _mrzNotFound;
+            set
+            {
+                if (_mrzNotFound != value)
                 {
-                    _processedImagePath = value;
-                    OnPropertyChanged(nameof(ProcessedImagePath));
+                    _mrzNotFound = value;
+                    OnPropertyChanged(nameof(MrzNotFound));
                 }
             }
         }
@@ -37,8 +45,10 @@ namespace VerifyIdentityProject
         }
 
         public ICommand StartNfcCommand { get; }
-
-        public MainPageViewModel(INfcReaderManager nfcReaderManager, MrzReader mrzReader)
+        public MainPageViewModel()
+        {
+        }
+        public MainPageViewModel(INfcReaderManager nfcReaderManager)
         {
             StartNfcCommand = new Command(() =>
             {
@@ -52,12 +62,6 @@ namespace VerifyIdentityProject
                     PassportData = $"Error starting NFC: {ex.Message}";
                 }
             });
-
-            if (mrzReader == null)
-                throw new ArgumentNullException(nameof(mrzReader));
-
-            // Assign the command from MrzReader
-            ScanMrzCommand = new Command(async () => await mrzReader.ScanAndExtractMrzAsync());
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

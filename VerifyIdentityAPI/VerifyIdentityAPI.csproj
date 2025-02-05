@@ -28,9 +28,30 @@
 
   <ItemGroup>
 	  <Content Include="tessdata\*" CopyToOutputDirectory="PreserveNewest" />
+	  <Content Include="bin\Debug\net8.0\tessdata\eng.traineddata">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="bin\Debug\net8.0\tessdata\mrz.traineddata">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="bin\Debug\net8.0\tessdata\ocrb.traineddata">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
+	  <Content Include="bin\Debug\net8.0\tessdata\osd.traineddata">
+	    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	  </Content>
     <None Update="tessdata\eng.traineddata">
       <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
     </None>
+	  <None Update="tessdata\mrz.traineddata">
+		  <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+	  </None>
+	  <None Update="tessdata\ocrb.traineddata">
+		  <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+	  </None>
+	  <None Update="tessdata\osd.traineddata">
+		  <LogicalName>%(RecursiveDir)%(Filename)%(Extension)</LogicalName>
+	  </None>
   </ItemGroup>
 
 </Project>

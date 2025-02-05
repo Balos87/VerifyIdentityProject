@@ -30,8 +30,8 @@
 
             <Button Text="Capture and Process MRZ" Command="{Binding ScanMrzCommand}" />
 
-            <Label Text="{Binding PassportData}" />
-
+            <Label Text="{Binding MrzNotFound}"
+                   HorizontalOptions="Fill"/>
 
             <Label
                 Text="{Binding PassportData}"

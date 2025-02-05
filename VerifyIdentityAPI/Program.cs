@@ -22,8 +22,7 @@ namespace VerifyIdentityAPI
             // Register the Tesseract engine
             builder.Services.AddSingleton<TesseractEngine>(sp =>
             {
-                string tessDataPath = Path.Combine(Directory.GetCurrentDirectory(), "tessdata");
-                return new TesseractEngine(tessDataPath, "eng", EngineMode.Default);
+                return new TesseractEngine(@"./tessdata", "eng+ocrb+mrz+osd", EngineMode.Default);
             });
 
             builder.Services.AddSingleton<IMrzService, MrzService>();
@@ -70,7 +69,7 @@ namespace VerifyIdentityAPI
 
                     if(mrzText == string.Empty)
                     {
-                        return Results.Ok("Please try again with a diffrent image.");
+                        return Results.Ok(null);
                     }
 
                     return Results.Ok(mrzText);
