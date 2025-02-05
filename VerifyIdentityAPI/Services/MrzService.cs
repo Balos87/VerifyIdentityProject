@@ -29,13 +29,6 @@ namespace VerifyIdentityAPI.Services
                     throw new Exception("Image loading failed.");
                 }
 
-                // Crop the bottom half where MRZ is most likely to be located
-                //Mat croppedImage = CropBottomHalf(image);
-
-                //// Optionally, save the cropped image for debugging:
-                //string croppedPath = Path.Combine(Path.GetTempPath(), "cropped_image.png");
-                //Cv2.ImWrite(croppedPath, croppedImage);
-                //Console.WriteLine($"Cropped image saved at: {croppedPath}");
 
                 // Preprocess the cropped MRZ region
                 Mat processedImage = CropToMrzRegion(image);
@@ -79,34 +72,6 @@ namespace VerifyIdentityAPI.Services
 
             Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary,65, 30);
             Cv2.ImWrite(processedImagePath, image);
-            //Cv2.Threshold(image, image, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
-            //Cv2.ImWrite(processedImagePath, image);
-            //Cv2.Threshold(image, image, 0, 255, ThresholdTypes.Binary | ThresholdTypes.Otsu);
-            //Cv2.ImWrite(processedImagePath, image);
-
-
-            //// 2. Resize the image to improve accuracy
-            //Cv2.Resize(image, image, new OpenCvSharp.Size(image.Width * 2, image.Height * 2));
-
-            //Cv2.ImWrite(processedImagePath, image);
-            //// 3. Histogram Equalization
-            //Cv2.EqualizeHist(image, image);
-            //Cv2.ImWrite(processedImagePath, image);
-            //// 4. CLAHE contrast enhancement
-            //using var clahe = Cv2.CreateCLAHE(clipLimit: 3.0, tileGridSize: new OpenCvSharp.Size(8, 8));
-            //clahe.Apply(image, image);
-            //Cv2.ImWrite(processedImagePath, image);
-            //// 5. Gaussian Blurring to reduce noise
-            //Cv2.GaussianBlur(image, image, new OpenCvSharp.Size(5, 5), 0);
-            //Cv2.ImWrite(processedImagePath, image);
-            //// 7. Sharpening (multiple steps)
-            //Mat sharpened = new Mat();
-            //Cv2.AddWeighted(image, 1.5, image, -0.5, 0, sharpened);
-            //image = sharpened;
-            //Cv2.ImWrite(processedImagePath, image);
-            // 8. Adaptive Thresholding
-            //Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 11, 2);
-
             // 10. Contrast Stretching
             Cv2.Normalize(image, image, 0, 255, NormTypes.MinMax);
             Cv2.ImWrite(processedImagePath, image);
@@ -133,7 +98,7 @@ namespace VerifyIdentityAPI.Services
             // Find contours in the binary image
             OpenCvSharp.Point[][] contours;
             HierarchyIndex[] hierarchy;
-            Cv2.FindContours(morphResult, out contours, out hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
+            Cv2.FindContours(morphResult, out contours, out hierarchy, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
 
             // Identify the MRZ region based on aspect ratio and size
             OpenCvSharp.Rect mrzRect = new OpenCvSharp.Rect();
@@ -150,14 +115,14 @@ namespace VerifyIdentityAPI.Services
                 double area = rect.Width * rect.Height;
 
                 // Heuristics for detecting MRZ
-                if (aspectRatio > 2 && aspectRatio < 15 &&  // Aspect ratio range
-                    area > imageArea * 0.05              // At least 1% of the image area
+                if (aspectRatio > 20 && aspectRatio < 55  // Aspect ratio range
+                                // At least 1% of the image area
                     ) // Minimum dimension constraint            // Focus on lower half of the image
                 {
                     candidateRects.Add(rect);
 
                     // Debug visualization
-                    Cv2.Rectangle(image, rect, new Scalar(0, 255, 0), 2);
+                    //Cv2.Rectangle(image, rect, new Scalar(0, 255, 0), 2);
                 }
             }
 
@@ -204,8 +169,14 @@ namespace VerifyIdentityAPI.Services
             using var page = _tesseractEngine.Process(bitmap, PageSegMode.AutoOsd);
             string text = page.GetText().Replace("\n", "").Replace(" ", ""); // Remove whitespace and newlines
 
-            // Checks if the text contains the MRZ line format
-            return text.Contains("P<");
+            if(!text.Contains("P<") && text.Length == 44)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         private string ExtractMrzText(string ocrText)
