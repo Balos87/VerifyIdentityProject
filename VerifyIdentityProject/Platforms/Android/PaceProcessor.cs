@@ -1,10 +1,14 @@
-﻿using Android.Nfc.Tech;
+﻿using Android.Health.Connect.DataTypes.Units;
+using Android.Nfc.Tech;
+using Microsoft.Maui.Controls;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using VerifyIdentityProject.Helpers;
+using Xamarin.Google.Crypto.Tink.Prf;
 using static Android.Provider.MediaStore.Audio;
 
 namespace VerifyIdentityProject.Platforms.Android
@@ -14,64 +18,275 @@ namespace VerifyIdentityProject.Platforms.Android
         private readonly IsoDep _isoDep;
         private static byte[] AID_MRTD = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
 
-        // Konstruktor
         public PaceProcessor(IsoDep isoDep)
         {
             _isoDep = isoDep;
         }
 
-        // Huvudmetod för att köra PACE
+        // Main method to perform PACE
         public static async Task<byte[]> PerformPace(IsoDep isoDep)
         {
+            Console.WriteLine("<-PerformPace->");
             try
             {
-                // Steg 0: Välj passport application
+                // Step 0: Select the passport application
                 await SelectApplication(isoDep);
 
-                // Steg 1: Läs CardAccess för att få PACE-parametrar
+                // Step 1: Read CardAccess to get PACE parameters
                 var cardAccess = await ReadCardAccess(isoDep);
-                //var paceInfo = ParsePaceInfo(cardAccess);
+                // var paceInfo = ParsePaceInfo(cardAccess);
+                var validOids = ValidateAndListPACEInfoWithDescriptions(cardAccess);
+                Console.WriteLine($"");
+                Console.WriteLine("______Valid PACE Protocols:");
+                foreach (var oid in validOids)
+                {
+                    if (OidEndsWith(oid, "4.2.4"))
+                    {
+                        Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
+                        if (await SendMseSetAt(oid, isoDep))
+                        {
+                            Console.WriteLine("PACE Protocol set successfully");
+                        }
+                        else
+                        {
+                            Console.WriteLine("PACE Protocol not set");
+                        }
+                    }
+                }
+                Console.WriteLine("");
+                Console.WriteLine("<---------------------------------------->");
 
-                //// Steg 2: MSE:Set AT kommando för att starta PACE
-                //await InitializePace(paceInfo);
+                //var answr = await GeneralAuthenticate(isoDep);
+                //Console.WriteLine($"answr: {BitConverter.ToString(answr)}");
 
-                //// Steg 3: Få krypterat nonce från passet
-                //var encryptedNonce = await GetEncryptedNonce();
 
-                //// Steg 4: Dekryptera nonce med lösenord från MRZ
-                //var password = DerivePasswordFromMrz(mrz);
-                //var decryptedNonce = DecryptNonce(encryptedNonce, password);
 
-                //// Steg 5: Generera och utbyt efemära nycklar
-                //var mappingData = await PerformMapping(decryptedNonce);
-                //var (myKeyPair, theirPubKey) = await ExchangeEphemeralKeys(mappingData);
+                //just for testing
+                var secrets = GetSecrets.FetchSecrets();
+                var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
+                Console.WriteLine($"mrzData: {mrzData}");
 
-                //// Steg 6: Beräkna gemensam hemlighet
-                //var sharedSecret = CalculateSharedSecret(myKeyPair, theirPubKey);
+                await StartPaceAuthentication(isoDep, mrzData);
+                Console.WriteLine("<---------------------------------------->");
+
+                //var pass = DerivePasswordFromMRZ(mrzData);
+                //Console.WriteLine($"DerivePasswordFromMRZ: {BitConverter.ToString(pass)}");
+
+                //if (SendPasswordToChip(pass, isoDep))
+                //{
+                //    Console.WriteLine("Password sent to chip successfully");
+                //}
+                //else
+                //{
+                //    Console.WriteLine("Password not sent to chip");
+                //}
+
+
+
+                Console.WriteLine("");
+
+                //// Step 2: MSE:Set AT command to initiate PACE
+                // await InitializePace(paceInfo);
+
+                //// Step 3: Get encrypted nonce from the passport
+                // var encryptedNonce = await GetEncryptedNonce();
+
+                //// Step 4: Decrypt the nonce using the password derived from the MRZ
+                // var password = DerivePasswordFromMrz(mrz);
+                // var decryptedNonce = DecryptNonce(encryptedNonce, password);
+
+                //// Step 5: Generate and exchange ephemeral keys
+                // var mappingData = await PerformMapping(decryptedNonce);
+                // var (myKeyPair, theirPubKey) = await ExchangeEphemeralKeys(mappingData);
+
+                //// Step 6: Calculate the shared secret
+                // var sharedSecret = CalculateSharedSecret(myKeyPair, theirPubKey);
                 byte[] sharedSecret = null;
-                // Steg 7: Härleda sessionsnycklar
-                //var (KSenc, KSmac) = DeriveSessionKeys(sharedSecret);
+                //// Step 7: Derive session keys
+                // var (KSenc, KSmac) = DeriveSessionKeys(sharedSecret);
 
-                // Steg 8: Utför Mutual Authentication
+                //// Step 8: Perform Mutual Authentication
                 // await PerformMutualAuthentication(KSenc, KSmac);
 
                 return cardAccess;
             }
             catch (Exception ex)
             {
-                throw new PaceException("PACE-processen misslyckades", ex);
+                throw new PaceException("The PACE process failed", ex);
             }
         }
 
-        // Välj passport application
+        public static async Task StartPaceAuthentication(IsoDep isoDep, string mrz)
+        {
+            var pace = new PaceProtocol(isoDep, mrz);
+            bool success = await pace.PerformPaceProtocol();
+
+            if (success)
+            {
+                Console.WriteLine("PACE-autentisering lyckades!");
+                // Nu kan du börja läsa data från passet
+            }
+            else
+            {
+                Console.WriteLine("PACE-autentisering misslyckades");
+            }
+        }
+
+        public async static Task<byte[]> GeneralAuthenticate(IsoDep isoDep)
+        {
+            // Första GENERAL AUTHENTICATE kommandot för att få encrypted nonce
+            byte[] getNonceCommand = new byte[]
+            {
+                0x10,    // CLA (command chaining - första kommandot)
+                0x86,    // INS (GENERAL AUTHENTICATE)
+                0x00,    // P1
+                0x00,    // P2
+                0x04,    // Lc (längd på data)
+                0x7C,    // Tag för Dynamic Authentication Data
+                0x00     // Ingen data i första steget
+            };
+
+            byte[] response = await SendCommand(getNonceCommand, isoDep);
+
+            // Analysera svaret (kommer innehålla krypterad nonce)
+            if (response.Length >= 2)
+            {
+                // Kontrollera status bytes
+                byte sw1 = response[response.Length - 2];
+                byte sw2 = response[response.Length - 1];
+
+                if (sw1 == 0x90 && sw2 == 0x00)
+                {
+                    // Ta bort status bytes från svaret
+                    byte[] encryptedNonce = new byte[response.Length - 2];
+                    Array.Copy(response, 0, encryptedNonce, 0, response.Length - 2);
+
+                    Console.WriteLine("Fick krypterad nonce:");
+                    Console.WriteLine(BitConverter.ToString(encryptedNonce));
+                }
+                else
+                {
+                    Console.WriteLine($"GET NONCE misslyckades med status: {sw1:X2}-{sw2:X2}");
+                }
+            }
+            return response;
+
+        }
+
+        private static bool OidEndsWith(byte[] oidBytes, string suffix)
+        {
+            string oidString = ConvertOidToString(oidBytes);
+            return oidString.EndsWith(suffix);
+        }
+
+
+
+        public static bool SendPasswordToChip(byte[] password, IsoDep isoDep)
+        {
+            var command = new byte[]
+            {
+        0x00, 0x86, 0x00, 0x00, // GENERAL AUTHENTICATE
+        (byte)password.Length
+            }.Concat(password).ToArray();
+
+            Console.WriteLine($"sending command: {BitConverter.ToString(command)}");
+
+            var response = isoDep.Transceive(command);
+            Console.WriteLine($"response from SendPasswordToChip: {BitConverter.ToString(response)}");
+
+
+            return response.Length > 2 && response[^2] == 0x90 && response[^1] == 0x00;
+        }
+
+        public static byte[] DerivePasswordFromMRZ(string mrzData)
+        {
+            //string mrzData = $"{documentNumber}{ComputeCheckDigit(documentNumber)}" +
+            //                 $"{birthDate}{ComputeCheckDigit(birthDate)}" +
+            //                 $"{expiryDate}{ComputeCheckDigit(expiryDate)}";
+
+            using var sha1 = System.Security.Cryptography.SHA256.Create();
+            return sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(mrzData));
+        }
+
+        private static string ComputeCheckDigit(string input)
+        {
+            const string weights = "731";
+            int sum = 0;
+
+            for (int i = 0; i < input.Length; i++)
+            {
+                int value = char.IsDigit(input[i]) ? input[i] - '0' : (input[i] - 'A' + 10);
+                sum += value * (weights[i % 3] - '0');
+            }
+
+            return (sum % 10).ToString();
+        }
+
+
+
+
+
+        public static async Task<bool> SendMseSetAt(byte[] oid, IsoDep isoDep)
+        {
+
+            // Protocoll OID
+            byte[] protocolOID = oid;
+
+            // Bygg MSE:SET AT kommandot
+            List<byte> command = new List<byte>
+            {
+                0x00,    // CLA 
+                0x22,    // INS (MANAGE SECURITY ENVIRONMENT)
+                0xC1,    // P1
+                0xA4,    // P2 (Set Authentication Template)
+                0x00,    // Lc (length, will be updated later)
+                0x80,    // Tag for kryptographic mechanism
+                (byte)protocolOID.Length  // OID length
+            };
+
+                        // Lägg till OID
+            command.AddRange(protocolOID);
+
+            //password reference (0x83 tag)
+            command.AddRange(new byte[] 
+            {
+                0x83,    // Tag for password reference
+                0x01,    // Length of value
+                0x01     // Value: 0x01 for MRZ (or 0x02 for CAN)
+            });
+
+            // Uppdating Lc (total length of data)
+            command[4] = (byte)(command.Count - 5);  // Subtract header (5 bytes)
+
+            // Konvertera till array för sändning
+            byte[] finalCommand = command.ToArray();
+            Console.WriteLine($"mseSetAtCommand: {BitConverter.ToString(finalCommand)}");
+
+            var response = await SendCommand(finalCommand, isoDep);
+            Console.WriteLine($"response: {BitConverter.ToString(response)}");
+
+            if (response[response.Length - 2] == 0x90 && response[response.Length - 1] == 0x00)
+            {
+                Console.WriteLine($"response: {BitConverter.ToString(response)}");
+
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        // Select passport application
         private static async Task SelectApplication(IsoDep isoDep)
         {
+            Console.WriteLine("<-SelectApplication->");
             try
             {
                 isoDep.Connect();
-                //isoDep.Timeout = 20000;
-                Console.WriteLine("Börjar SelectApplication");
-                Console.WriteLine($"IsoDep anslutet: {isoDep.IsConnected}");
+                // isoDep.Timeout = 20000;
+                Console.WriteLine("Starting SelectApplication!");
+                Console.WriteLine($"IsoDep connected: {isoDep.IsConnected}");
                 Console.WriteLine($"IsoDep timeout: {isoDep.Timeout}");
 
                 byte[] selectApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
@@ -80,45 +295,46 @@ namespace VerifyIdentityProject.Platforms.Android
                     .Concat(new byte[] { 0x00 })
                     .ToArray();
 
-                Console.WriteLine($"Förberedd SELECT APDU: {BitConverter.ToString(selectApdu)}");
+                Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
                 var response = await SendCommand(selectApdu, isoDep);
-
-                Console.WriteLine("Kommando skickat, kontrollerar svar");
 
                 if (response == null)
                 {
-                    Console.WriteLine("Fick null-svar från SendCommand");
-                    return; // Eller hantera det på annat sätt
+                    Console.WriteLine("Received null response from SendCommand");
+                    return;
                 }
 
                 if (!IsSuccessfulResponse(response))
                 {
-                    Console.WriteLine($"Ogiltigt svar: {BitConverter.ToString(response)}");
-                    return; // Eller hantera det på annat sätt
+                    Console.WriteLine($"Invalid response: {BitConverter.ToString(response)}");
+                    return;
                 }
 
-                Console.WriteLine("SelectApplication lyckades");
+                Console.WriteLine("SelectApplication succeeded");
+                Console.WriteLine("");
+                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception i SelectApplication: {ex.GetType().Name} - {ex.Message}");
-                // Du kanske vill hantera felet här istället för att kasta vidare
+                Console.WriteLine($"Exception in SelectApplication: {ex.GetType().Name} - {ex.Message}");
             }
         }
 
-        // Kontrollera också din IsSuccessfulResponse-metod
         private static bool IsSuccessfulResponse(byte[] response)
         {
+            Console.WriteLine("<-IsSuccessfulResponse->");
             if (response == null || response.Length < 2)
                 return false;
 
-            // Kontrollera de sista två byten för statuskoden
+            // Check the last two bytes for the status code
             return response[response.Length - 2] == 0x90 && response[response.Length - 1] == 0x00;
         }
 
-        // Läs CardAccess fil
+        // Reading CardAccess
         private static async Task<byte[]> ReadCardAccess(IsoDep isoDep)
         {
+            Console.WriteLine("<-ReadCardAccess->");
             try
             {
                 Console.WriteLine("Selecting Master file...");
@@ -129,7 +345,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
                 }
-
+                Console.WriteLine("");
+                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("");
                 Console.WriteLine("Selecting CardAccess...");
                 command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1C };
                 response = await SendCommand(command, isoDep);
@@ -138,6 +356,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
                 }
+                Console.WriteLine("");
+                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("");
                 Console.WriteLine("Reading CardAccess...");
                 command = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
                 response = await SendCommand(command, isoDep);
@@ -151,7 +372,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid läsning av CardAccess: {ex.Message}");
+                Console.WriteLine($"Error trying to read CardAccess: {ex.Message}");
                 throw;
             }
         }
@@ -166,18 +387,26 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return sw1 == 0x69 || sw1 == 0x6A || sw1 == 0x6D;
         }
+
+        // Method to parse Card Access Data
         public static void ParseCardAccessData(byte[] data)
         {
+            Console.WriteLine("");
+            Console.WriteLine("<---------------------------------------->");
+            Console.WriteLine("");
+            Console.WriteLine("<-ParseCardAccessData->");
             try
             {
                 if (data.Length >= 2 && data[data.Length - 2] == 0x90 && data[data.Length - 1] == 0x00)
                 {
                     data = data.Take(data.Length - 2).ToArray();
                 }
-
-                Console.WriteLine("Raw Card Access Data:");
+                Console.WriteLine("______Raw Card Access Data");
                 Console.WriteLine(BitConverter.ToString(data));
-                Console.WriteLine("\nParsed Data:");
+                Console.WriteLine("<------>");
+                Console.WriteLine("");
+                Console.WriteLine("");
+                Console.WriteLine("______         Parsed Data         ______");
 
                 int index = 0;
                 // Outer sequence
@@ -185,14 +414,14 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     int outerLength = data[index++];
                     Console.WriteLine($"Outer Sequence Length: {outerLength}");
-
+                    Console.WriteLine("<------>");
                     while (index < data.Length)
                     {
                         // PACEInfo sequence
                         if (data[index++] == 0x30) // Sequence tag
                         {
                             int sequenceLength = data[index++];
-                            Console.WriteLine("\nPACEInfo:");
+                            Console.WriteLine("______PACEInfo from EF.CardAccess");
                             Console.WriteLine($"Sequence Length: {sequenceLength}");
 
                             // OID
@@ -201,7 +430,7 @@ namespace VerifyIdentityProject.Platforms.Android
                                 int oidLength = data[index++];
                                 byte[] oid = data.Skip(index).Take(oidLength).ToArray();
                                 index += oidLength;
-                                Console.WriteLine($"Protocol ID: {BitConverter.ToString(oid)}");
+                                Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
                             }
 
                             // Version
@@ -219,43 +448,166 @@ namespace VerifyIdentityProject.Platforms.Android
                                 byte paramId = data[index++];
                                 Console.WriteLine($"Parameter ID: 0x{paramId:X2}");
                             }
+                            Console.WriteLine("<------>");
                         }
                     }
                 }
+                Console.WriteLine("______         End Parsed Data         ______");
+                Console.WriteLine("");
+                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid tolkning: {ex.Message}");
+                Console.WriteLine($"Error while parsing: {ex.Message}");
             }
         }
 
-
-        // Hjälpmetod för att skicka kommandon
+        // Helper method for sending commands
         public static async Task<byte[]> SendCommand(byte[] command, IsoDep isoDep)
         {
+            Console.WriteLine("<-SendCommand->");
             try
             {
-                Console.WriteLine($"Försöker skicka kommando: {BitConverter.ToString(command)}");
+                Console.WriteLine($"Sending Command: {BitConverter.ToString(command)}");
                 var response = isoDep.Transceive(command);
                 if (response != null)
                 {
-                    Console.WriteLine($"Fick svar: {BitConverter.ToString(response)}");
+                    Console.WriteLine($"Received Response: {BitConverter.ToString(response)}");
                 }
                 else
                 {
-                    Console.WriteLine($"Fick svar: {BitConverter.ToString(response)}");
+                    Console.WriteLine("Received null response");
                 }
                 return response;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Exception i SendCommand: {ex.GetType().Name} - {ex.Message}");
-                throw; // Kasta om undantaget för att behålla stack trace
+                Console.WriteLine($"Exception in SendCommand: {ex.GetType().Name} - {ex.Message}");
+                throw;
             }
         }
+
+        public static List<byte[]> ValidateAndListPACEInfoWithDescriptions(byte[] cardAccessData)
+        {
+            Console.WriteLine("<-ValidateAndListPACEInfoWithDescriptions->");
+
+            // Dictionary of valid OIDs and their descriptions
+            var oidDescriptions = new Dictionary<string, string>
+    {
+        { "0.4.0.127.0.7.2.2.4.1.1", "id-PACE-DH-GM-3DES-CBC-CBC" },
+        { "0.4.0.127.0.7.2.2.4.1.2", "id-PACE-DH-GM-AES-CBC-CMAC-128" },
+        { "0.4.0.127.0.7.2.2.4.1.3", "id-PACE-DH-GM-AES-CBC-CMAC-192" },
+        { "0.4.0.127.0.7.2.2.4.1.4", "id-PACE-DH-GM-AES-CBC-CMAC-256" },
+        { "0.4.0.127.0.7.2.2.4.2.1", "id-PACE-ECDH-GM-3DES-CBC-CBC" },
+        { "0.4.0.127.0.7.2.2.4.2.2", "id-PACE-ECDH-GM-AES-CBC-CMAC-128" },
+        { "0.4.0.127.0.7.2.2.4.2.3", "id-PACE-ECDH-GM-AES-CBC-CMAC-192" },
+        { "0.4.0.127.0.7.2.2.4.2.4", "id-PACE-ECDH-GM-AES-CBC-CMAC-256" },
+        { "0.4.0.127.0.7.2.2.4.3.1", "id-PACE-DH-IM-3DES-CBC-CBC" },
+        { "0.4.0.127.0.7.2.2.4.3.2", "id-PACE-DH-IM-AES-CBC-CMAC-128" },
+        { "0.4.0.127.0.7.2.2.4.3.3", "id-PACE-DH-IM-AES-CBC-CMAC-192" },
+        { "0.4.0.127.0.7.2.2.4.3.4", "id-PACE-DH-IM-AES-CBC-CMAC-256" },
+        { "0.4.0.127.0.7.2.2.4.4.1", "id-PACE-ECDH-IM-3DES-CBC-CBC" },
+        { "0.4.0.127.0.7.2.2.4.4.2", "id-PACE-ECDH-IM-AES-CBC-CMAC-128" },
+        { "0.4.0.127.0.7.2.2.4.4.3", "id-PACE-ECDH-IM-AES-CBC-CMAC-192" },
+        { "0.4.0.127.0.7.2.2.4.4.4", "id-PACE-ECDH-IM-AES-CBC-CMAC-256" },
+        { "0.4.0.127.0.7.2.2.4.6.2", "id-PACE-ECDH-CAM-AES-CBC-CMAC-128" },
+        { "0.4.0.127.0.7.2.2.4.6.3", "id-PACE-ECDH-CAM-AES-CBC-CMAC-192" },
+        { "0.4.0.127.0.7.2.2.4.6.4", "id-PACE-ECDH-CAM-AES-CBC-CMAC-256" }
+    };
+
+            var results = new List<string>(); // To store valid OIDs with descriptions
+            List<byte[]> oidByteList = new List<byte[]>();
+
+            try
+            {
+                int index = 0;
+
+                // Parse outer sequence
+                if (cardAccessData[index++] == 0x31) // Sequence tag
+                {
+                    int outerLength = cardAccessData[index++];
+                    Console.WriteLine($"______DoubleChecking length for this method");
+                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
+                    Console.WriteLine($"");
+                    while (index < cardAccessData.Length)
+                    {
+                        // Parse PACEInfo
+                        if (cardAccessData[index++] == 0x30) // Sequence tag
+                        {
+                            int sequenceLength = cardAccessData[index++];
+
+                            // Parse OID
+                            if (cardAccessData[index++] == 0x06) // OID tag
+                            {
+                                int oidLength = cardAccessData[index++];
+                                byte[] oidBytes = cardAccessData.Skip(index).Take(oidLength).ToArray();
+                                oidByteList.Add(oidBytes);
+                                index += oidLength;
+
+                                // Convert OID to string
+                                string oid = ConvertOidToString(oidBytes);
+                                Console.WriteLine($"Found OID: {oid}");
+
+                                // Check if the OID is valid and print description
+                                if (oidDescriptions.TryGetValue(oid, out string description))
+                                {
+                                    string result = $"{oid} ({description})";
+                                    results.Add(result);
+                                    Console.WriteLine($"Valid OID found: {result}");
+                                    Console.WriteLine($"");
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"OID is not valid: {oid}");
+                                }
+                            }
+
+                            // Skip other data (Version and Parameter ID)
+                            index += 4; // Skip Version and Parameter ID
+                        }
+                    }
+                }
+
+                if (results.Count == 0)
+                {
+                    throw new PaceException("No valid PACE OID found in CardAccess data.");
+                }
+
+                return oidByteList; // Return all valid OIDs with descriptions
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error during PACEInfo validation: {ex.Message}");
+                throw;
+            }
+        }
+
+
+
+        // Helper to convert OID bytes to string
+        private static string ConvertOidToString(byte[] oidBytes)
+        {
+            var oid = new List<string>();
+            oid.Add((oidBytes[0] / 40).ToString());
+            oid.Add((oidBytes[0] % 40).ToString());
+            long value = 0;
+
+            for (int i = 1; i < oidBytes.Length; i++)
+            {
+                value = (value << 7) | (oidBytes[i] & 0x7F);
+                if ((oidBytes[i] & 0x80) == 0)
+                {
+                    oid.Add(value.ToString());
+                    value = 0;
+                }
+            }
+            return string.Join(".", oid);
+        }
+
     }
 
-    // Custom exception för PACE-fel
+    // Custom exceptions for pace
     public class PaceException : Exception
     {
         public PaceException(string message) : base(message) { }

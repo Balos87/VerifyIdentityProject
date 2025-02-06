@@ -52,7 +52,6 @@ namespace VerifyIdentityProject.Platforms.Android
             );
         }
 
-
         public void StopListening()
         {
             _nfcAdapter.DisableReaderMode(_activity);
@@ -60,37 +59,53 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public void IdentifyTagTechnologies(Tag tag)
         {
-            Console.WriteLine("Tag detected!");
+            Console.WriteLine("<-IdentifyTagTechnologies->");
             string[] techList = tag.GetTechList();
 
-            Console.WriteLine("Supported NFC Technologies:");
+            Console.WriteLine("______This NFC-Chip Technologies:");
             foreach (string tech in techList)
             {
                 Console.WriteLine(tech);
-            }
 
-            // Check for specific NFC card types
-            if (techList.Contains("android.nfc.tech.NfcA"))
-            {
-                Console.WriteLine("NfcA (Type A) detected.");
             }
-            else if (techList.Contains("android.nfc.tech.NfcB"))
+            if (techList == null || techList.Length == 0)
             {
-                Console.WriteLine("NfcB (Type B) detected.");
+                Console.WriteLine("No tech was found");
             }
-            else if (techList.Contains("android.nfc.tech.NfcF"))
+            Console.WriteLine("");
+            Console.WriteLine("<---------------------------------------->");
+            Console.WriteLine("");
+        }
+
+        public void HandleTagDiscovered(Tag tag)
+        {
+            Console.WriteLine("<-HandleTagDiscovered->");
+            Console.WriteLine("");
+            Console.WriteLine("");
+            Console.WriteLine("-----------------------------------------------------------");
+            Console.WriteLine("<<<-------           Verify Identity             ------->>>");
+            Console.WriteLine("-----------------------------------------------------------");
+            Console.WriteLine("");
+            Console.WriteLine("");
+            Console.WriteLine("<---------------------------------------->");
+            Console.WriteLine("");
+
+            try
             {
-                Console.WriteLine("NfcF (Type F) detected.");
+                IdentifyTagTechnologies(tag);
+                IsoDep isoDep = IsoDep.Get(tag);
+                PaceProcessor.PerformPace(isoDep);
+                //if (isoDep != null)
+                //{
+                //    BacProcessor.ProcessBac(isoDep);
+                //}
             }
-            else if (techList.Contains("android.nfc.tech.NfcV"))
+            catch (Exception ex)
             {
-                Console.WriteLine("NfcV (Type V/ISO15693) detected.");
-            }
-            else
-            {
-                Console.WriteLine("Unknown NFC type detected.");
+                Console.WriteLine($"Error during NFC processing: {ex.Message}");
             }
         }
+
 
     }
 }
