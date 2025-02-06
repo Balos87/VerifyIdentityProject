@@ -34,56 +34,26 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Step 1: Read CardAccess to get PACE parameters
                 var cardAccess = await ReadCardAccess(isoDep);
-                // var paceInfo = ParsePaceInfo(cardAccess);
                 var validOids = ValidateAndListPACEInfoWithDescriptions(cardAccess);
                 Console.WriteLine($"");
                 Console.WriteLine("______Valid PACE Protocols:");
+                //Fetch mrz data from secrets
+                var secrets = GetSecrets.FetchSecrets();
+                var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
+                Console.WriteLine($"mrzData: {mrzData}");
+
                 foreach (var oid in validOids)
                 {
                     if (OidEndsWith(oid, "4.2.4"))
                     {
                         Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
-                        if (await SendMseSetAt(oid, isoDep))
-                        {
-                            Console.WriteLine("PACE Protocol set successfully");
-                        }
-                        else
-                        {
-                            Console.WriteLine("PACE Protocol not set");
-                        }
+                        await StartPaceAuthentication(isoDep, mrzData);
+                        
                     }
                 }
                 Console.WriteLine("");
                 Console.WriteLine("<---------------------------------------->");
 
-                //var answr = await GeneralAuthenticate(isoDep);
-                //Console.WriteLine($"answr: {BitConverter.ToString(answr)}");
-
-
-
-                //just for testing
-                var secrets = GetSecrets.FetchSecrets();
-                var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
-                Console.WriteLine($"mrzData: {mrzData}");
-
-                await StartPaceAuthentication(isoDep, mrzData);
-                Console.WriteLine("<---------------------------------------->");
-
-                //var pass = DerivePasswordFromMRZ(mrzData);
-                //Console.WriteLine($"DerivePasswordFromMRZ: {BitConverter.ToString(pass)}");
-
-                //if (SendPasswordToChip(pass, isoDep))
-                //{
-                //    Console.WriteLine("Password sent to chip successfully");
-                //}
-                //else
-                //{
-                //    Console.WriteLine("Password not sent to chip");
-                //}
-
-
-
-                Console.WriteLine("");
 
                 //// Step 2: MSE:Set AT command to initiate PACE
                 // await InitializePace(paceInfo);
@@ -132,149 +102,10 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        public async static Task<byte[]> GeneralAuthenticate(IsoDep isoDep)
-        {
-            // Första GENERAL AUTHENTICATE kommandot för att få encrypted nonce
-            byte[] getNonceCommand = new byte[]
-            {
-                0x10,    // CLA (command chaining - första kommandot)
-                0x86,    // INS (GENERAL AUTHENTICATE)
-                0x00,    // P1
-                0x00,    // P2
-                0x04,    // Lc (längd på data)
-                0x7C,    // Tag för Dynamic Authentication Data
-                0x00     // Ingen data i första steget
-            };
-
-            byte[] response = await SendCommand(getNonceCommand, isoDep);
-
-            // Analysera svaret (kommer innehålla krypterad nonce)
-            if (response.Length >= 2)
-            {
-                // Kontrollera status bytes
-                byte sw1 = response[response.Length - 2];
-                byte sw2 = response[response.Length - 1];
-
-                if (sw1 == 0x90 && sw2 == 0x00)
-                {
-                    // Ta bort status bytes från svaret
-                    byte[] encryptedNonce = new byte[response.Length - 2];
-                    Array.Copy(response, 0, encryptedNonce, 0, response.Length - 2);
-
-                    Console.WriteLine("Fick krypterad nonce:");
-                    Console.WriteLine(BitConverter.ToString(encryptedNonce));
-                }
-                else
-                {
-                    Console.WriteLine($"GET NONCE misslyckades med status: {sw1:X2}-{sw2:X2}");
-                }
-            }
-            return response;
-
-        }
-
         private static bool OidEndsWith(byte[] oidBytes, string suffix)
         {
             string oidString = ConvertOidToString(oidBytes);
             return oidString.EndsWith(suffix);
-        }
-
-
-
-        public static bool SendPasswordToChip(byte[] password, IsoDep isoDep)
-        {
-            var command = new byte[]
-            {
-        0x00, 0x86, 0x00, 0x00, // GENERAL AUTHENTICATE
-        (byte)password.Length
-            }.Concat(password).ToArray();
-
-            Console.WriteLine($"sending command: {BitConverter.ToString(command)}");
-
-            var response = isoDep.Transceive(command);
-            Console.WriteLine($"response from SendPasswordToChip: {BitConverter.ToString(response)}");
-
-
-            return response.Length > 2 && response[^2] == 0x90 && response[^1] == 0x00;
-        }
-
-        public static byte[] DerivePasswordFromMRZ(string mrzData)
-        {
-            //string mrzData = $"{documentNumber}{ComputeCheckDigit(documentNumber)}" +
-            //                 $"{birthDate}{ComputeCheckDigit(birthDate)}" +
-            //                 $"{expiryDate}{ComputeCheckDigit(expiryDate)}";
-
-            using var sha1 = System.Security.Cryptography.SHA256.Create();
-            return sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(mrzData));
-        }
-
-        private static string ComputeCheckDigit(string input)
-        {
-            const string weights = "731";
-            int sum = 0;
-
-            for (int i = 0; i < input.Length; i++)
-            {
-                int value = char.IsDigit(input[i]) ? input[i] - '0' : (input[i] - 'A' + 10);
-                sum += value * (weights[i % 3] - '0');
-            }
-
-            return (sum % 10).ToString();
-        }
-
-
-
-
-
-        public static async Task<bool> SendMseSetAt(byte[] oid, IsoDep isoDep)
-        {
-
-            // Protocoll OID
-            byte[] protocolOID = oid;
-
-            // Bygg MSE:SET AT kommandot
-            List<byte> command = new List<byte>
-            {
-                0x00,    // CLA 
-                0x22,    // INS (MANAGE SECURITY ENVIRONMENT)
-                0xC1,    // P1
-                0xA4,    // P2 (Set Authentication Template)
-                0x00,    // Lc (length, will be updated later)
-                0x80,    // Tag for kryptographic mechanism
-                (byte)protocolOID.Length  // OID length
-            };
-
-                        // Lägg till OID
-            command.AddRange(protocolOID);
-
-            //password reference (0x83 tag)
-            command.AddRange(new byte[] 
-            {
-                0x83,    // Tag for password reference
-                0x01,    // Length of value
-                0x01     // Value: 0x01 for MRZ (or 0x02 for CAN)
-            });
-
-            // Uppdating Lc (total length of data)
-            command[4] = (byte)(command.Count - 5);  // Subtract header (5 bytes)
-
-            // Konvertera till array för sändning
-            byte[] finalCommand = command.ToArray();
-            Console.WriteLine($"mseSetAtCommand: {BitConverter.ToString(finalCommand)}");
-
-            var response = await SendCommand(finalCommand, isoDep);
-            Console.WriteLine($"response: {BitConverter.ToString(response)}");
-
-            if (response[response.Length - 2] == 0x90 && response[response.Length - 1] == 0x00)
-            {
-                Console.WriteLine($"response: {BitConverter.ToString(response)}");
-
-                return true;
-            }
-            else
-            {
-                return false;
-            }
         }
 
         // Select passport application
@@ -582,8 +413,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw;
             }
         }
-
-
 
         // Helper to convert OID bytes to string
         private static string ConvertOidToString(byte[] oidBytes)
