@@ -8,11 +8,6 @@ using Microsoft.Maui.Storage;
 
 namespace VerifyIdentityProject.Helpers
 {
-
-    public class Secrets
-    {
-        public string MRZ_NUMBERS { get; set; }
-    }
     public class GetSecrets
     {
         public static Secrets FetchSecrets()

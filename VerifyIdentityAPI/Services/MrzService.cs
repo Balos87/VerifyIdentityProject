@@ -131,7 +131,7 @@ namespace VerifyIdentityAPI.Services
             {
                 // Expand the detected rectangle dynamically
                 int verticalPadding = (int)(rect.Height * 0.5);
-                int horizontalPadding = (int)(rect.Width * 0.3);
+                int horizontalPadding = (int)(rect.Width * 0.1);
 
                 int newX = Math.Max(0, rect.X - horizontalPadding);
                 int newY = Math.Max(0, rect.Y - verticalPadding);
