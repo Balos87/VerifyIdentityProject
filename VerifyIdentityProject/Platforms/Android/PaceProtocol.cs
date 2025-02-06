@@ -24,6 +24,7 @@ namespace VerifyIdentityProject.Platforms.Android
     {
         private readonly IsoDep isoDep;
         private byte[] sessionKey;
+        private byte[] oid;
         private readonly string mrz;
         private Org.BouncyCastle.Math.EC.ECPoint mappedPoint;  // Från Map response
         private Org.BouncyCastle.Math.EC.ECPoint sharedSecret; // Från Key exchange
@@ -31,13 +32,14 @@ namespace VerifyIdentityProject.Platforms.Android
         private ECPrivateKeyParameters privateKeyParameters;
         private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
         private Org.BouncyCastle.Math.EC.ECPoint theirPublicKey;      // Deras publika nyckel från Key Agreement (steg 3)
-        private byte[] KSMAC;  
+        private byte[] KSMAC;
         private byte[] KSENC;
 
-        public PaceProtocol(IsoDep isoDep, string mrz)
+        public PaceProtocol(IsoDep isoDep, string mrz, byte[]oid)
         {
             this.isoDep = isoDep;
             this.mrz = mrz;
+            this.oid = oid;
         }
 
         public async Task<bool> PerformPaceProtocol()
@@ -46,7 +48,7 @@ namespace VerifyIdentityProject.Platforms.Android
             try
             {
                 // 1. MSE:SET AT
-                if (!await SelectPaceProtocol())
+                if (!await MseSetAtSelectPaceProtocol())
                     return false;
 
                 // 2. Få krypterad nonce
@@ -76,10 +78,11 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private async Task<bool> SelectPaceProtocol()
+        private async Task<bool> MseSetAtSelectPaceProtocol()
         {
             // Protocoll OID
-            byte[] protocolOID = new byte[] { 0x04, 0x00, 0x7F, 0x00, 0x07, 0x02, 0x02, 0x04, 0x02, 0x04 };
+            //byte[] protocolOID = new byte[] { 0x04, 0x00, 0x7F, 0x00, 0x07, 0x02, 0x02, 0x04, 0x02, 0x04 };
+            byte[] protocolOID = oid;
 
             // Bygg MSE:SET AT kommandot
             List<byte> command = new List<byte>
@@ -200,7 +203,7 @@ namespace VerifyIdentityProject.Platforms.Android
             // För AES-256 behöver vi 32 bytes nyckel
             using (var sha1 = SHA1.Create())
             {
-                var key = CalculateMRZKey(mrz);
+                var key = CalculateKPiFromMrz(mrz);
 
                 using (Aes aes = Aes.Create())
                 {
@@ -219,18 +222,54 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private byte[] CalculateMRZKey(string mrzData)
+        // Calculate KPi from K
+        private byte[] CalculateKPiFromMrz(string mrzData)
         {
+            string mrzData2 = "T22000129364081251010318";
+            //Calculate K from MRZ
             using (SHA1 sha1 = SHA1.Create())
             {
                 byte[] inputBytes = Encoding.UTF8.GetBytes(mrzData);
-                byte[] hash = sha1.ComputeHash(inputBytes);
-                byte[] key = new byte[16];
-                Array.Copy(hash, key, 16);
-                return key;
+                byte[] k = sha1.ComputeHash(inputBytes);
+                Console.WriteLine($"Output k as hex: {BitConverter.ToString(k)}");
+
+                // Calculate KPi from K
+                var KPi = CalculateKPi(k);
+                return KPi;
             }
         }
+        public static byte[] CalculateKPi(byte[] k)
+        {
+            // Counter value 3 as big-endian bytes
+            byte[] counter = BitConverter.GetBytes(3);
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(counter);
+            }
 
+            Console.WriteLine($"Counter bytes: {BitConverter.ToString(counter)}");
+
+            // Concatenate K with counter
+            byte[] combined = new byte[k.Length + counter.Length];
+            k.CopyTo(combined, 0);
+            counter.CopyTo(combined, k.Length);
+
+            Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
+
+            // Calculate SHA-1 hash
+            using (SHA1 sha1 = SHA1.Create())
+            {
+                byte[] fullHash = sha1.ComputeHash(combined);
+                Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
+
+                // Take first 16 bytes for Kπ
+                byte[] kPi = new byte[16];
+                Array.Copy(fullHash, kPi, 16);
+
+                Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
+                return kPi;
+            }
+        }
 
         private async Task<bool> GenerateAndSendMappedParameters(byte[] decryptedNonce)
         {
