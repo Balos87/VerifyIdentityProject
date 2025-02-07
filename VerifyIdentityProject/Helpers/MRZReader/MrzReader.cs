@@ -18,11 +18,13 @@ namespace VerifyIdentityProject.Helpers.MRZReader
         private readonly INfcReaderManager _nfcReaderManager;
         public MrzReader(Action<string> mrzNotFoundCallback, INfcReaderManager nfcReaderManager)
         {
+            var appsettings = GetSecrets.FetchAppSettings();
+            var localUrl = appsettings?.LOCAL_SERVER ?? string.Empty;
             _nfcReaderManager = nfcReaderManager;
             _mrzNotFoundCallback = mrzNotFoundCallback; // Store the callback
             _httpClient = new HttpClient
             {
-                BaseAddress = new Uri("http://192.168.50.26:5000/") // Local API URL
+                BaseAddress = new Uri(localUrl) // Local API URL
             };
         }
 

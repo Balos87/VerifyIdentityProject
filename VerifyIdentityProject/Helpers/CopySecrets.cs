@@ -40,5 +40,36 @@ namespace VerifyIdentityProject.Helpers
                 Console.WriteLine("File not found in AppDataDirectory.");
             }
         }
+        public async Task CopyAppSettingsFileToAppData()
+        {
+            var secretJsonFileName = "appsettings.json"; // Name of the JSON file
+            var appDataPath = Path.Combine(FileSystem.AppDataDirectory, secretJsonFileName);
+
+            // If not, copy it from the resources folder
+            var assembly = Assembly.GetExecutingAssembly();
+            var resourceName = $"VerifyIdentityProject.Resources.{secretJsonFileName}";
+
+            using (var stream = assembly.GetManifestResourceStream(resourceName))
+            {
+                if (stream != null)
+                {
+                    using (var fileStream = new FileStream(appDataPath, FileMode.Create))
+                    {
+                        await stream.CopyToAsync(fileStream);
+                    }
+                }
+            }
+
+            // Now you can read the file from the AppDataDirectory
+            if (File.Exists(appDataPath))
+            {
+                var jsonContent = File.ReadAllText(appDataPath);
+                Console.WriteLine(jsonContent); // Or process the JSON content as needed
+            }
+            else
+            {
+                Console.WriteLine("File not found in AppDataDirectory.");
+            }
+        }
     }
 }

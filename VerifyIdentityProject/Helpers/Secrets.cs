@@ -9,5 +9,6 @@ namespace VerifyIdentityProject.Helpers
     public class Secrets
     {
         public string MRZ_NUMBERS { get; set; }
+        public string LOCAL_SERVER { get; set; }
     }
 }

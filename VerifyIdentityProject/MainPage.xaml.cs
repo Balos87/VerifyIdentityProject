@@ -13,6 +13,7 @@ namespace VerifyIdentityProject
             InitializeComponent();
             var copy = new CopySecrets();
             copy.CopySecretFileToAppData();
+            copy.CopyAppSettingsFileToAppData();
 
             _viewModel = viewModel;
             _mrzReader = new MrzReader(UpdateMrzNotFoundMessage, nfcReaderManager);
