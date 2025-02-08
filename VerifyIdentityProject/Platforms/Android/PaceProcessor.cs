@@ -47,7 +47,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     if (OidEndsWith(oid, "4.2.4"))
                     {
                         Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
-                        await StartPaceAuthentication(isoDep, mrzData, oid);
+                        await StartPaceProtocol(isoDep, mrzData, oid);
                         
                     }
                 }
@@ -86,7 +86,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        public static async Task StartPaceAuthentication(IsoDep isoDep, string mrz, byte[] oid)
+        public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
         {
             var pace = new PaceProtocol(isoDep, mrz, oid);
             bool success = await pace.PerformPaceProtocol();

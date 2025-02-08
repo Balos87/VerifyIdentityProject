@@ -17,6 +17,10 @@ using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Asn1.Sec;
+using System;
+using Org.BouncyCastle.Math;
+using Org.BouncyCastle.Crypto.Generators;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -64,6 +68,15 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (!mappedParams)
                     return false;
 
+
+                //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
+
+                //var mappedParams = await CreateGTildeAndSendToChip(decryptedNonce);
+                //if (!mappedParams)
+                //    return false;
+                //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
+
+
                 // 5. Utför ECDH nyckelutbyte
                 if (!await PerformKeyExchange())
                     return false;
@@ -74,9 +87,33 @@ namespace VerifyIdentityProject.Platforms.Android
             catch (Exception ex)
             {
                 Console.WriteLine($"PACE-protokoll misslyckades: {ex.Message}");
+                
                 return false;
             }
         }
+        //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
+        private async Task<bool> CreateGTildeAndSendToChip(byte[] decryptedNonce)
+        {
+            Console.WriteLine("-------------------------------------------------------- CreateGTildeAndSendToChip started...");
+            //1. Skapar en säker random private key (48 bytes/384 bitar)
+            byte[] privateKey = EphemeralKeyGenerator.GeneratePrivateKey();
+            Console.WriteLine($"created privateKey in (HEX): {BitConverter.ToString(privateKey)}");
+
+
+            // Tar vår private key, multiplicerar den med generator punkten G 
+            // och får ut public key som X och Y koordinater
+            var (publicKeyX, publicKeyY) = EcdhMapping.CalculatePublicKey(privateKey);
+
+            // 2. Formatera kommandot för att skicka till chippet
+            byte[] command = PaceCommandFormatter.FormatPublicKeyCommand(publicKeyX, publicKeyY);
+            Console.WriteLine($"Sending FormatPublicKeyCommand: {BitConverter.ToString(command)}");
+
+            byte[] response = isoDep.Transceive(command);
+            Console.WriteLine($"Recieved response: {BitConverter.ToString(response)}");
+
+            return true;
+        }
+        //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
 
         private async Task<bool> MseSetAtSelectPaceProtocol()
         {
@@ -200,14 +237,13 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
 
-            // För AES-256 behöver vi 32 bytes nyckel
             using (var sha1 = SHA1.Create())
             {
-                var key = CalculateKPiFromMrz(mrz);
+                var kPi = CalculateKPiFromMrz(mrz);
 
                 using (Aes aes = Aes.Create())
                 {
-                    aes.Key = key;
+                    aes.Key = kPi;
                     aes.Mode = CipherMode.CBC;
                     aes.Padding = PaddingMode.None;
                     aes.IV = new byte[16];
@@ -225,6 +261,8 @@ namespace VerifyIdentityProject.Platforms.Android
         // Calculate KPi from K
         private byte[] CalculateKPiFromMrz(string mrzData)
         {
+            Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
+
             string mrzData2 = "T22000129364081251010318";
             //Calculate K from MRZ
             using (SHA1 sha1 = SHA1.Create())
@@ -235,6 +273,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Calculate KPi from K
                 var KPi = CalculateKPi(k);
+                Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz finished...");
                 return KPi;
             }
         }
@@ -256,17 +295,31 @@ namespace VerifyIdentityProject.Platforms.Android
 
             Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
 
-            // Calculate SHA-1 hash
-            using (SHA1 sha1 = SHA1.Create())
+            //// Calculate SHA-1 hash
+            //using (SHA1 sha1 = SHA1.Create())
+            //{
+            //    byte[] fullHash = sha1.ComputeHash(combined);
+            //    Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
+
+            //    // Take first 16 bytes for Kπ
+            //    byte[] kPi = new byte[16];
+            //    Array.Copy(fullHash, kPi, 16);
+
+            //    Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
+            //    return kPi;
+            //}
+
+            // Calculate SHA-256 hash
+            using (var sha256 = SHA256.Create())
             {
-                byte[] fullHash = sha1.ComputeHash(combined);
-                Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
+                byte[] fullHash = sha256.ComputeHash(combined);
+                Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
 
-                // Take first 16 bytes for Kπ
-                byte[] kPi = new byte[16];
-                Array.Copy(fullHash, kPi, 16);
+                // Ta första 32 bytes för 256-bit AES nyckel
+                byte[] kPi = new byte[32];
+                Array.Copy(fullHash, kPi, 32);
 
-                Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
+                Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
                 return kPi;
             }
         }
@@ -292,17 +345,27 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Nonce value is out of range for the curve domain.");
                 }
 
+                // 3. Skapa en slumpmässig punkt H på kurvan
+                AsymmetricCipherKeyPair ephemeralKeyPair = GenerateEphemeralKeyPair();
+                var H = CalculateH(ephemeralKeyPair);
+
                 // Multiplicera generatorn med `s` för att generera mapped point
-                var mappedPoint = domain.G.Multiply(s).Normalize();
+                var gTilde = domain.G.Multiply(s).Add(H).Normalize();
+
+                var xCoord = gTilde.XCoord.ToBigInteger().ToString(); // X koordinat i hexadecimal format
+                var yCoord = gTilde.YCoord.ToBigInteger().ToString(); // Y koordinat i hexadecimal format
+
+                // Skriv ut koordinaterna i konsolen
+                Console.WriteLine($"gTilde: X = {xCoord}, Y = {yCoord}");
 
                 // Kontrollera att punkten är giltig
-                if (mappedPoint.IsInfinity)
+                if (gTilde.IsInfinity)
                 {
-                    throw new Exception("Mapped point is at infinity, invalid PACE mapping.");
+                    throw new Exception("gTilde Mapped point is at infinity, invalid PACE mapping.");
                 }
 
-                var encodedPoint = mappedPoint.GetEncoded(false);
-                Console.WriteLine($"Mapped Point (hex): {BitConverter.ToString(encodedPoint)}");
+                var encodedGTilde = gTilde.GetEncoded(false);
+                Console.WriteLine($"encodedGTilde (hex): {BitConverter.ToString(encodedGTilde)}");
 
                 var mapCommand = new List<byte>
                 {
@@ -317,10 +380,10 @@ namespace VerifyIdentityProject.Platforms.Android
                     0x00     // Längd (uppdateras senare)
                 };
 
-                mapCommand.AddRange(encodedPoint);
-
+                mapCommand.AddRange(encodedGTilde);
+                
                 // Uppdatera längder för 384-bit kurva
-                int pointLength = encodedPoint.Length;
+                int pointLength = encodedGTilde.Length;
                 mapCommand[8] = (byte)pointLength;
                 mapCommand[6] = (byte)(pointLength + 2);
                 mapCommand[4] = (byte)(mapCommand[6] + 2);
@@ -331,28 +394,60 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Total command length: {mapCommand.Count}");
                 Console.WriteLine($"Mapping command: {BitConverter.ToString(mapCommand.ToArray())}");
 
-                var response = await isoDep.TransceiveAsync(mapCommand.ToArray());
-                Console.WriteLine($"Map response: {BitConverter.ToString(response)}");
+                var chipGTilde = await isoDep.TransceiveAsync(mapCommand.ToArray());
+                Console.WriteLine($"chipGTilde: {BitConverter.ToString(chipGTilde)}");
 
                 // Kontrollera att svaret har rätt format innan vi parsar det
-                if (response.Length < 6 || response[0] != 0x7C || response[2] != 0x82)
+                if (chipGTilde.Length < 6 || chipGTilde[0] != 0x7C || chipGTilde[2] != 0x82)
                 {
                     throw new Exception("Invalid response format or missing tag 0x82.");
                 }
 
                 // Extrahera mappedPoint från svaret
-                var mappedPointBytes = ParseTLV(response, 0x82);
-                this.mappedPoint = curve.Curve.DecodePoint(mappedPointBytes);
-                Console.WriteLine($"Extracted mappedPoint (hex): {BitConverter.ToString(mappedPointBytes)}");
+                var parsedChipGTilde = ParseTLV(chipGTilde, 0x82);
+                var decodedChipGTilde = curve.Curve.DecodePoint(parsedChipGTilde);
+                Console.WriteLine($"Parsed chipGTilde (hex): {BitConverter.ToString(parsedChipGTilde)}");
 
 
-                return IsSuccessful(response);
+                var xCoordC = decodedChipGTilde.XCoord.ToBigInteger().ToString(); // X koordinat i hexadecimal format
+                var yCoordC = decodedChipGTilde.YCoord.ToBigInteger().ToString(); // Y koordinat i hexadecimal format
+
+                // Skriv ut koordinaterna i konsolen
+                Console.WriteLine($"chipGTilde: X = {xCoordC}, Y = {yCoordC}");
+                if(decodedChipGTilde.Equals(gTilde))
+                {
+                    Console.WriteLine("Mapped point is correct");
+                }
+                else
+                {
+                    Console.WriteLine("Mapped point is incorrect");
+                }
+                return IsSuccessful(chipGTilde);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
+        }
+
+        public static AsymmetricCipherKeyPair GenerateEphemeralKeyPair()
+        {
+            var curveParams = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
+            var domainParams = new ECDomainParameters(curveParams.Curve, curveParams.G, curveParams.N, curveParams.H);
+
+            ECKeyPairGenerator keyGen = new ECKeyPairGenerator();
+            keyGen.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
+
+            return keyGen.GenerateKeyPair();
+        }
+
+        public static Org.BouncyCastle.Math.EC.ECPoint CalculateH(AsymmetricCipherKeyPair ephemeralKeyPair)
+        {
+            var privateKey = (ECPrivateKeyParameters)ephemeralKeyPair.Private;
+            var publicKey = (ECPublicKeyParameters)ephemeralKeyPair.Public;
+
+            return publicKey.Q.Multiply(privateKey.D).Normalize(); // H = PK * SK
         }
 
         private static byte[] ParseTLV(byte[] data, byte expectedTag)
