@@ -68,15 +68,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (!mappedParams)
                     return false;
 
-
-                //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
-
-                //var mappedParams = await CreateGTildeAndSendToChip(decryptedNonce);
-                //if (!mappedParams)
-                //    return false;
-                //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
-
-
+                
                 // 5. Utför ECDH nyckelutbyte
                 if (!await PerformKeyExchange())
                     return false;
@@ -91,30 +83,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return false;
             }
         }
-        //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
-        private async Task<bool> CreateGTildeAndSendToChip(byte[] decryptedNonce)
-        {
-            Console.WriteLine("-------------------------------------------------------- CreateGTildeAndSendToChip started...");
-            //1. Skapar en säker random private key (48 bytes/384 bitar)
-            byte[] privateKey = EphemeralKeyGenerator.GeneratePrivateKey();
-            Console.WriteLine($"created privateKey in (HEX): {BitConverter.ToString(privateKey)}");
-
-
-            // Tar vår private key, multiplicerar den med generator punkten G 
-            // och får ut public key som X och Y koordinater
-            var (publicKeyX, publicKeyY) = EcdhMapping.CalculatePublicKey(privateKey);
-
-            // 2. Formatera kommandot för att skicka till chippet
-            byte[] command = PaceCommandFormatter.FormatPublicKeyCommand(publicKeyX, publicKeyY);
-            Console.WriteLine($"Sending FormatPublicKeyCommand: {BitConverter.ToString(command)}");
-
-            byte[] response = isoDep.Transceive(command);
-            Console.WriteLine($"Recieved response: {BitConverter.ToString(response)}");
-
-            return true;
-        }
-        //-------------------------------------------------------------------------------------Testar egen brainpool claudeAI
-
+       
         private async Task<bool> MseSetAtSelectPaceProtocol()
         {
             // Protocoll OID
@@ -329,28 +298,59 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
-                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
-                var domain = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");//Detta gör samma jobb som rad 319
+                var curveParams = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
 
                 // Skapa BigInteger från decryptedNonce
                 var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
+                s = s.Mod(curveParams.N);
 
                 // Logga `s` och `domain.N`
                 Console.WriteLine($"Nonce (s): {s.ToString(16)}");
-                Console.WriteLine($"Curve order (N): {domain.N.ToString(16)}");
+                Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
 
                 // Validera att `s` är inom giltigt intervall: 1 ≤ s ≤ n-1
-                if (s.SignValue <= 0 || s.CompareTo(domain.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
+                if (s.SignValue <= 0 || s.CompareTo(curveParams.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
                 {
                     throw new Exception("Nonce value is out of range for the curve domain.");
                 }
 
-                // 3. Skapa en slumpmässig punkt H på kurvan
-                AsymmetricCipherKeyPair ephemeralKeyPair = GenerateEphemeralKeyPair();
-                var H = CalculateH(ephemeralKeyPair);
+                //--------------------------------------------------------------------------------skapar publik nyckel med nya metoden
+                var domainParameters = ECDHKeyGenerator.SetupBrainpoolP384r1(); //Detta gör samma jobb som rad 301
+                var keyGenerator = new ECDHKeyGenerator(domainParameters);
 
-                // Multiplicera generatorn med `s` för att generera mapped point
-                var gTilde = domain.G.Multiply(s).Add(H).Normalize();
+                // Generera nyckelpar
+                var keyPair = keyGenerator.GenerateKeyPair();
+
+                // Konvertera publik nyckel till byte array (för att skicka till chip)
+                byte[] publicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(keyPair.PublicKey);
+                Console.WriteLine($"s × G nya metod: {BitConverter.ToString(publicKeyBytes)}");
+
+                var ourPublicKeyApdu = ECDHKeyGenerator.BuildMapNonceCommand(publicKeyBytes);
+                Console.WriteLine($"Sendin ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
+
+
+                var chipPublicKey = await isoDep.TransceiveAsync(ourPublicKeyApdu);
+                Console.WriteLine($"chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
+
+                var exractedChipPublicKey = ECDHKeyGenerator.ExtractPublicKeyFromResponse(chipPublicKey);
+                Console.WriteLine($"exractedChipPublicKey: {BitConverter.ToString(exractedChipPublicKey)}");
+
+
+                var H = ECDHKeyGenerator.CalculateH(curveParams, keyPair.PrivateKey, exractedChipPublicKey);
+                Console.WriteLine($"NEW Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
+                if (!H.IsValid())
+                {
+                    throw new Exception("Fel: H är inte en giltig punkt på kurvan!");
+                }
+
+
+                var gTilde = curveParams.G.Multiply(s).Add(H).Normalize();
+
+                if (!gTilde.IsValid())
+                {
+                    throw new Exception("Fel: gTilde är inte en giltig punkt på kurvan!");
+                }
 
                 var xCoord = gTilde.XCoord.ToBigInteger().ToString(); // X koordinat i hexadecimal format
                 var yCoord = gTilde.YCoord.ToBigInteger().ToString(); // Y koordinat i hexadecimal format
@@ -404,7 +404,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 // Extrahera mappedPoint från svaret
-                var parsedChipGTilde = ParseTLV(chipGTilde, 0x82);
+                byte[] parsedChipGTilde = ParseTLV(chipGTilde, 0x82);
+                Console.WriteLine($"Extracted chipGTilde: {BitConverter.ToString(parsedChipGTilde)}");
                 var decodedChipGTilde = curve.Curve.DecodePoint(parsedChipGTilde);
                 Console.WriteLine($"Parsed chipGTilde (hex): {BitConverter.ToString(parsedChipGTilde)}");
 
@@ -431,24 +432,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        public static AsymmetricCipherKeyPair GenerateEphemeralKeyPair()
-        {
-            var curveParams = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
-            var domainParams = new ECDomainParameters(curveParams.Curve, curveParams.G, curveParams.N, curveParams.H);
-
-            ECKeyPairGenerator keyGen = new ECKeyPairGenerator();
-            keyGen.Init(new ECKeyGenerationParameters(domainParams, new SecureRandom()));
-
-            return keyGen.GenerateKeyPair();
-        }
-
-        public static Org.BouncyCastle.Math.EC.ECPoint CalculateH(AsymmetricCipherKeyPair ephemeralKeyPair)
-        {
-            var privateKey = (ECPrivateKeyParameters)ephemeralKeyPair.Private;
-            var publicKey = (ECPublicKeyParameters)ephemeralKeyPair.Public;
-
-            return publicKey.Q.Multiply(privateKey.D).Normalize(); // H = PK * SK
-        }
 
         private static byte[] ParseTLV(byte[] data, byte expectedTag)
         {
