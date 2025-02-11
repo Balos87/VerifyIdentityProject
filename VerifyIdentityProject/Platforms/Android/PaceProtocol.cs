@@ -298,8 +298,14 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
-                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");//Detta gör samma jobb som rad 319
-                var curveParams = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+                //var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");//Detta gör samma jobb som rad 319
+                //var curveParams = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
+
+
+
+                //--------------------------------------------------------------------------------skapar publik nyckel med nya metoden
+                var curveParams = ECDHKeyGenerator.SetupBrainpoolP384r1(); //Detta gör samma jobb som rad 301
+                var keyGenerator = new ECDHKeyGenerator(curveParams);
 
                 // Skapa BigInteger från decryptedNonce
                 var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
@@ -315,10 +321,6 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Nonce value is out of range for the curve domain.");
                 }
 
-                //--------------------------------------------------------------------------------skapar publik nyckel med nya metoden
-                var domainParameters = ECDHKeyGenerator.SetupBrainpoolP384r1(); //Detta gör samma jobb som rad 301
-                var keyGenerator = new ECDHKeyGenerator(domainParameters);
-
                 // Generera nyckelpar
                 var keyPair = keyGenerator.GenerateKeyPair();
 
@@ -326,17 +328,19 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] publicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(keyPair.PublicKey);
                 Console.WriteLine($"s × G nya metod: {BitConverter.ToString(publicKeyBytes)}");
 
+                // Skapa APDU för att skicka vår publika nyckel
                 var ourPublicKeyApdu = ECDHKeyGenerator.BuildMapNonceCommand(publicKeyBytes);
                 Console.WriteLine($"Sendin ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
 
-
+                // Skicka vår publika nyckel och få chippets publika nyckel
                 var chipPublicKey = await isoDep.TransceiveAsync(ourPublicKeyApdu);
                 Console.WriteLine($"chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
 
+                // Extrahera chippets publika nyckel från svaret
                 var exractedChipPublicKey = ECDHKeyGenerator.ExtractPublicKeyFromResponse(chipPublicKey);
                 Console.WriteLine($"exractedChipPublicKey: {BitConverter.ToString(exractedChipPublicKey)}");
 
-
+                // Räknar ut H med hjälp av vår privata nyckel och chippets publika nyckel och curveParams
                 var H = ECDHKeyGenerator.CalculateH(curveParams, keyPair.PrivateKey, exractedChipPublicKey);
                 Console.WriteLine($"NEW Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
                 if (!H.IsValid())
@@ -344,7 +348,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Fel: H är inte en giltig punkt på kurvan!");
                 }
 
-
+                // Beräkna gTilde med hjälp av curvparams.G och s och H
                 var gTilde = curveParams.G.Multiply(s).Add(H).Normalize();
 
                 if (!gTilde.IsValid())
@@ -352,78 +356,62 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Fel: gTilde är inte en giltig punkt på kurvan!");
                 }
 
-                var xCoord = gTilde.XCoord.ToBigInteger().ToString(); // X koordinat i hexadecimal format
-                var yCoord = gTilde.YCoord.ToBigInteger().ToString(); // Y koordinat i hexadecimal format
+                //Skapa nyckelpar med våran gTilde
+                var gTildeKeys = keyGenerator.GenerateKeyPairWithGTilde(gTilde);
 
-                // Skriv ut koordinaterna i konsolen
-                Console.WriteLine($"gTilde: X = {xCoord}, Y = {yCoord}");
+                // Konvertera vår gTilde-publika nyckel till byte array
+                byte[] gTildePublicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(gTildeKeys.PublicKey);
 
-                // Kontrollera att punkten är giltig
-                if (gTilde.IsInfinity)
+                // Skapa APDU för att skicka vår gTilde-publika nyckel
+                var gTildePublicKeyAPdu = ECDHKeyGenerator.BuildKeyAgreementCommandGTilde(gTildePublicKeyBytes);
+
+                // Skicka vår gTilde-publika nyckel och få chippets-gTilde-publika nyckel
+                var chipGTildePublicKey = await isoDep.TransceiveAsync(gTildePublicKeyAPdu);
+                Console.WriteLine($"chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
+
+                // Extrahera chippets gTilde-publika nyckel från svaret
+                var extractedChipGTildePublicKey = ECDHKeyGenerator.ExtractGTildePublicKeyFromResponse(chipGTildePublicKey);
+                Console.WriteLine($"extractedChipGTildePublicKey: {BitConverter.ToString(extractedChipGTildePublicKey)}");
+
+                // Konvertera chippets publika nyckel bytes till ECPoint
+                Org.BouncyCastle.Math.EC.ECPoint chipGTildePublicKeyDecoded = curveParams.Curve.DecodePoint(extractedChipGTildePublicKey);
+
+                // Jämför om punkterna är lika. Vår publik key och chippets publik key får inte vara samma
+                if (gTildeKeys.PublicKey.Equals(chipGTildePublicKeyDecoded))
                 {
-                    throw new Exception("gTilde Mapped point is at infinity, invalid PACE mapping.");
+                    throw new Exception("Public keys are identical - security violation!");
                 }
 
-                var encodedGTilde = gTilde.GetEncoded(false);
-                Console.WriteLine($"encodedGTilde (hex): {BitConverter.ToString(encodedGTilde)}");
+                // Multiplicera med vår gTilde-privata nyckel för att få K
+                Org.BouncyCastle.Math.EC.ECPoint K = chipGTildePublicKeyDecoded.Multiply(gTildeKeys.PrivateKey);
+                Console.WriteLine($"Calculated K: {BitConverter.ToString(K.GetEncoded(false))}");
 
-                var mapCommand = new List<byte>
-                {
-                    0x10,    // CLA med command chaining
-                    0x86,    // INS (GENERAL AUTHENTICATE)
-                    0x00,    // P1
-                    0x00,    // P2
-                    0x00,    // Lc (uppdateras senare)
-                    0x7C,    // Dynamic Authentication Data tag
-                    0x00,    // Längd (uppdateras senare)
-                    0x81,    // Map Nonce tag
-                    0x00     // Längd (uppdateras senare)
-                };
+                // Sedan använder vi K för att härleda KSMac och KSEnc nycklarna:
+                byte[] KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Krypteringsnyckel
+                byte[] KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // Autentiseringsnyckel
 
-                mapCommand.AddRange(encodedGTilde);
-                
-                // Uppdatera längder för 384-bit kurva
-                int pointLength = encodedGTilde.Length;
-                mapCommand[8] = (byte)pointLength;
-                mapCommand[6] = (byte)(pointLength + 2);
-                mapCommand[4] = (byte)(mapCommand[6] + 2);
-                mapCommand.Add(0x00);  // Le byte (för att få längdindikation från kortet)
+                Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
+                Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
 
-                Console.WriteLine($"Using curve: brainpoolP384r1");
-                Console.WriteLine($"Point length: {pointLength}");
-                Console.WriteLine($"Total command length: {mapCommand.Count}");
-                Console.WriteLine($"Mapping command: {BitConverter.ToString(mapCommand.ToArray())}");
+                var inputDataForTPCD = ECDHKeyGenerator.BuildAuthenticationTokenInput(extractedChipGTildePublicKey, oid);
+                var inputDataForTIC = ECDHKeyGenerator.BuildAuthenticationTokenInput(gTildePublicKeyBytes, oid);
+                Console.WriteLine($"inputDataForTPCD: {BitConverter.ToString(inputDataForTPCD)}");
+                Console.WriteLine($"inputDataForTIC: {BitConverter.ToString(inputDataForTIC)}");
 
-                var chipGTilde = await isoDep.TransceiveAsync(mapCommand.ToArray());
-                Console.WriteLine($"chipGTilde: {BitConverter.ToString(chipGTilde)}");
+                var TPCD = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTPCD);
+                var TIC = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTIC);
+                Console.WriteLine($"TPCD: {BitConverter.ToString(TPCD)}");
+                Console.WriteLine($"TIC: {BitConverter.ToString(TIC)}");
 
-                // Kontrollera att svaret har rätt format innan vi parsar det
-                if (chipGTilde.Length < 6 || chipGTilde[0] != 0x7C || chipGTilde[2] != 0x82)
-                {
-                    throw new Exception("Invalid response format or missing tag 0x82.");
-                }
+                var comand = ECDHKeyGenerator.BuildTokenCommand(TPCD);
+                Console.WriteLine($"sending TPCD command: {BitConverter.ToString(comand)}");
 
-                // Extrahera mappedPoint från svaret
-                byte[] parsedChipGTilde = ParseTLV(chipGTilde, 0x82);
-                Console.WriteLine($"Extracted chipGTilde: {BitConverter.ToString(parsedChipGTilde)}");
-                var decodedChipGTilde = curve.Curve.DecodePoint(parsedChipGTilde);
-                Console.WriteLine($"Parsed chipGTilde (hex): {BitConverter.ToString(parsedChipGTilde)}");
+                var responseTic = await isoDep.TransceiveAsync(comand);
+                Console.WriteLine($"responseTic respo: {BitConverter.ToString(responseTic)}");
 
 
-                var xCoordC = decodedChipGTilde.XCoord.ToBigInteger().ToString(); // X koordinat i hexadecimal format
-                var yCoordC = decodedChipGTilde.YCoord.ToBigInteger().ToString(); // Y koordinat i hexadecimal format
 
-                // Skriv ut koordinaterna i konsolen
-                Console.WriteLine($"chipGTilde: X = {xCoordC}, Y = {yCoordC}");
-                if(decodedChipGTilde.Equals(gTilde))
-                {
-                    Console.WriteLine("Mapped point is correct");
-                }
-                else
-                {
-                    Console.WriteLine("Mapped point is incorrect");
-                }
-                return IsSuccessful(chipGTilde);
+                return IsSuccessful(chipGTildePublicKey);
             }
             catch (Exception ex)
             {

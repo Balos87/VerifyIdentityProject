@@ -5,6 +5,8 @@ using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Crypto.EC;
 using Org.BouncyCastle.Asn1.TeleTrust;
+using Org.BouncyCastle.Crypto.Engines;
+using Org.BouncyCastle.Crypto.Macs;
 
 public class ECDHKeyPair
 {
@@ -171,6 +173,187 @@ public class ECDHKeyGenerator
             throw new InvalidOperationException("Beräkningen resulterade i ogiltig punkt");
 
         return H;
+    }
+
+    public ECDHKeyPair GenerateKeyPairWithGTilde(ECPoint gTilde)
+    {
+        // 1. Generera privat nyckel (ett slumpmässigt tal mellan 1 och n-1)
+        BigInteger n = domainParameters.N; // Kurvans ordning
+        BigInteger privateKey;
+        do
+        {
+            privateKey = new BigInteger(n.BitLength, secureRandom);
+        }
+        while (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0);
+
+        // 2. Skapar publik nyckel. (privat nyckel * G)
+        ECPoint publicKey = gTilde.Multiply(privateKey);
+
+        return new ECDHKeyPair
+        {
+            PrivateKey = privateKey,
+            PublicKey = publicKey
+        };
+    }
+
+    public static byte[] BuildKeyAgreementCommandGTilde(byte[] publicKey)
+    {
+        // Längder
+        byte mappingDataLength = (byte)publicKey.Length;
+        byte dynamicAuthDataLength = (byte)(2 + mappingDataLength); // 83 + len + data
+        byte totalLength = (byte)(2 + dynamicAuthDataLength); // 7C + len + inner data
+
+        List<byte> command = new List<byte>();
+
+        // Header
+        command.Add(0x10);     // CLA (Command chaining)
+        command.Add(0x86);     // INS (General Authenticate)
+        command.Add(0x00);     // P1
+        command.Add(0x00);     // P2
+        command.Add(totalLength); // Lc
+
+        // Dynamic Authentication Data
+        command.Add(0x7C);
+        command.Add(dynamicAuthDataLength);
+
+        // Key Agreement Data
+        command.Add(0x83);     // Tag för Key Agreement (notera: 0x83 istället för 0x81)
+        command.Add(mappingDataLength);
+
+        // Publik nyckel (innehåller redan 04 prefix)
+        command.AddRange(publicKey);
+
+        // Le
+        command.Add(0x00);
+
+        return command.ToArray();
+    }
+    public static byte[] ExtractGTildePublicKeyFromResponse(byte[] response)
+    {
+        // Validera minimum längd och status bytes
+        if (response == null || response.Length < 7)
+            throw new Exception("response is null or to short!");
+        if (response[response.Length - 2] != 0x90 || response[response.Length - 1] != 0x00)
+            throw new Exception("response is not 90-00!");
+
+        int index = 0;
+
+        // Kolla 7C tag
+        if (response[index++] != 0x7C)
+            throw new Exception("response is missing 7C start-tag!");
+        index++;
+
+        // Kolla 84 tag (ändrat från 82)
+        if (response[index++] != 0x84)
+            throw new Exception("response is missing 84 tag!");
+
+        int dataLength = response[index++];
+
+        if (response[index] != 0x04)
+            throw new Exception("response is not uncompressed Point!");
+
+        byte[] publicKey = new byte[dataLength];
+        Array.Copy(response, index, publicKey, 0, dataLength);
+        return publicKey;
+    }
+
+    public static byte[] DeriveKeyFromK(ECPoint K, int counter)
+    {
+        // Vi behöver bara x-koordinaten från K
+        byte[] kBytes = K.XCoord.ToBigInteger().ToByteArrayUnsigned();
+
+        // Skapa counter som 32-bit big-endian
+        byte[] counterBytes = BitConverter.GetBytes(counter);
+        if (BitConverter.IsLittleEndian)
+            Array.Reverse(counterBytes);
+
+        // Concatenera K || counter
+        byte[] concatenated = new byte[kBytes.Length + 4];
+        kBytes.CopyTo(concatenated, 0);
+        counterBytes.CopyTo(concatenated, kBytes.Length);
+
+        // Beräkna SHA-256
+        var sha256 = new Org.BouncyCastle.Crypto.Digests.Sha256Digest();
+        byte[] hash = new byte[sha256.GetDigestSize()];
+        sha256.BlockUpdate(concatenated, 0, concatenated.Length);
+        sha256.DoFinal(hash, 0);
+
+        return hash;  // Detta ger oss en 32-byte (256-bit) nyckel
+    }
+
+    public static byte[] BuildAuthenticationTokenInput(byte[] publicKey, byte[] oid)
+    {
+        List<byte> data = new List<byte>();
+
+        // Public Key Data tag (7F49)
+        data.Add(0x7F);
+        data.Add(0x49);
+        data.Add(0x4F);  // Längd för hela innehållet
+
+        // OID
+        data.Add(0x06);
+        data.Add(0x0A);  // Längd för OID
+        data.AddRange(oid);
+
+        // Public key
+        data.Add(0x86);  // Public key tag
+        data.Add(0x41);  // Längd för publika nyckeln
+        data.AddRange(publicKey);  // Inkluderar redan 04-prefix
+
+        return data.ToArray();
+    }
+
+    public static byte[] CalculateAuthenticationToken(byte[] ksmac, byte[] data)
+    {
+        // Skapa CMAC med AES-256
+        var cipher = new AesEngine();
+        var mac = new CMac(cipher, 128); // 128 bits = 8 bytes output
+
+        // Initiera med KSMAC
+        mac.Init(new KeyParameter(ksmac));
+
+        // Beräkna MAC
+        byte[] output = new byte[mac.GetMacSize()];
+        mac.BlockUpdate(data, 0, data.Length);
+        mac.DoFinal(output, 0);
+
+        return output.Take(8).ToArray();
+    }
+
+    public static byte[] BuildTokenCommand(byte[] token)
+    {
+        // Token ska vara 8 bytes
+        if (token.Length != 8)
+            throw new Exception("Token must be 8 bytes!");
+
+        List<byte> command = new List<byte>();
+
+        // Header
+        command.Add(0x00);     // CLA (sista kommandot, ingen chaining)
+        command.Add(0x86);     // INS (General Authenticate)
+        command.Add(0x00);     // P1
+        command.Add(0x00);     // P2
+
+        // Beräkna längder
+        byte tokenDataLength = 0x08;  // token är alltid 8 bytes
+        byte dynamicAuthDataLength = (byte)(2 + tokenDataLength); // 85 + len + data
+        byte totalLength = (byte)(2 + dynamicAuthDataLength); // 7C + len + inner data
+
+        command.Add(totalLength); // Lc
+
+        // Dynamic Authentication Data
+        command.Add(0x7C);
+        command.Add(dynamicAuthDataLength);
+
+        // Token data
+        command.Add(0x85);     // Tag för vår token
+        command.Add(tokenDataLength);
+        command.AddRange(token);
+
+        // Le
+        command.Add(0x00);
+
+        return command.ToArray();
     }
 }
 
