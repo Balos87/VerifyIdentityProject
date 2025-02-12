@@ -7,6 +7,8 @@ using Org.BouncyCastle.Crypto.EC;
 using Org.BouncyCastle.Asn1.TeleTrust;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Crypto.Digests;
+using Xamarin.Google.ErrorProne.Annotations;
 
 public class ECDHKeyPair
 {
@@ -260,7 +262,11 @@ public class ECDHKeyGenerator
     public static byte[] DeriveKeyFromK(ECPoint K, int counter)
     {
         // Vi behöver bara x-koordinaten från K
-        byte[] kBytes = K.XCoord.ToBigInteger().ToByteArrayUnsigned();
+        var normalizedK = K.Normalize();
+        byte[] kBytes = normalizedK.AffineXCoord.GetEncoded();
+        Console.WriteLine($"x kBytes: {BitConverter.ToString(kBytes)}");
+        Console.WriteLine($"x kBytes.Length: {kBytes.Length}");
+
 
         // Skapa counter som 32-bit big-endian
         byte[] counterBytes = BitConverter.GetBytes(counter);
@@ -280,6 +286,7 @@ public class ECDHKeyGenerator
 
         return hash;  // Detta ger oss en 32-byte (256-bit) nyckel
     }
+
 
     public static byte[] BuildAuthenticationTokenInput(byte[] publicKey, byte[] oid)
     {

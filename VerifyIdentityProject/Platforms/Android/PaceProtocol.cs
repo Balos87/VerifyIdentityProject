@@ -21,6 +21,7 @@ using Org.BouncyCastle.Asn1.Sec;
 using System;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Crypto.Generators;
+using Org.BouncyCastle.Utilities.Encoders;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -60,6 +61,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (encryptedNonce == null)
                     return false;
 
+                //var decyptnonse = PaceHelper.DecryptNonce(encryptedNonce, mrz);
+                //Tested with dokument mrz and encryptedNonce and I got the same result as in the document ✅
+                //[DOTNET] DecryptNonce: 3F-00-C4-D3-9D-15-3F-2B-2A-21-4A-07-8D-89-9B-22
                 // 3. Dekryptera nonce
                 var decryptedNonce = DecryptNonce(encryptedNonce);
 
@@ -202,12 +206,16 @@ namespace VerifyIdentityProject.Platforms.Android
                 return null;
             }
         }
+
+        //Tested with dokument mrz and encryptedNonce and I got the same result as in the document ✅
+        //[DOTNET] DecryptNonce: 3F-00-C4-D3-9D-15-3F-2B-2A-21-4A-07-8D-89-9B-22
         private byte[] DecryptNonce(byte[] encryptedNonce)
         {
             Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
 
             using (var sha1 = SHA1.Create())
             {
+                //Tested with dokument mrz and I got the same result -Kpi- as in the document ✅
                 var kPi = CalculateKPiFromMrz(mrz);
 
                 using (Aes aes = Aes.Create())
@@ -238,6 +246,8 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 byte[] inputBytes = Encoding.UTF8.GetBytes(mrzData);
                 byte[] k = sha1.ComputeHash(inputBytes);
+                //Tested with dokument mrz and I got the same result -K- as in the document ✅
+                //[DOTNET] Output k as hex: 7E-2D-2A-41-C7-4E-A0-B3-8C-D3-6F-86-39-39-BF-A8-E9-03-2A-AD
                 Console.WriteLine($"Output k as hex: {BitConverter.ToString(k)}");
 
                 // Calculate KPi from K
@@ -264,33 +274,34 @@ namespace VerifyIdentityProject.Platforms.Android
 
             Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
 
-            //// Calculate SHA-1 hash
-            //using (SHA1 sha1 = SHA1.Create())
-            //{
-            //    byte[] fullHash = sha1.ComputeHash(combined);
-            //    Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
-
-            //    // Take first 16 bytes for Kπ
-            //    byte[] kPi = new byte[16];
-            //    Array.Copy(fullHash, kPi, 16);
-
-            //    Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
-            //    return kPi;
-            //}
-
-            // Calculate SHA-256 hash
-            using (var sha256 = SHA256.Create())
+            // Calculate SHA-1 hash
+            using (SHA1 sha1 = SHA1.Create())
             {
-                byte[] fullHash = sha256.ComputeHash(combined);
-                Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
+                byte[] fullHash = sha1.ComputeHash(combined);
+                Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
 
-                // Ta första 32 bytes för 256-bit AES nyckel
-                byte[] kPi = new byte[32];
-                Array.Copy(fullHash, kPi, 32);
-
-                Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
+                // Take first 16 bytes for Kπ
+                byte[] kPi = new byte[16];
+                Array.Copy(fullHash, kPi, 16);
+                //Tested with dokument mrz and I got the same result -KPi- as in the document ✅
+                //[DOTNET] Final Kπ (first 16 bytes): 89-DE-D1-B2-66-24-EC-1E-63-4C-19-89-30-28-49-DD
+                Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
                 return kPi;
             }
+
+            //// Calculate SHA-256 hash
+            //using (var sha256 = SHA256.Create())
+            //{
+            //    byte[] fullHash = sha256.ComputeHash(combined);
+            //    Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
+
+            //    // Ta första 32 bytes för 256-bit AES nyckel
+            //    byte[] kPi = new byte[32];
+            //    Array.Copy(fullHash, kPi, 32);
+
+            //    Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
+            //    return kPi;
+            //}
         }
 
         private async Task<bool> GenerateAndSendMappedParameters(byte[] decryptedNonce)
@@ -298,13 +309,9 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
-                //var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");//Detta gör samma jobb som rad 319
-                //var curveParams = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
-
-
-
+                var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
+                var curveParams = new ECDomainParameters(curve.Curve, curve.G, curve.N, curve.H);
                 //--------------------------------------------------------------------------------skapar publik nyckel med nya metoden
-                var curveParams = ECDHKeyGenerator.SetupBrainpoolP384r1(); //Detta gör samma jobb som rad 301
                 var keyGenerator = new ECDHKeyGenerator(curveParams);
 
                 // Skapa BigInteger från decryptedNonce
@@ -358,6 +365,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 //Skapa nyckelpar med våran gTilde
                 var gTildeKeys = keyGenerator.GenerateKeyPairWithGTilde(gTilde);
+                Console.WriteLine($"gTildeKeys.PrivatKEy: {gTildeKeys.PrivateKey}");
+
 
                 // Konvertera vår gTilde-publika nyckel till byte array
                 byte[] gTildePublicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(gTildeKeys.PublicKey);
@@ -375,6 +384,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Konvertera chippets publika nyckel bytes till ECPoint
                 Org.BouncyCastle.Math.EC.ECPoint chipGTildePublicKeyDecoded = curveParams.Curve.DecodePoint(extractedChipGTildePublicKey);
+                Console.WriteLine($"chipGTildePublicKeyDecoded: X:{chipGTildePublicKeyDecoded.XCoord} Y:{chipGTildePublicKeyDecoded.YCoord}");
+
 
                 // Jämför om punkterna är lika. Vår publik key och chippets publik key får inte vara samma
                 if (gTildeKeys.PublicKey.Equals(chipGTildePublicKeyDecoded))
@@ -382,9 +393,15 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Public keys are identical - security violation!");
                 }
 
+
                 // Multiplicera med vår gTilde-privata nyckel för att få K
                 Org.BouncyCastle.Math.EC.ECPoint K = chipGTildePublicKeyDecoded.Multiply(gTildeKeys.PrivateKey);
+                if (!K.IsValid())
+                {
+                    throw new Exception("Fel: gTilde är inte en giltig punkt på kurvan!");
+                }
                 Console.WriteLine($"Calculated K: {BitConverter.ToString(K.GetEncoded(false))}");
+
 
                 // Sedan använder vi K för att härleda KSMac och KSEnc nycklarna:
                 byte[] KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Krypteringsnyckel
@@ -393,16 +410,21 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
                 Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
 
+                //Sätter ihop en MSE:SET AT kommando som ska innehålla publika nyckeln och OID
+                //jämförde med dokumentets inputData och jag har samma format som i dokumentet ✅
                 var inputDataForTPCD = ECDHKeyGenerator.BuildAuthenticationTokenInput(extractedChipGTildePublicKey, oid);
                 var inputDataForTIC = ECDHKeyGenerator.BuildAuthenticationTokenInput(gTildePublicKeyBytes, oid);
                 Console.WriteLine($"inputDataForTPCD: {BitConverter.ToString(inputDataForTPCD)}");
                 Console.WriteLine($"inputDataForTIC: {BitConverter.ToString(inputDataForTIC)}");
 
+                // Beräkna autentiserings token för TPCD och TIC. Vi använder KSMAC och "kommandot" vi satte ihop förra steget för att räkna ut token
+                //Testade med dokumentets KsMac och inputData och jag fick samma svar som i dokumentet ✅
                 var TPCD = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTPCD);
                 var TIC = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTIC);
                 Console.WriteLine($"TPCD: {BitConverter.ToString(TPCD)}");
                 Console.WriteLine($"TIC: {BitConverter.ToString(TIC)}");
 
+                //Bygger kommandot för att skicka TPCD till chipet
                 var comand = ECDHKeyGenerator.BuildTokenCommand(TPCD);
                 Console.WriteLine($"sending TPCD command: {BitConverter.ToString(comand)}");
 
