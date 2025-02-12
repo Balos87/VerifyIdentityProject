@@ -75,6 +75,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<EmbeddedResource Include="Resources\appsettings.json" />
 		<EmbeddedResource Include="Resources\secrets.json" />
 	</ItemGroup>
 
@@ -89,6 +90,10 @@
 	  <MauiCss Remove="Resources\Raw\tessconfigs\**" />
 	  <MauiXaml Remove="Resources\Raw\tessconfigs\**" />
 	  <None Remove="Resources\Raw\tessconfigs\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="Resources\appsettings.json" />
 	</ItemGroup>
 
 

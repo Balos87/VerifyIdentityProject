@@ -6,6 +6,8 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Microsoft.Maui.Media;
+using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Resources.Interfaces;
 
 namespace VerifyIdentityProject.Helpers.MRZReader
 {
@@ -13,12 +15,16 @@ namespace VerifyIdentityProject.Helpers.MRZReader
     {
         private readonly Action<string> _mrzNotFoundCallback;
         private readonly HttpClient _httpClient;
-        public MrzReader(Action<string> mrzNotFoundCallback)
+        private readonly INfcReaderManager _nfcReaderManager;
+        public MrzReader(Action<string> mrzNotFoundCallback, INfcReaderManager nfcReaderManager)
         {
+            var appsettings = GetSecrets.FetchAppSettings();
+            var localUrl = appsettings?.LOCAL_SERVER ?? string.Empty;
+            _nfcReaderManager = nfcReaderManager;
             _mrzNotFoundCallback = mrzNotFoundCallback; // Store the callback
             _httpClient = new HttpClient
             {
-                BaseAddress = new Uri("http://192.168.50.26:5000/") // Local API URL
+                BaseAddress = new Uri(localUrl) // Local API URL
             };
         }
 
@@ -64,8 +70,17 @@ namespace VerifyIdentityProject.Helpers.MRZReader
             }
             else
             {
+                // Define the path to your secrets.json file.
+                string secretsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secrets.json");
+
+                // Create an instance of the SecretsManager.
+                SecretsManager manager = new SecretsManager(secretsFilePath);
+
+                // Update the MRZ_NUMBERS value.
+                manager.SetMrzNumbers(mrzText);
                 // Clear message if MRZ is found
-                _mrzNotFoundCallback?.Invoke(mrzText); // Clear message
+                _mrzNotFoundCallback?.Invoke("Place your phone on passport."); // Clear message
+                _nfcReaderManager.StartListening();
             }
         }
 

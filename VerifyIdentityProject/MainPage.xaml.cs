@@ -1,5 +1,6 @@
 ﻿using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Helpers.MRZReader;
+using VerifyIdentityProject.Resources.Interfaces;
 
 namespace VerifyIdentityProject
 {
@@ -7,14 +8,15 @@ namespace VerifyIdentityProject
     {
         private MainPageViewModel _viewModel;
         private MrzReader _mrzReader;
-        public MainPage(MainPageViewModel viewModel)
+        public MainPage(MainPageViewModel viewModel, INfcReaderManager nfcReaderManager)
         {
             InitializeComponent();
             var copy = new CopySecrets();
             copy.CopySecretFileToAppData();
+            copy.CopyAppSettingsFileToAppData();
 
             _viewModel = viewModel;
-            _mrzReader = new MrzReader(UpdateMrzNotFoundMessage);
+            _mrzReader = new MrzReader(UpdateMrzNotFoundMessage, nfcReaderManager);
             BindingContext = _viewModel;
 
             // Assign the command from MrzReader

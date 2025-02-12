@@ -70,7 +70,7 @@ namespace VerifyIdentityAPI.Services
 
             // 9. Additional Otsu's Thresholding for better binarization
 
-            Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary,65, 30);
+            Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 65, 30);
             Cv2.ImWrite(processedImagePath, image);
             // 10. Contrast Stretching
             Cv2.Normalize(image, image, 0, 255, NormTypes.MinMax);
@@ -93,16 +93,11 @@ namespace VerifyIdentityAPI.Services
 
             // Optional: Canny Edge Detection
             Cv2.Canny(morphResult, morphResult, 50, 150);
-            // Find contours in the binary image
             Cv2.ImWrite(processedImagePath, morphResult);
             // Find contours in the binary image
             OpenCvSharp.Point[][] contours;
             HierarchyIndex[] hierarchy;
             Cv2.FindContours(morphResult, out contours, out hierarchy, RetrievalModes.External, ContourApproximationModes.ApproxSimple);
-
-            // Identify the MRZ region based on aspect ratio and size
-            OpenCvSharp.Rect mrzRect = new OpenCvSharp.Rect();
-            double maxArea = 0;
 
             List<OpenCvSharp.Rect> candidateRects = new List<OpenCvSharp.Rect>();
             double imageArea = image.Width * image.Height;
@@ -115,9 +110,7 @@ namespace VerifyIdentityAPI.Services
                 double area = rect.Width * rect.Height;
 
                 // Heuristics for detecting MRZ
-                if (aspectRatio > 20 && aspectRatio < 55  // Aspect ratio range
-                                // At least 1% of the image area
-                    ) // Minimum dimension constraint            // Focus on lower half of the image
+                if (aspectRatio > 20 && aspectRatio < 55)
                 {
                     candidateRects.Add(rect);
 
@@ -130,8 +123,8 @@ namespace VerifyIdentityAPI.Services
             foreach (var rect in candidateRects)
             {
                 // Expand the detected rectangle dynamically
-                int verticalPadding = (int)(rect.Height * 0.5);
-                int horizontalPadding = (int)(rect.Width * 0.3);
+                int verticalPadding = (int)(rect.Height * 0.4);
+                int horizontalPadding = (int)(rect.Width * 0.1);
 
                 int newX = Math.Max(0, rect.X - horizontalPadding);
                 int newY = Math.Max(0, rect.Y - verticalPadding);
