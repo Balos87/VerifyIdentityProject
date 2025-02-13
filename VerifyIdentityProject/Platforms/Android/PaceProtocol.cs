@@ -240,7 +240,7 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
 
-            string mrzData2 = "T22000129364081251010318";
+            string mrzData2 = "35897577<390091982606152";
             //Calculate K from MRZ
             using (SHA1 sha1 = SHA1.Create())
             {
@@ -274,34 +274,34 @@ namespace VerifyIdentityProject.Platforms.Android
 
             Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
 
-            // Calculate SHA-1 hash
-            using (SHA1 sha1 = SHA1.Create())
-            {
-                byte[] fullHash = sha1.ComputeHash(combined);
-                Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
-
-                // Take first 16 bytes for Kπ
-                byte[] kPi = new byte[16];
-                Array.Copy(fullHash, kPi, 16);
-                //Tested with dokument mrz and I got the same result -KPi- as in the document ✅
-                //[DOTNET] Final Kπ (first 16 bytes): 89-DE-D1-B2-66-24-EC-1E-63-4C-19-89-30-28-49-DD
-                Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
-                return kPi;
-            }
-
-            //// Calculate SHA-256 hash
-            //using (var sha256 = SHA256.Create())
+            //// Calculate SHA-1 hash
+            //using (SHA1 sha1 = SHA1.Create())
             //{
-            //    byte[] fullHash = sha256.ComputeHash(combined);
-            //    Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
+            //    byte[] fullHash = sha1.ComputeHash(combined);
+            //    Console.WriteLine($"Full SHA-1 hash: {BitConverter.ToString(fullHash)}");
 
-            //    // Ta första 32 bytes för 256-bit AES nyckel
-            //    byte[] kPi = new byte[32];
-            //    Array.Copy(fullHash, kPi, 32);
-
-            //    Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
+            //    // Take first 16 bytes for Kπ
+            //    byte[] kPi = new byte[16];
+            //    Array.Copy(fullHash, kPi, 16);
+            //    //Tested with dokument mrz and I got the same result -KPi- as in the document ✅
+            //    //[DOTNET] Final Kπ (first 16 bytes): 89-DE-D1-B2-66-24-EC-1E-63-4C-19-89-30-28-49-DD
+            //    Console.WriteLine($"Final Kπ (first 16 bytes): {BitConverter.ToString(kPi)}");
             //    return kPi;
             //}
+
+            // Calculate SHA-256 hash
+            using (var sha256 = SHA256.Create())
+            {
+                byte[] fullHash = sha256.ComputeHash(combined);
+                Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
+
+                // Ta första 32 bytes för 256-bit AES nyckel
+                byte[] kPi = new byte[32];
+                Array.Copy(fullHash, kPi, 32);
+
+                Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
+                return kPi;
+            }
         }
 
         private async Task<bool> GenerateAndSendMappedParameters(byte[] decryptedNonce)
@@ -314,54 +314,41 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------------------skapar publik nyckel med nya metoden
                 var keyGenerator = new ECDHKeyGenerator(curveParams);
 
-                // Skapa BigInteger från decryptedNonce
-                var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
-                s = s.Mod(curveParams.N);
-
-                // Logga `s` och `domain.N`
-                Console.WriteLine($"Nonce (s): {s.ToString(16)}");
-                Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
-
-                // Validera att `s` är inom giltigt intervall: 1 ≤ s ≤ n-1
-                if (s.SignValue <= 0 || s.CompareTo(curveParams.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
-                {
-                    throw new Exception("Nonce value is out of range for the curve domain.");
-                }
-
-                // Generera nyckelpar
+                // Generera nyckelpar - Gått igenom och den borde vara ok ✅
                 var keyPair = keyGenerator.GenerateKeyPair();
 
-                // Konvertera publik nyckel till byte array (för att skicka till chip)
+                // Konvertera publik nyckel till byte array (för att skicka till chip) - Gått igenom och den borde vara ok ✅
                 byte[] publicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(keyPair.PublicKey);
-                Console.WriteLine($"s × G nya metod: {BitConverter.ToString(publicKeyBytes)}");
+                Console.WriteLine($"publicKeyBytes: {BitConverter.ToString(publicKeyBytes)}");
 
-                // Skapa APDU för att skicka vår publika nyckel
+                // Skapa APDU för att skicka vår publika nyckel - Gått igenom och den följer TLV som dokumentation ✅
                 var ourPublicKeyApdu = ECDHKeyGenerator.BuildMapNonceCommand(publicKeyBytes);
-                Console.WriteLine($"Sendin ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
+                Console.WriteLine($"Sending ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
 
-                // Skicka vår publika nyckel och få chippets publika nyckel
+                // Skicka vår publika nyckel och få chippets publika nyckel - Gått igenom och den följer TLV som dokumentation ✅
                 var chipPublicKey = await isoDep.TransceiveAsync(ourPublicKeyApdu);
-                Console.WriteLine($"chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
+                Console.WriteLine($"Recieved chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
 
-                // Extrahera chippets publika nyckel från svaret
+                // Extrahera chippets publika nyckel från svaret - Gått igenom och den tar bort TLV strukturen. behåller 04||x||y ✅
                 var exractedChipPublicKey = ECDHKeyGenerator.ExtractPublicKeyFromResponse(chipPublicKey);
                 Console.WriteLine($"exractedChipPublicKey: {BitConverter.ToString(exractedChipPublicKey)}");
 
                 // Räknar ut H med hjälp av vår privata nyckel och chippets publika nyckel och curveParams
                 var H = ECDHKeyGenerator.CalculateH(curveParams, keyPair.PrivateKey, exractedChipPublicKey);
-                Console.WriteLine($"NEW Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
+                Console.WriteLine($"Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
                 if (!H.IsValid())
-                {
                     throw new Exception("Fel: H är inte en giltig punkt på kurvan!");
-                }
+
+                // Skapa BigInteger från decryptedNonce
+                var bigIntegerS = ECDHKeyGenerator.SToBigInteger(decryptedNonce, curveParams);
+                Console.WriteLine($"bigInteger(s): {bigIntegerS.ToString(16)}");
+
 
                 // Beräkna gTilde med hjälp av curvparams.G och s och H
-                var gTilde = curveParams.G.Multiply(s).Add(H).Normalize();
+                var gTilde = curveParams.G.Multiply(bigIntegerS).Add(H).Normalize();
 
                 if (!gTilde.IsValid())
-                {
                     throw new Exception("Fel: gTilde är inte en giltig punkt på kurvan!");
-                }
 
                 //Skapa nyckelpar med våran gTilde
                 var gTildeKeys = keyGenerator.GenerateKeyPairWithGTilde(gTilde);
@@ -370,13 +357,16 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Konvertera vår gTilde-publika nyckel till byte array
                 byte[] gTildePublicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(gTildeKeys.PublicKey);
+                Console.WriteLine($"gTildePublicKeyBytes: {gTildePublicKeyBytes}");
+
 
                 // Skapa APDU för att skicka vår gTilde-publika nyckel
                 var gTildePublicKeyAPdu = ECDHKeyGenerator.BuildKeyAgreementCommandGTilde(gTildePublicKeyBytes);
 
+                Console.WriteLine($"Sending gTildePublicKeyAPdu: {BitConverter.ToString(gTildePublicKeyAPdu)}");
                 // Skicka vår gTilde-publika nyckel och få chippets-gTilde-publika nyckel
                 var chipGTildePublicKey = await isoDep.TransceiveAsync(gTildePublicKeyAPdu);
-                Console.WriteLine($"chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
+                Console.WriteLine($"Recieved chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
 
                 // Extrahera chippets gTilde-publika nyckel från svaret
                 var extractedChipGTildePublicKey = ECDHKeyGenerator.ExtractGTildePublicKeyFromResponse(chipGTildePublicKey);
@@ -389,17 +379,14 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Jämför om punkterna är lika. Vår publik key och chippets publik key får inte vara samma
                 if (gTildeKeys.PublicKey.Equals(chipGTildePublicKeyDecoded))
-                {
                     throw new Exception("Public keys are identical - security violation!");
-                }
 
 
                 // Multiplicera med vår gTilde-privata nyckel för att få K
-                Org.BouncyCastle.Math.EC.ECPoint K = chipGTildePublicKeyDecoded.Multiply(gTildeKeys.PrivateKey);
+                Org.BouncyCastle.Math.EC.ECPoint K = chipGTildePublicKeyDecoded.Multiply(gTildeKeys.PrivateKey).Normalize();
                 if (!K.IsValid())
-                {
                     throw new Exception("Fel: gTilde är inte en giltig punkt på kurvan!");
-                }
+
                 Console.WriteLine($"Calculated K: {BitConverter.ToString(K.GetEncoded(false))}");
 
 

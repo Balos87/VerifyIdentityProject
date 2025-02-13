@@ -9,6 +9,7 @@ using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Digests;
 using Xamarin.Google.ErrorProne.Annotations;
+using Org.BouncyCastle.Utilities;
 
 public class ECDHKeyPair
 {
@@ -45,17 +46,18 @@ public class ECDHKeyGenerator
 
     public ECDHKeyPair GenerateKeyPair()
     {
-        // 1. Generera privat nyckel (ett slumpmässigt tal mellan 1 och n-1)
-        BigInteger n = domainParameters.N; // Kurvans ordning
-        BigInteger privateKey;
-        do
-        {
-            privateKey = new BigInteger(n.BitLength, secureRandom);
-        }
-        while (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0);
+        // 1. Generera privat nyckel med BouncyCastles inbyggda metod
+        BigInteger privateKey = BigIntegers.CreateRandomInRange(
+            BigInteger.One,  // Lägsta tillåtna värde
+            domainParameters.N.Subtract(BigInteger.One),  // Högsta tillåtna värde (n-1)
+            secureRandom  // Vår säkra slumptalsgenerator
+        );
 
         // 2. Skapar publik nyckel. (privat nyckel * G)
-        ECPoint publicKey = domainParameters.G.Multiply(privateKey);
+        ECPoint publicKey = domainParameters.G.Multiply(privateKey).Normalize();
+
+        if (!ValidatePublicKey(publicKey, domainParameters))
+            Console.WriteLine("public key not valid!");
 
         return new ECDHKeyPair
         {
@@ -63,6 +65,29 @@ public class ECDHKeyGenerator
             PublicKey = publicKey
         };
     }
+    private bool ValidatePublicKey(ECPoint publicKey, ECDomainParameters domainParams)
+    {
+        // Kontrollera att punkten ligger på kurvan
+        if (!publicKey.IsValid())
+        {
+            return false;
+        }
+
+        // Kontrollera att punkten har rätt ordning
+        if (!publicKey.Multiply(domainParams.N).IsInfinity)
+        {
+            return false;
+        }
+
+        // Kontrollera att punkten inte är punkten vid oändligheten
+        if (publicKey.IsInfinity)
+        {
+            return false;
+        }
+
+        return true;
+    }
+
 
     //gör en byte array av publik nyckel
     public static byte[] PublicKeyToBytes(ECPoint publicKey)
@@ -157,22 +182,46 @@ public class ECDHKeyGenerator
         return publicKey;
     }
 
-     //1.brainpoolP384r1 parametrar  2.Vår privata nyckel från förr 3.Chippets publika nyckel som vi just extraherade
-    public static ECPoint CalculateH( ECDomainParameters curveParameters, BigInteger ourPrivateKey, byte[] chipPublicKeyBytes)            
+    public static BigInteger SToBigInteger(byte[] decryptedNonce, ECDomainParameters curveParams)
     {
-        // Konvertera chippets publika nyckel från bytes till ECPoint
-        ECPoint chipPublicKey = curveParameters.Curve.DecodePoint(chipPublicKeyBytes);
+        try
+        {
+            // Skapa BigInteger från decryptedNonce
+            var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
+            s = s.Mod(curveParams.N);
+
+            // Logga `s` och `domain.N`
+            Console.WriteLine($"Nonce (s): {s.ToString(16)}");
+            Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
+
+            // Validera att `s` är inom giltigt intervall: 1 ≤ s ≤ n-1
+            if (s.SignValue <= 0 || s.CompareTo(curveParams.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
+                throw new Exception("Nonce value is out of range for the curve domain.");
+
+            return (s);
+        }
+        catch (Exception e)
+        {
+            throw new Exception("Could not convert S to BigInteger", e);
+        }
+    }
+
+    //1.brainpoolP384r1 parametrar  2.Vår privata nyckel från förr 3.Chippets publika nyckel som vi just extraherade
+    public static ECPoint CalculateH(ECDomainParameters curveParameters, BigInteger mappingPrivateKey, byte[] chipMappingPublicKeyBytes)
+    {
+        // Konvertera chippets mapping publika nyckel från bytes till ECPoint
+        ECPoint chipMappingPublicKey = curveParameters.Curve.DecodePoint(chipMappingPublicKeyBytes);
 
         // Validera chippets publika nyckel
-        if (!chipPublicKey.IsValid())
-            throw new ArgumentException("Ogiltig publik nyckel från chip");
+        if (!chipMappingPublicKey.IsValid())
+            throw new ArgumentException("Ogiltig mapping publik nyckel från chip");
 
-        // Beräkna H genom att multiplicera chippets publika nyckel med vår privata nyckel
-        ECPoint H = chipPublicKey.Multiply(ourPrivateKey);
+        // Multiplicera chippets publika nyckel med vår mapping privata nyckel
+        ECPoint H = chipMappingPublicKey.Multiply(mappingPrivateKey).Normalize();
 
         // Validera resultatet
         if (H.IsInfinity)
-            throw new InvalidOperationException("Beräkningen resulterade i ogiltig punkt");
+            throw new InvalidOperationException("H beräkningen resulterade i ogiltig punkt");
 
         return H;
     }
@@ -186,7 +235,7 @@ public class ECDHKeyGenerator
         {
             privateKey = new BigInteger(n.BitLength, secureRandom);
         }
-        while (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0);
+        while (privateKey.CompareTo(BigInteger.One) <= 0 || privateKey.CompareTo(n) >= 0);
 
         // 2. Skapar publik nyckel. (privat nyckel * G)
         ECPoint publicKey = gTilde.Multiply(privateKey);
@@ -292,20 +341,23 @@ public class ECDHKeyGenerator
     {
         List<byte> data = new List<byte>();
 
+        // Beräkna total längd (OID längd + publik nyckel längd + extra bytes för taggar och längder)
+        int totalLength = 2 + oid.Length + 2 + publicKey.Length;  // 2 bytes för varje tagg+längd combo
+
         // Public Key Data tag (7F49)
         data.Add(0x7F);
         data.Add(0x49);
-        data.Add(0x4F);  // Längd för hela innehållet
+        data.Add((byte)totalLength);  // Dynamisk längd
 
         // OID
         data.Add(0x06);
-        data.Add(0x0A);  // Längd för OID
+        data.Add((byte)oid.Length);
         data.AddRange(oid);
 
         // Public key
-        data.Add(0x86);  // Public key tag
-        data.Add(0x41);  // Längd för publika nyckeln
-        data.AddRange(publicKey);  // Inkluderar redan 04-prefix
+        data.Add(0x86);
+        data.Add((byte)publicKey.Length);
+        data.AddRange(publicKey);
 
         return data.ToArray();
     }
@@ -363,20 +415,3 @@ public class ECDHKeyGenerator
         return command.ToArray();
     }
 }
-
-//// Exempel på användning:
-//public void DemonstrationUsage()
-//{
-//    // Sätt upp domänparametrar
-//    var domainParameters = ECDHKeyGenerator.SetupBrainpoolP384r1();
-//    var keyGenerator = new ECDHKeyGenerator(domainParameters);
-
-//    // Generera nyckelpar
-//    var keyPair = keyGenerator.GenerateKeyPair();
-
-//    // Konvertera publik nyckel till byte array (för att skicka till chip)
-//    byte[] publicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(keyPair.PublicKey);
-
-//    // När du får tillbaka chippets publika nyckel kan du konvertera den tillbaka
-//    ECPoint chipPublicKey = keyGenerator.BytesToPublicKey(publicKeyBytes);
-//}
