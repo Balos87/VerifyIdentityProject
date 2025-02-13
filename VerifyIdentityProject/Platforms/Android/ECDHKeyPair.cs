@@ -207,22 +207,18 @@ public class ECDHKeyGenerator
     }
 
     //1.brainpoolP384r1 parametrar  2.Vår privata nyckel från förr 3.Chippets publika nyckel som vi just extraherade
-    public static ECPoint CalculateH(ECDomainParameters curveParameters, BigInteger mappingPrivateKey, byte[] chipMappingPublicKeyBytes)
+    public static ECPoint CalculateH(ECDomainParameters curveParameters, BigInteger ourPrivateKey, byte[] chipPublicKeyBytes)
     {
-        // Konvertera chippets mapping publika nyckel från bytes till ECPoint
-        ECPoint chipMappingPublicKey = curveParameters.Curve.DecodePoint(chipMappingPublicKeyBytes);
-
+        // Konvertera chippets publika nyckel från bytes till ECPoint
+        ECPoint chipPublicKey = curveParameters.Curve.DecodePoint(chipPublicKeyBytes);
         // Validera chippets publika nyckel
-        if (!chipMappingPublicKey.IsValid())
-            throw new ArgumentException("Ogiltig mapping publik nyckel från chip");
-
-        // Multiplicera chippets publika nyckel med vår mapping privata nyckel
-        ECPoint H = chipMappingPublicKey.Multiply(mappingPrivateKey).Normalize();
-
+        if (!chipPublicKey.IsValid())
+            throw new ArgumentException("Ogiltig publik nyckel från chip");
+        // Beräkna H genom att multiplicera chippets publika nyckel med vår privata nyckel
+        ECPoint H = chipPublicKey.Multiply(ourPrivateKey);
         // Validera resultatet
         if (H.IsInfinity)
-            throw new InvalidOperationException("H beräkningen resulterade i ogiltig punkt");
-
+            throw new InvalidOperationException("Beräkningen resulterade i ogiltig punkt");
         return H;
     }
 
@@ -235,7 +231,7 @@ public class ECDHKeyGenerator
         {
             privateKey = new BigInteger(n.BitLength, secureRandom);
         }
-        while (privateKey.CompareTo(BigInteger.One) <= 0 || privateKey.CompareTo(n) >= 0);
+        while (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0);
 
         // 2. Skapar publik nyckel. (privat nyckel * G)
         ECPoint publicKey = gTilde.Multiply(privateKey);
