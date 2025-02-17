@@ -360,14 +360,11 @@ public class ECDHKeyGenerator
 
     public static byte[] CalculateAuthenticationToken(byte[] ksmac, byte[] data)
     {
-        // Skapa CMAC med AES-256
         var cipher = new AesEngine();
         var mac = new CMac(cipher, 128); // 128 bits = 8 bytes output
 
-        // Initiera med KSMAC
         mac.Init(new KeyParameter(ksmac));
 
-        // Beräkna MAC
         byte[] output = new byte[mac.GetMacSize()];
         mac.BlockUpdate(data, 0, data.Length);
         mac.DoFinal(output, 0);
