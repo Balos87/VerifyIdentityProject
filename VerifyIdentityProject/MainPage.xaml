@@ -6,16 +6,17 @@
 
     <ScrollView>
         <VerticalStackLayout Padding="30,0" Spacing="25">
-            <Image
-                Source="dotnet_bot.png"
-                HeightRequest="185"
-                Aspect="AspectFit"
-                SemanticProperties.Description="dot net bot in a hovercraft number nine" />
-
             <Label
                 Text="Verify Identity"
                 Style="{StaticResource Headline}"
                 SemanticProperties.HeadingLevel="Level1" />
+            <Image
+                Source="verifybgpic.png"
+                HeightRequest="350"
+                Aspect="AspectFit"
+                SemanticProperties.Description="dot net bot in a hovercraft number nine" />
+
+
 
             <Label
                 Text="Scan your passport here"
@@ -26,9 +27,6 @@
             <Button 
                 Text="Start NFC with PACE" 
                 Command="{Binding StartNfcCommand}" />
-
-            <Label Text="{Binding PassportData}" />
-
 
             <Label
                 Text="{Binding PassportData}"

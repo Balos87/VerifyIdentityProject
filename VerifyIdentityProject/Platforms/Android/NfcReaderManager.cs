@@ -1,23 +1,22 @@
 ﻿using Android.Nfc;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using VerifyIdentityProject.Resources.Interfaces;
-using Android.App;
 using Android.Nfc.Tech;
+using Android.App;
+using Android.Util;
+using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.Helpers;
-using System.Security.Cryptography;
-using Xamarin.Google.Crypto.Tink.Subtle;
+using System;
+using System.Text;
 using Microsoft.Maui.Controls;
-using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
     public class NfcReaderManager : INfcReaderManager
     {
-        private NfcAdapter _nfcAdapter;
-        private Activity _activity;
+        private readonly NfcAdapter _nfcAdapter;
+        private readonly Activity _activity;
+
+        // Event to notify when an NFC chip is detected
+        public event Action<string> OnNfcChipDetected;
 
         public NfcReaderManager()
         {
@@ -28,84 +27,103 @@ namespace VerifyIdentityProject.Platforms.Android
         /// <summary>
         /// Starts listening for NFC tags.
         /// </summary>
-        /// <remarks>
-        /// This method checks if the NFC adapter is available and enabled.
-        /// If valid, it enables NFC reader mode with specified flags and a callback to handle NFC tag discovery.
-        /// </remarks>
-        /// <param name="NfcReaderFlags">Flags specifying the types of NFC tags to detect (e.g., NfcA, NfcB).</param>
-        /// <exception cref="InvalidOperationException">Thrown if the NFC adapter is not available or enabled.</exception>
         public void StartListening()
         {
-            // Check if NFC adapter is available and enabled
-            if (_nfcAdapter == null || !_nfcAdapter.IsEnabled)
+            if (_nfcAdapter == null)
             {
-                Console.WriteLine("NFC not supported or not enabled.");
+                Console.WriteLine("NFC is not supported on this device.");
+                return;
+            }
+
+            if (!_nfcAdapter.IsEnabled)
+            {
+                Console.WriteLine("NFC is disabled. Please enable it in settings.");
                 return;
             }
 
             // Enable NFC reader mode
             _nfcAdapter.EnableReaderMode(
-                _activity, // The current activity
-                new BacProcessor(this), // Callback for handling NFC tag discovery
+                _activity,
+                new BacProcessor(this), // NFC tag discovery callback
                 NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
                 null
             );
+
+            Console.WriteLine("NFC Reader started. Waiting for a tag...");
+            OnNfcChipDetected?.Invoke("NFC Reader started. Waiting for a tag...");
         }
 
+        /// <summary>
+        /// Stops NFC listening.
+        /// </summary>
         public void StopListening()
         {
-            _nfcAdapter.DisableReaderMode(_activity);
+            if (_nfcAdapter != null)
+            {
+                _nfcAdapter.DisableReaderMode(_activity);
+                Console.WriteLine("NFC Reader stopped.");
+                OnNfcChipDetected?.Invoke("NFC Reader stopped.");
+            }
         }
 
+        /// <summary>
+        /// Identifies the technologies of the detected NFC chip.
+        /// </summary>
+        /// <param name="tag">Detected NFC tag</param>
         public void IdentifyTagTechnologies(Tag tag)
         {
-            Console.WriteLine("<-IdentifyTagTechnologies->");
+            Console.WriteLine("<- IdentifyTagTechnologies ->");
             string[] techList = tag.GetTechList();
 
-            Console.WriteLine("______This NFC-Chip Technologies:");
+            Console.WriteLine("______ Detected NFC Chip Technologies:");
             foreach (string tech in techList)
             {
                 Console.WriteLine(tech);
+            }
 
-            }
-            if (techList == null || techList.Length == 0)
+            if (techList.Length == 0)
             {
-                Console.WriteLine("No tech was found");
+                Console.WriteLine("No technology detected.");
             }
-            Console.WriteLine("");
+
             Console.WriteLine("<---------------------------------------->");
-            Console.WriteLine("");
         }
 
+        /// <summary>
+        /// Handles NFC tag discovery and starts processing.
+        /// </summary>
+        /// <param name="tag">Detected NFC tag</param>
         public void HandleTagDiscovered(Tag tag)
         {
-            Console.WriteLine("<-HandleTagDiscovered->");
-            Console.WriteLine("");
-            Console.WriteLine("");
+            Console.WriteLine("<- HandleTagDiscovered ->");
             Console.WriteLine("-----------------------------------------------------------");
             Console.WriteLine("<<<-------           Verify Identity             ------->>>");
             Console.WriteLine("-----------------------------------------------------------");
-            Console.WriteLine("");
-            Console.WriteLine("");
-            Console.WriteLine("<---------------------------------------->");
-            Console.WriteLine("");
 
             try
             {
                 IdentifyTagTechnologies(tag);
+
                 IsoDep isoDep = IsoDep.Get(tag);
-                PaceProcessor.PerformPace(isoDep);
-                //if (isoDep != null)
-                //{
-                //    BacProcessor.ProcessBac(isoDep);
-                //}
+                if (isoDep != null)
+                {
+                    Console.WriteLine("ISO-DEP Tag detected. Starting PACE...");
+                    PaceProcessor.PerformPace(isoDep);
+
+                    // Trigger event to notify that an NFC chip was detected
+                    OnNfcChipDetected?.Invoke("RFID Chip detected! Processing data...");
+                }
+                else
+                {
+                    Console.WriteLine("Not an ISO-DEP (NFC-A/B) tag.");
+                    OnNfcChipDetected?.Invoke("NFC Chip detected but not supported.");
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during NFC processing: {ex.Message}");
+                OnNfcChipDetected?.Invoke($"Error processing NFC: {ex.Message}");
             }
         }
-
-
     }
 }

@@ -9,6 +9,7 @@ namespace VerifyIdentityProject.Resources.Interfaces
 {
     public interface INfcReaderManager
     {
+        event Action<string> OnNfcChipDetected;
         void StartListening();
         void StopListening();
     }
