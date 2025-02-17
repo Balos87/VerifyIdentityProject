@@ -5,6 +5,9 @@
 
 # dotenv environment variables file
 .env
+appsettings.json
+Resources/appsettings.json
+VerifyIdentityProject/Resources/appsettings.json
 secrets.json
 Resources/secrets.json
 VerifyIdentityProject/Resources/secrets.json
@@ -368,3 +371,4 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /VerifyIdentityProject/Resources/appsettings.json
+/VerifyIdentityProject/Resources/secrets.json
