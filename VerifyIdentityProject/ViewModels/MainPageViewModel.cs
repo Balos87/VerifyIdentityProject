@@ -2,18 +2,22 @@
 using System.Windows.Input;
 using VerifyIdentityProject.Resources.Interfaces;
 using Microsoft.Maui.Controls;
-using Android.Widget;
-using Android.App;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls.Platform;
-
+#if ANDROID
+using Android.Widget;
+using Android.App;
+#endif
 namespace VerifyIdentityProject
 {
     public class MainPageViewModel : INotifyPropertyChanged
     {
         private readonly INfcReaderManager _nfcReaderManager;
         private string _passportData;
+
+#if ANDROID
         private AlertDialog _nfcDialog; // Persistent Dialog
+#endif
 
         public string PassportData
         {
@@ -32,13 +36,20 @@ namespace VerifyIdentityProject
         {
             _nfcReaderManager = nfcReaderManager;
 
-            // Subscribe to NFC detection event
             _nfcReaderManager.OnNfcChipDetected += (data) =>
             {
+                Console.WriteLine($"NFC Detection Event Triggered: {data}"); // Debug Log
+                if (string.IsNullOrEmpty(data) || data == "NFC Reader started. Waiting for a tag...")
+                {
+                    Console.WriteLine("Ignored empty or initial NFC message.");
+                    return; // Ignore false detections
+                }
+
                 PassportData = data;
                 DismissNfcDialog(); // Close the "Place your device" dialog
                 ShowToast("RFID Chip detected! Processing...");
             };
+
 
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
@@ -80,8 +91,10 @@ namespace VerifyIdentityProject
         // ✅ Persistent Alert Dialog: "Place your device on ePassport"
         private void ShowNfcDialog()
         {
+#if ANDROID
             var context = Platform.CurrentActivity;
             if (context == null) return;
+
 
             context.RunOnUiThread(() =>
             {
@@ -93,11 +106,13 @@ namespace VerifyIdentityProject
                 _nfcDialog = builder.Create();
                 _nfcDialog.Show();
             });
+#endif
         }
 
         // ✅ Dismiss the dialog when NFC is detected
         private void DismissNfcDialog()
         {
+#if ANDROID
             var context = Platform.CurrentActivity;
             if (context == null || _nfcDialog == null) return;
 
@@ -109,11 +124,13 @@ namespace VerifyIdentityProject
                     _nfcDialog = null;
                 }
             });
+#endif
         }
 
         // ✅ Method to Show Toast Messages
         private void ShowToast(string message)
         {
+#if ANDROID
             var context = Platform.CurrentActivity;
             if (context != null)
             {
@@ -122,6 +139,7 @@ namespace VerifyIdentityProject
                     Toast.MakeText(context, message, ToastLength.Short).Show();
                 });
             }
+#endif
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
