@@ -68,30 +68,34 @@ namespace VerifyIdentityAPI.Services
             if (image.Channels() != 1)
                 Cv2.CvtColor(image, image, ColorConversionCodes.BGR2GRAY);
 
-            // 9. Additional Otsu's Thresholding for better binarization
-
+            // 2. Additional Otsu's Thresholding for better binarization
             Cv2.AdaptiveThreshold(image, image, 255, AdaptiveThresholdTypes.GaussianC, ThresholdTypes.Binary, 65, 30);
             Cv2.ImWrite(processedImagePath, image);
-            // 10. Contrast Stretching
+
+            // 3. Contrast Stretching
             Cv2.Normalize(image, image, 0, 255, NormTypes.MinMax);
             Cv2.ImWrite(processedImagePath, image);
-            // 11. Morphological operations to enhance text regions
+
+            // 4. Morphological operations to enhance text regions
             Mat morphResult = new Mat();
             var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(25, 7));
             Cv2.MorphologyEx(image, morphResult, MorphTypes.Close, kernel, iterations: 0);  // Closing to connect text regions
             Cv2.MorphologyEx(morphResult, morphResult, MorphTypes.Open, kernel, iterations: 0);  // Opening to remove small noise
             Cv2.ImWrite(processedImagePath, morphResult);
-            // 12. Erosion to remove small white noise
+
+            // 5. Erosion to remove small white noise
             Cv2.Erode(morphResult, morphResult, kernel, iterations: 2);
             Cv2.ImWrite(processedImagePath, morphResult);
-            // 13. Dilation to enhance black text and make it bolder
+
+            // 6. Dilation to enhance black text and make it bolder
             Cv2.Dilate(morphResult, morphResult, kernel, iterations: 2);
             Cv2.ImWrite(processedImagePath, image);
-            // 14. Additional noise reduction using median blur
+
+            // 7. Additional noise reduction using median blur
             Cv2.MedianBlur(morphResult, morphResult, 1);
             Cv2.ImWrite(processedImagePath, morphResult);
 
-            // Optional: Canny Edge Detection
+            // Canny Edge Detection
             Cv2.Canny(morphResult, morphResult, 50, 150);
             Cv2.ImWrite(processedImagePath, morphResult);
             // Find contours in the binary image
