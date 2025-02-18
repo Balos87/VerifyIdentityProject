@@ -105,7 +105,8 @@ namespace VerifyIdentityProject.Helpers.MRZReader
 
                 var response = await _httpClient.PostAsync("api/mrz/extract", content);
 
-                var responseString = await response.Content.ReadAsStringAsync();
+                var responseString = await response.Content.ReadFromJsonAsync<string>();
+
                 if (response.IsSuccessStatusCode)
                 {
                     Console.WriteLine($"MRZ Extracted: {responseString}");

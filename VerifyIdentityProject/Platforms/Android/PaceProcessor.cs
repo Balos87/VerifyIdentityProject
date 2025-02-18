@@ -39,8 +39,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("______Valid PACE Protocols:");
                 //Fetch mrz data from secrets
                 var secrets = GetSecrets.FetchSecrets();
-                var Data = secrets?.MRZ_NUMBERS ?? string.Empty;
-                var mrzData = Data.Replace("\"", "");
+                var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
                 Console.WriteLine($"mrzData: {mrzData}");
 
                 foreach (var oid in validOids)
