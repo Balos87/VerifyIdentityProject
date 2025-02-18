@@ -1,15 +1,5 @@
-﻿using Android.Health.Connect.DataTypes.Units;
-using Android.Nfc.Tech;
-using Microsoft.Maui.Controls;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
-using Xamarin.Google.Crypto.Tink.Prf;
-using static Android.Provider.MediaStore.Audio;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -24,16 +14,16 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Main method to perform PACE
-        public static async Task<byte[]> PerformPace(IsoDep isoDep)
+        public static byte[] PerformPace(IsoDep isoDep)
         {
             Console.WriteLine("<-PerformPace->");
             try
             {
                 // Step 0: Select the passport application
-                await SelectApplication(isoDep);
+                SelectApplication(isoDep);
 
                 // Step 1: Read CardAccess to get PACE parameters
-                var cardAccess = await ReadCardAccess(isoDep);
+                var cardAccess = ReadCardAccess(isoDep);
                 var validOids = ValidateAndListPACEInfoWithDescriptions(cardAccess);
                 Console.WriteLine($"");
                 Console.WriteLine("______Valid PACE Protocols:");
@@ -47,58 +37,24 @@ namespace VerifyIdentityProject.Platforms.Android
                     if (OidEndsWith(oid, "4.2.4"))
                     {
                         Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
-                        await StartPaceProtocol(isoDep, mrzData, oid);
-                        
+
+                        var pace = new PaceProtocol(isoDep, mrzData, oid);
+                        bool success = pace.PerformPaceProtocol();
+                        Console.WriteLine(success ? "PACE-autentisering lyckades!" : "PACE-autentisering misslyckades");
+
+                        var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
+
                     }
                 }
                 Console.WriteLine("");
                 Console.WriteLine("<---------------------------------------->");
 
 
-                //// Step 2: MSE:Set AT command to initiate PACE
-                // await InitializePace(paceInfo);
-
-                //// Step 3: Get encrypted nonce from the passport
-                // var encryptedNonce = await GetEncryptedNonce();
-
-                //// Step 4: Decrypt the nonce using the password derived from the MRZ
-                // var password = DerivePasswordFromMrz(mrz);
-                // var decryptedNonce = DecryptNonce(encryptedNonce, password);
-
-                //// Step 5: Generate and exchange ephemeral keys
-                // var mappingData = await PerformMapping(decryptedNonce);
-                // var (myKeyPair, theirPubKey) = await ExchangeEphemeralKeys(mappingData);
-
-                //// Step 6: Calculate the shared secret
-                // var sharedSecret = CalculateSharedSecret(myKeyPair, theirPubKey);
-                byte[] sharedSecret = null;
-                //// Step 7: Derive session keys
-                // var (KSenc, KSmac) = DeriveSessionKeys(sharedSecret);
-
-                //// Step 8: Perform Mutual Authentication
-                // await PerformMutualAuthentication(KSenc, KSmac);
-
                 return cardAccess;
             }
             catch (Exception ex)
             {
                 throw new PaceException("The PACE process failed", ex);
-            }
-        }
-
-        public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
-        {
-            var pace = new PaceProtocol(isoDep, mrz, oid);
-            bool success = await pace.PerformPaceProtocol();
-
-            if (success)
-            {
-                Console.WriteLine("PACE-autentisering lyckades!");
-                // Nu kan du börja läsa data från passet
-            }
-            else
-            {
-                Console.WriteLine("PACE-autentisering misslyckades");
             }
         }
 
@@ -109,7 +65,7 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Select passport application
-        private static async Task SelectApplication(IsoDep isoDep)
+        private static void SelectApplication(IsoDep isoDep)
         {
             Console.WriteLine("<-SelectApplication->");
             try
@@ -127,7 +83,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     .ToArray();
 
                 Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
-                var response = await SendCommand(selectApdu, isoDep);
+                var response = SendCommand(selectApdu, isoDep);
 
                 if (response == null)
                 {
@@ -163,14 +119,14 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Reading CardAccess
-        private static async Task<byte[]> ReadCardAccess(IsoDep isoDep)
+        private static byte[] ReadCardAccess(IsoDep isoDep)
         {
             Console.WriteLine("<-ReadCardAccess->");
             try
             {
                 Console.WriteLine("Selecting Master file...");
                 byte[] command = new byte[] { 0x00, 0xA4, 0x00, 0x0C, 0x00, 0x3F, 0x00 };
-                var response = await SendCommand(command, isoDep);
+                var response = SendCommand(command, isoDep);
 
                 if (IsSuccessfulResponse(response))
                 {
@@ -181,7 +137,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("");
                 Console.WriteLine("Selecting CardAccess...");
                 command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1C };
-                response = await SendCommand(command, isoDep);
+                response = SendCommand(command, isoDep);
 
                 if (IsSuccessfulResponse(response))
                 {
@@ -192,7 +148,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("");
                 Console.WriteLine("Reading CardAccess...");
                 command = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
-                response = await SendCommand(command, isoDep);
+                response = SendCommand(command, isoDep);
 
                 if (IsSuccessfulResponse(response))
                 {
@@ -295,7 +251,7 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Helper method for sending commands
-        public static async Task<byte[]> SendCommand(byte[] command, IsoDep isoDep)
+        public static byte[] SendCommand(byte[] command, IsoDep isoDep)
         {
             Console.WriteLine("<-SendCommand->");
             try
