@@ -31,12 +31,9 @@ namespace VerifyIdentityProject.Platforms.Android
         private byte[] sessionKey;
         private byte[] oid;
         private readonly string mrz;
-        private Org.BouncyCastle.Math.EC.ECPoint mappedPoint;  // Från Map response
-        private Org.BouncyCastle.Math.EC.ECPoint sharedSecret; // Från Key exchange
         private AsymmetricKeyParameter privateKey;
         private ECPrivateKeyParameters privateKeyParameters;
         private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
-        private Org.BouncyCastle.Math.EC.ECPoint K;      // Deras publika nyckel från Key Agreement (steg 3)
         private byte[] KSMAC;
         private byte[] KSENC;
 
