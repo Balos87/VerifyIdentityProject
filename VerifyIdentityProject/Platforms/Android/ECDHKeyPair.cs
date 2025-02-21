@@ -275,6 +275,7 @@ public class ECDHKeyGenerator
 
         return command.ToArray();
     }
+
     public static byte[] ExtractGTildePublicKeyFromResponse(byte[] response)
     {
         // Validera minimum längd och status bytes
@@ -311,7 +312,6 @@ public class ECDHKeyGenerator
         byte[] kBytes = normalizedK.AffineXCoord.GetEncoded();
         Console.WriteLine($"x kBytes: {BitConverter.ToString(kBytes)}");
         Console.WriteLine($"x kBytes.Length: {kBytes.Length}");
-
 
         // Skapa counter som 32-bit big-endian
         byte[] counterBytes = BitConverter.GetBytes(counter);

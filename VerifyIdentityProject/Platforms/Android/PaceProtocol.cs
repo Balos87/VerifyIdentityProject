@@ -34,8 +34,11 @@ namespace VerifyIdentityProject.Platforms.Android
         private AsymmetricKeyParameter privateKey;
         private ECPrivateKeyParameters privateKeyParameters;
         private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
-        private byte[] KSMAC;
+
         private byte[] KSENC;
+        public byte[] KSEnc { get; private set; }  // Encryption Key (Readable but not writable outside)
+        public byte[] KSMAC { get; private set; }  // MAC Key (Readable but not writable outside)
+
 
         public PaceProtocol(IsoDep isoDep, string mrz, byte[]oid)
         {
@@ -380,8 +383,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 // We use K to create KSMac and KSEnc
-                byte[] KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Krypteringsnyckel
-                byte[] KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // Autentiseringsnyckel
+                KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Encryption Key
+                KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // Authentication Key
+
+                Console.WriteLine($"🔹 KSEnc: {BitConverter.ToString(KSEnc)}");
+                Console.WriteLine($"🔹 KSMAC: {BitConverter.ToString(KSMAC)}");
+
 
                 Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
                 Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
