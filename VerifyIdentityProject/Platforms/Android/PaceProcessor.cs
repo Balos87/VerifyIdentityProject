@@ -45,7 +45,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                         var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
 
-                        var secureMessage = new SecureMessage3(KSEnc, KSMac, isoDep);
+                        var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
                         bool secureMessageSuccess = secureMessage.PerformSecureMessage();
                         Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
 

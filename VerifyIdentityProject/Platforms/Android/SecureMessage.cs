@@ -21,7 +21,7 @@ namespace VerifyIdentityProject.Platforms.Android
             _ksEnc = ksEnc;
             _ksMac = ksMac;
             _isoDep = isoDep;
-            InitializeSSC();
+            _ssc = new byte[16]; // 16 bytes of zeros. SSC 
         }
 
         public bool PerformSecureMessage()
@@ -31,19 +31,19 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 byte[] selectApdu = new byte[]
                 {
-                    0x0C,                                    // CLA (Secure Messaging)
+                    0x00,                                    // CLA (Secure Messaging)
                     0xA4,                                    // INS (SELECT)
                     0x04,                                    // P1
                     0x0C,                                    // P2
                     0x07,                                    // Lc (length of AID)
-                    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 // AID - notera att vi inte inkluderar Le här
+                    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00 // AID - notera att vi inte inkluderar Le här
                 };
 
                 // Skydda och skicka kommandot
                 byte[] protectedApdu = ProtectAPDU(selectApdu);
                 Console.WriteLine($"Protected selectApdu: {BitConverter.ToString(protectedApdu)}");
 
-                byte[] response = _isoDep.Transceive(protectedApdu);
+                byte[] response = _isoDep.Transceive(selectApdu);
 
                 if (!IsSuccessfulResponse(response))
                 {
@@ -52,6 +52,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
+                Console.WriteLine($"Start reading DG1....");
                 return true;
             }
             catch (Exception ex)
@@ -233,12 +234,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 return ms.ToArray();
             }
-        }
-
-        private void InitializeSSC()
-        {
-            _ssc = new byte[16];  // 16 bytes av nollor för AES
-            Console.WriteLine($"SSC initialized: {BitConverter.ToString(_ssc)}");
         }
 
         private void IncrementSSC()
