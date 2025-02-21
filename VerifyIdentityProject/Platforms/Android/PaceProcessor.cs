@@ -36,13 +36,18 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     if (OidEndsWith(oid, "4.2.4"))
                     {
+
                         Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
 
                         var pace = new PaceProtocol(isoDep, mrzData, oid);
                         bool success = pace.PerformPaceProtocol();
-                        Console.WriteLine(success ? "PACE-autentisering lyckades!" : "PACE-autentisering misslyckades");
+                        Console.WriteLine(success ? "PACE-authentication succeeded!" : "PACE-authentication failed");
 
                         var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
+
+                        var secureMessage = new SecureMessage3(KSEnc, KSMac, isoDep);
+                        bool secureMessageSuccess = secureMessage.PerformSecureMessage();
+                        Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
 
                     }
                 }

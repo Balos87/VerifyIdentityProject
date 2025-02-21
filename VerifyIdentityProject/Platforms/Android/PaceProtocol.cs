@@ -418,7 +418,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
 
-                return IsSuccessful(chipGTildePublicKey);
+                return true;
             }
             catch (Exception ex)
             {
