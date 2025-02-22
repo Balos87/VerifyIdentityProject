@@ -35,7 +35,6 @@ namespace VerifyIdentityProject.Platforms.Android
         private ECPrivateKeyParameters privateKeyParameters;
         private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
 
-        private byte[] KSENC;
         public byte[] KSEnc { get; private set; }  // Encryption Key (Readable but not writable outside)
         public byte[] KSMAC { get; private set; }  // MAC Key (Readable but not writable outside)
 

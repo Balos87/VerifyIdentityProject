@@ -125,6 +125,24 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             // ---- End Reselecting Passport Application ----
 
+            // ---- Select DG1 using Secure Message ----
+            // Now call SecureSelectDG1 to attempt secure selection of DG1.
+            SecureSelectDG1 secureSelectDG1 = new SecureSelectDG1(isoDep, secureMessaging);
+            bool dg1Selected = await secureSelectDG1.SelectDG1Async();
+
+            if (dg1Selected)
+            {
+                Console.WriteLine("📄 DG1 successfully selected!");
+            }
+            else
+            {
+                Console.WriteLine("❌ DG1 selection failed.");
+                Console.WriteLine("Note: A 68 82 response may indicate that DG1 is not selectable via a SELECT command. " +
+                                  "In many ePassports DG files are read using READ BINARY commands instead.");
+            }
+            // ---- End of Select DG1 ----
+
+            // ---- Read Binary using Secure Message ----
             // Now call SecureReadDG1 to read DG1 using a secure READ BINARY command.
             SecureReadDG1 secureReadDG1 = new SecureReadDG1(isoDep, secureMessaging);
             byte[] dg1Data = await secureReadDG1.ReadDG1Async();
@@ -148,6 +166,7 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 Console.WriteLine("❌ DG1 read failed.");
             }
+            // ---- End of Read Binary ----
         }
 
 
