@@ -100,6 +100,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
             Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
 
+            // --- Some passports require an EXTERNAL AUTHENTICATE APDU before Secure Messaging starts.
+            byte[] externalAuthenticateApdu = new byte[] { 0x0C, 0x82, 0x00, 0x00, 0x10 };
+            byte[] response = await isoDep.TransceiveAsync(externalAuthenticateApdu);
+            Console.WriteLine($"🔹 External Authenticate Response: {BitConverter.ToString(response)}");
+            // --------------------------------- End of external authenticate
+
             // Initialize Secure Messaging with the derived session keys.
             SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
 
