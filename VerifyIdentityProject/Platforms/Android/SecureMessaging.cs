@@ -41,6 +41,11 @@ namespace VerifyIdentityProject.Platforms.Android
             this.ksMac = ksMac;
             this.ssc = ssc;
             this.blockSize = 16; // AES block size remains 16 bytes
+
+            Console.WriteLine($"🔹 SecureMessaging initialized with:");
+            Console.WriteLine($"   KSEnc: {BitConverter.ToString(ksEnc)}");
+            Console.WriteLine($"   KSMAC: {BitConverter.ToString(ksMac)}");
+            Console.WriteLine($"   SSC: {BitConverter.ToString(ssc)}");
         }
 
         /// <summary>
