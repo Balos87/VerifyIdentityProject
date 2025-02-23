@@ -1,253 +1,313 @@
 ﻿using Android.Nfc.Tech;
-using Org.BouncyCastle.Crypto.Engines;
-using Org.BouncyCastle.Crypto.Macs;
+using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Parameters;
-using System;
-using System.IO;
-using System.Linq;
+using Org.BouncyCastle.Security;
 using System.Security.Cryptography;
+using VerifyIdentityProject.Platforms.Android;
+using static Android.Renderscripts.ScriptGroup;
 
-namespace VerifyIdentityProject.Platforms.Android
+public class SecureMessage
 {
-    public class SecureMessage
+    private readonly IsoDep _isoDep;
+    private readonly byte[] _ksEnc;
+    private readonly byte[] _ksMac;
+    private byte[] _ssc;
+
+    public SecureMessage(byte[] ksEnc, byte[] ksMac, IsoDep isoDep)
     {
-        private readonly IsoDep _isoDep;
-        private readonly byte[] _ksEnc;
-        private readonly byte[] _ksMac;
-        private byte[] _ssc;
+        _ksEnc = ksEnc;
+        _ksMac = ksMac;
+        _isoDep = isoDep;
+        _ssc = new byte[16];
+    }
 
-        public SecureMessage(byte[] ksEnc, byte[] ksMac, IsoDep isoDep)
+    public bool PerformSecureMessage()
+    {
+        Console.WriteLine("-------------------------------------Secure Messaging started..");
+        try
         {
-            _ksEnc = ksEnc;
-            _ksMac = ksMac;
-            _isoDep = isoDep;
-            _ssc = new byte[16]; // 16 bytes of zeros. SSC 
-        }
-
-        public bool PerformSecureMessage()
-        {
-            Console.WriteLine("-------------------------------------Secure Messaging started..");
-            try
+            //-------------------------------------------------------------------  SELECT APPLICATION
+            byte[] plainSelectAPDU = new byte[]
             {
-                byte[] selectApdu = new byte[]
-                {
-                    0x00,                                    // CLA (Secure Messaging)
-                    0xA4,                                    // INS (SELECT)
-                    0x04,                                    // P1
-                    0x0C,                                    // P2
-                    0x07,                                    // Lc (length of AID)
-                    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00 // AID - notera att vi inte inkluderar Le här
-                };
+                0x00,0xA4,0x04,0x0C,0x07,               
+                0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00
+            };
+            Console.WriteLine($"plainSelectAPDU selectApdu: {BitConverter.ToString(plainSelectAPDU)}");
 
-                // Skydda och skicka kommandot
-                byte[] protectedApdu = ProtectAPDU(selectApdu);
-                Console.WriteLine($"Protected selectApdu: {BitConverter.ToString(protectedApdu)}");
-
-                byte[] response = _isoDep.Transceive(selectApdu);
-
-                if (!IsSuccessfulResponse(response))
-                {
-                    Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(response)}");
-                    return false;
-                }
-
-                Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
-                Console.WriteLine($"Start reading DG1....");
-                return true;
-            }
-            catch (Exception ex)
+            byte[] response = _isoDep.Transceive(plainSelectAPDU);
+            if (!IsSuccessfulResponse(response))
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(response)}");
                 return false;
             }
+            Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
+
+            ////-------------------------------------------------------------------  SELECT FILE för DG1
+            //SecureMessagingPACE sm = new SecureMessagingPACE(_ksEnc, _ksMac);
+
+            //byte[] cmdHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x02 };
+            //byte[] data = new byte[] { 0x01, 0x01 }; // Identifier för DG1
+
+            //// Generera Secure Messaging APDU
+            //byte[] secureApdu = sm.SecureApduCommand(cmdHeader, data);
+
+            //// Skicka APDU till chippet via IsoDep
+            //Console.WriteLine("Secure APDU: " + BitConverter.ToString(secureApdu));
+
+            //var resp = _isoDep.Transceive(secureApdu);
+            //Console.WriteLine("Secure APDU resp: " + BitConverter.ToString(resp));
+            ////-------------------------------------------------------------------  SELECT FILE för DG1
+
+
+            var secureMessage = new SecureMessage2(_ksEnc, _ksMac, _isoDep);
+            bool secureMessageSuccess = secureMessage.PerformSecureMessage();
+            Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
+
+            return true;
         }
-
-        private byte[] ProtectAPDU(byte[] apdu)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Initial SSC: {BitConverter.ToString(_ssc)}");
-            Console.WriteLine($"KSEnc: {BitConverter.ToString(_ksEnc)}");
-            Console.WriteLine($"KSMac: {BitConverter.ToString(_ksMac)}");
+            Console.WriteLine($"Error: {ex.Message}");
+            return false;
+        }
+    }
 
-            // Extrahera kommandodata (utan Le)
-            byte[] commandData = null;
-            if (apdu.Length > 5)
+    public byte[] BuildSecureAPDU(byte[] command)
+    {
+        //--------------------------------------------------------------------  1. Mask class byte and pad command header
+        byte[] cmdHeader = new byte[]
+        {
+        0x0C, 0xA4, 0x04, 0x0C,  // CLA, INS, P1, P2
+        0x80, 0x00, 0x00, 0x00,  // Padding
+        };
+        Console.WriteLine($"cmdHeader: {BitConverter.ToString(cmdHeader)}");
+
+        //--------------------------------------------------------------------  1.1 Pad data (ePassport AID)
+        byte[] data = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00 };
+        byte[] paddedData = PadDataForAES(data);
+        Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+
+        //--------------------------------------------------------------------  1.2 Encrypt data with KSEnc
+
+        byte[] encryptedData = EncryptDataAES(paddedData, _ksEnc, _ssc);
+        Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
+
+        //--------------------------------------------------------------------  1.3 Build DO'87'
+        byte[] DO87 = BuildDO87(encryptedData);
+        Console.WriteLine($"DO87: {BitConverter.ToString(DO87)}");
+
+        //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO'87'
+        //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO'87'
+        byte[] headerWithoutPadding = new byte[] { 0x0C, 0xA4, 0x04, 0x0C };
+        byte[] M = headerWithoutPadding.Concat(DO87).ToArray();
+        //byte[] M = cmdHeader.Concat(DO87).ToArray();
+        //Console.WriteLine($"M: {BitConverter.ToString(M)}");
+
+        //--------------------------------------------------------------------  2. Compute MAC
+
+        //--------------------------------------------------------------------  2.1 Increment SSC
+        IncrementSSC();
+        Console.WriteLine($"SSC incremented: {BitConverter.ToString(_ssc)}");
+
+        //--------------------------------------------------------------------  2.2 Concatenate SSC + M
+        byte[] N = _ssc.Concat(M).ToArray();
+        Console.WriteLine($"N: {BitConverter.ToString(N)}");
+
+        //--------------------------------------------------------------------  2.3 Compute CMAC
+        byte[] CC = ComputeCMAC(N, _ksMac);
+        Console.WriteLine($"CC (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
+
+        //--------------------------------------------------------------------  3. Build DO'8E'
+        byte[] DO8E = BuildDO8E(CC);
+        Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
+
+        //--------------------------------------------------------------------  4. Construct protected APDU
+        return ConstructFinalAPDU(cmdHeader.Take(4).ToArray(), DO87, DO8E);
+    }
+
+    private byte[] PadDataForAES(byte[] data)
+    {
+        int blockSize = 16;
+        int paddedLength = ((data.Length + blockSize) / blockSize) * blockSize;
+        byte[] paddedData = new byte[paddedLength];
+        Array.Copy(data, paddedData, data.Length);
+        paddedData[data.Length] = 0x80; // Längdbyte
+        return paddedData;
+    }
+
+    private byte[] EncryptDataAES(byte[] paddedData, byte[] KSEnc, byte[] SSC)
+    {
+        Console.WriteLine($"SSC before calculating IV: {BitConverter.ToString(SSC)}");
+        var iv = CalculateIV(); // Detta krypterar redan SSC för att skapa IV
+        Console.WriteLine($"calculated IV: {BitConverter.ToString(iv)}");
+
+        using (Aes aes = Aes.Create())
+        {
+            aes.Key = KSEnc;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.IV = iv;  // Använd det beräknade IV:et
+
+            using (var encryptor = aes.CreateEncryptor())
             {
-                int dataLength = apdu[4];  // Lc
-                commandData = new byte[dataLength];
-                Array.Copy(apdu, 5, commandData, 0, dataLength);
-            }
-
-            // Först, beräkna IV (innan SSC incrementas)
-            byte[] iv = CalculateIV();
-            Console.WriteLine($"IV: {BitConverter.ToString(iv)}");
-
-            // Nu kan vi incrementa SSC för MAC beräkning
-            IncrementSSC();
-
-            // Padda och kryptera data
-            byte[] paddedData = PadData(commandData);
-            byte[] encryptedData = EncryptData(paddedData, iv);
-            Console.WriteLine($"Encrypted Data: {BitConverter.ToString(encryptedData)}");
-
-            // Bygg dataobjekt
-            byte[] do87 = BuildDO87(encryptedData);
-            Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
-
-            // Le ska vara null här för att indikera att vi vill ha allt tillbaka
-            byte[] do97 = BuildDO97(0x00);
-
-            // Beräkna MAC
-            byte[] header = new byte[] { apdu[0], apdu[1], apdu[2], apdu[3] };
-            byte[] mac = CalculateMAC(header, do87, do97);
-            Console.WriteLine($"MAC: {BitConverter.ToString(mac)}");
-
-            byte[] do8E = BuildDO8E(mac);
-
-            // Kombinera allt
-            return CombineAll(apdu[0], apdu[1], do87, do97, do8E);
-        }
-
-        private byte[] CalculateIV()
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = _ksEnc;
-                aes.Mode = CipherMode.ECB;
-                aes.Padding = PaddingMode.None;
-
-                using (var encryptor = aes.CreateEncryptor())
-                {
-                    return encryptor.TransformFinalBlock(_ssc, 0, _ssc.Length);
-                }
-            }
-        }
-
-        private byte[] PadData(byte[] data)
-        {
-            int blockSize = 16;
-            int paddedLength = ((data.Length + blockSize) / blockSize) * blockSize;
-            byte[] paddedData = new byte[paddedLength];
-            Array.Copy(data, paddedData, data.Length);
-            paddedData[data.Length] = 0x80; // Längdbyte
-            return paddedData;
-        }
-
-        private byte[] EncryptData(byte[] paddedData, byte[] iv)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = _ksEnc;
-                aes.IV = iv;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-
-                using (var encryptor = aes.CreateEncryptor())
-                {
-                    return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
-                }
-            }
-        }
-
-        private byte[] BuildDO87(byte[] encryptedData)
-        {
-            if (encryptedData == null || encryptedData.Length == 0)
-                return Array.Empty<byte>();
-
-            // Format: 87 L 01 || Encrypted Data
-            byte[] do87 = new byte[encryptedData.Length + 3];
-            do87[0] = 0x87;
-            do87[1] = (byte)(encryptedData.Length + 1);
-            do87[2] = 0x01;
-            Array.Copy(encryptedData, 0, do87, 3, encryptedData.Length);
-
-            return do87;
-        }
-
-        private byte[] BuildDO97(byte le)
-        {
-            return new byte[] { 0x97, 0x01, 0x00 };  // Le = 00 för maximal längd
-        }
-
-        private byte[] CalculateMAC(byte[] header, byte[] do87, byte[] do97)
-        {
-            using (var ms = new MemoryStream())
-            {
-                // SSC
-                ms.Write(_ssc, 0, _ssc.Length);
-
-                // Command Header
-                ms.Write(header, 0, 4);
-
-                // Total längd inklusive DO'8E' (8 bytes MAC + 2 bytes header)
-                int totalLength = (do87?.Length ?? 0) + (do97?.Length ?? 0) + 10;
-                ms.WriteByte((byte)totalLength);
-
-                // Data Objects i rätt ordning
-                if (do87.Length > 0)
-                    ms.Write(do87, 0, do87.Length);
-                if (do97.Length > 0)
-                    ms.Write(do97, 0, do97.Length);
-
-                byte[] input = ms.ToArray();
-                Console.WriteLine($"MAC Input: {BitConverter.ToString(input)}");
-                return CalculateCMAC(input);
+                return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
             }
         }
-
-        private byte[] CalculateCMAC(byte[] data)
+    }
+    private byte[] CalculateIV()
+    {
+        using (var aes = Aes.Create())
         {
-            var cmac = new CMac(new AesEngine());
-            cmac.Init(new KeyParameter(_ksMac));
-            byte[] result = new byte[cmac.GetMacSize()];
-            cmac.BlockUpdate(data, 0, data.Length);
-            cmac.DoFinal(result, 0);
-            return result.Take(8).ToArray(); // Ta bara 8 bytes enligt specifikationen
-        }
+            aes.Key = _ksEnc;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            byte[] zeroIV = new byte[16]; // Initial IV of zeros
 
-        private byte[] BuildDO8E(byte[] mac)
-        {
-            byte[] do8E = new byte[mac.Length + 2];
-            do8E[0] = 0x8E;
-            do8E[1] = 0x08;  // MAC length är alltid 8 bytes
-            Array.Copy(mac, 0, do8E, 2, mac.Length);
-            return do8E;
-        }
-
-        private byte[] CombineAll(byte cla, byte ins, byte[] do87, byte[] do97, byte[] do8E)
-        {
-            using (var ms = new MemoryStream())
+            using (var encryptor = aes.CreateEncryptor(_ksEnc, zeroIV))
             {
-                // Header
-                ms.WriteByte(cla);
-                ms.WriteByte(ins);
-                ms.WriteByte(0x04);  // P1
-                ms.WriteByte(0x0C);  // P2
-
-                // Beräkna total längd
-                int totalLength = (do87?.Length ?? 0) + (do97?.Length ?? 0) + do8E.Length;
-                ms.WriteByte((byte)totalLength);
-
-                // Data objects i rätt ordning
-                if (do87.Length > 0) ms.Write(do87, 0, do87.Length);
-                if (do97.Length > 0) ms.Write(do97, 0, do97.Length);
-                ms.Write(do8E, 0, do8E.Length);
-
-                return ms.ToArray();
+                return encryptor.TransformFinalBlock(_ssc, 0, _ssc.Length);
             }
         }
+        //Which one is correct? 
+        //using (var aes = Aes.Create())
+        //{
+        //    aes.Key = _ksEnc;
+        //    aes.Mode = CipherMode.ECB;
+        //    aes.Padding = PaddingMode.None;
 
-        private void IncrementSSC()
+        //    using (var encryptor = aes.CreateEncryptor())
+        //    {
+        //        return encryptor.TransformFinalBlock(_ssc, 0, _ssc.Length);
+        //    }
+        //}
+    }
+
+    private byte[] ComputeCMAC(byte[] data, byte[] KSMac)
+    {
+        IMac mac = MacUtilities.GetMac("AESCMAC");
+        mac.Init(new KeyParameter(KSMac));
+        mac.BlockUpdate(data, 0, data.Length);
+        byte[] fullMac = new byte[mac.GetMacSize()];
+        mac.DoFinal(fullMac, 0);
+        return fullMac.Take(8).ToArray(); // Return first 8 bytes as specified
+    }
+
+    private byte[] BuildDO87(byte[] encryptedData)
+    {
+        List<byte> DO87 = new List<byte>
+    {
+        0x87,                                    // Tag
+        (byte)(encryptedData.Length + 1),       // Length
+        0x01                                    // Padding indicator
+    };
+        DO87.AddRange(encryptedData);
+        return DO87.ToArray();
+    }
+
+    private byte[] BuildDO8E(byte[] mac)
+    {
+        List<byte> DO8E = new List<byte>
+    {
+        0x8E,       // Tag
+        0x08        // Length (MAC is always 8 bytes)
+    };
+        DO8E.AddRange(mac);
+        return DO8E.ToArray();
+    }
+
+    private byte[] ConstructFinalAPDU(byte[] header, byte[] DO87, byte[] DO8E)
+    {
+        List<byte> protectedAPDU = new List<byte>();
+        protectedAPDU.AddRange(header);                         // Command header
+        protectedAPDU.Add((byte)(DO87.Length + DO8E.Length));  // Lc
+        protectedAPDU.AddRange(DO87);                          // Protected data
+        protectedAPDU.AddRange(DO8E);                          // MAC
+        protectedAPDU.Add(0x00);                               // Le
+        return protectedAPDU.ToArray();
+    }
+
+    private void IncrementSSC()
+    {
+        for (int i = _ssc.Length - 1; i >= 0; i--)
         {
-            for (int i = _ssc.Length - 1; i >= 0; i--)
-            {
-                if (++_ssc[i] != 0)
-                    break;
-            }
+            if (++_ssc[i] != 0)
+                break;
+        }
+    }
+
+    private byte[] PadData(byte[] data)
+    {
+        // ISO/IEC 7816-4 padding
+        int padLength = 16 - (data.Length % 16);
+        byte[] paddedData = new byte[data.Length + padLength];
+        Buffer.BlockCopy(data, 0, paddedData, 0, data.Length);
+        paddedData[data.Length] = 0x80;
+        return paddedData;
+    }
+
+    private byte[] EncryptData(byte[] paddedData)
+    {
+        // Generate IV by encrypting SSC
+        using var aes = Aes.Create();
+        aes.Key = _ksEnc;
+        aes.Mode = CipherMode.CBC;
+        aes.Padding = PaddingMode.None;
+
+        // First encrypt SSC to get IV
+        byte[] iv = new byte[16];
+        using (var encryptor = aes.CreateEncryptor(_ksEnc, new byte[16]))
+        {
+            encryptor.TransformBlock(_ssc, 0, _ssc.Length, iv, 0);
         }
 
-        private static bool IsSuccessfulResponse(byte[] response)
+        // Then encrypt the actual data with the generated IV
+        aes.IV = iv;
+        using var encryptor2 = aes.CreateEncryptor();
+        return encryptor2.TransformFinalBlock(paddedData, 0, paddedData.Length);
+    }
+
+    private byte[] BuildMacInput(byte cla, byte ins, byte p1, byte p2, byte[] protectedData)
+    {
+        List<byte> macInput = new List<byte>();
+        macInput.AddRange(_ssc);                    // Add SSC
+        macInput.Add(cla);                          // Add header
+        macInput.Add(ins);
+        macInput.Add(p1);
+        macInput.Add(p2);
+        macInput.AddRange(protectedData);           // Add protected data fields
+        return macInput.ToArray();
+    }
+
+    private byte[] CalculateCMAC(byte[] input)
+    {
+        // Use BouncyCastle for CMAC
+        IMac mac = MacUtilities.GetMac("AESCMAC");
+        mac.Init(new KeyParameter(_ksMac));
+        mac.BlockUpdate(input, 0, input.Length);
+        byte[] fullMac = new byte[mac.GetMacSize()];
+        mac.DoFinal(fullMac, 0);
+
+        // Return only first 8 bytes as specified
+        return fullMac.Take(8).ToArray();
+    }
+    private static bool IsSuccessfulResponse(byte[] response)
+    {
+        return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
+    }
+
+    // Example usage for SELECT command
+    public byte[] BuildSelectEPassportAPDU()
+    {
+        byte[] plainSelectAPDU = new byte[]
         {
-            return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
-        }
+            0x00,                   // CLA
+            0xA4,                   // INS (SELECT)
+            0x04,                   // P1 (Select by name)
+            0x0C,                   // P2 (No response data)
+            0x07,                   // Lc (Length of data)
+            0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01  // ePassport AID
+        };
+
+        return BuildSecureAPDU(plainSelectAPDU);
     }
 }

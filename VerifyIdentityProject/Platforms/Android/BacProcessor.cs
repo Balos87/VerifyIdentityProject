@@ -305,7 +305,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------  1.3 Build DO‘87’: DO87 = ‘87-09-01-63-75-43-29-08-C0-44-F6’ - Recieved: 87-09-01-63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] DO87 = BuildDO87(encryptedData);
                 Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
-
+                    
                 //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO‘87’: M = ‘0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6’ -- RÄTT
                 //                                                                                                       Recieved: 0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6
                 byte[] M = cmdHeader.Concat(DO87).ToArray();
@@ -335,7 +335,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
 
 
-                //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
+                //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-
+                //8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
                 //                                                                                                                 Recieved: 0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00 
                 byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO87, DO8E);
                 Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
@@ -1643,7 +1644,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         }
 
-        static byte[] AdjustAndSplitKey(byte[] key)
+        public static byte[] AdjustAndSplitKey(byte[] key)
         {
             if (key.Length != 16)
                 throw new ArgumentException("Key must be 16 bytes long for 3DES");
@@ -1659,7 +1660,7 @@ namespace VerifyIdentityProject.Platforms.Android
             return Ka.Concat(Kb).ToArray();
         }
 
-        static byte[] AdjustParityBitsExact(byte[] key)
+        public static byte[] AdjustParityBitsExact(byte[] key)
         {
             byte[] adjustedKey = new byte[key.Length];
 

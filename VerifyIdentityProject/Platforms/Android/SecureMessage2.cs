@@ -3,9 +3,11 @@ using Microsoft.Maui.Controls;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
+using Org.BouncyCastle.Security;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
@@ -15,15 +17,17 @@ namespace VerifyIdentityProject.Platforms.Android
 {
     public class SecureMessage2
     {
-        private readonly IsoDep _isoDep;
+        private IsoDep _isoDep;
         private byte[] _ksEnc;
-        private byte[] _ksMac;
-        private byte[] _ssc;
+        private byte[] _ksMac;   
+        private byte[] _ssc;     
+
         public SecureMessage2(byte[] ksEnc, byte[] ksMac, IsoDep isoDep)
         {
             _ksEnc = ksEnc;
             _ksMac = ksMac;
             _isoDep = isoDep;
+            _ssc = new byte[16];
         }
 
         public bool PerformSecureMessage()
@@ -31,33 +35,19 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("-------------------------------------Secure Messaging started..");
             try
             {
-                InitializeSSC();
-                Console.WriteLine($"KSEnc: {BitConverter.ToString(_ksEnc)}");
-                Console.WriteLine($"KSMac: {BitConverter.ToString(_ksMac)}");
-                // Original SELECT command
-                byte[] selectApdu = new byte[]
+                byte[] protectedApduDG1 = SelectFileDG1();
+                Console.WriteLine($"Sending protectedApduDG1: {BitConverter.ToString(protectedApduDG1)}");
+
+                byte[] response = _isoDep.Transceive(protectedApduDG1);
+                Console.WriteLine($"response protectedApduDG1: {BitConverter.ToString(response)}");
+
+                if (!IsSuccessfulResponse(response))
                 {
-                    0x0C,
-                    0xA4, 0x04, 0x0C, 0x07,
-                    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00,
-                };
-
-                // Protect command
-                byte[] protectedApdu = ProtectAPDU(selectApdu);
-
-                Console.WriteLine($"Protected selectApdu: {BitConverter.ToString(protectedApdu)}");
-                byte[] response = _isoDep.Transceive(protectedApdu);
-
-                // Unprotect response
-                byte[] unprotectedResponse = UnprotectAPDU(response);
-
-                if (!IsSuccessfulResponse(unprotectedResponse))
-                {
-                    Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(unprotectedResponse)}");
+                    Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(response)}");
                     return false;
                 }
+                Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
 
-                Console.WriteLine($"Application selected. Response:{BitConverter.ToString(unprotectedResponse)}");
                 return true;
             }
             catch (Exception ex)
@@ -65,55 +55,154 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Error: {ex.Message}");
                 return false;
             }
-
-
-            var secrets = GetSecrets.FetchSecrets();
-            var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
-            return true;
         }
 
-        private byte[] ProtectAPDU(byte[] apdu)
+        private void IncrementSsc()
         {
-            IncrementSSC();
-            byte[] iv = CalculateIV();
-
-            // Get command data without Le
-            byte[] commandData = null;
-            if (apdu.Length > 5)
+            for (int i = _ssc.Length - 1; i >= 0; i--)
             {
-                int dataLength = apdu[4];  // Lc
-                commandData = new byte[dataLength];
-                Array.Copy(apdu, 5, commandData, 0, dataLength);
+                if (++_ssc[i] != 0)
+                    break;
             }
-
-            // Pad and encrypt data
-            byte[] paddedData = PadData(commandData);
-            byte[] encryptedData = EncryptData(paddedData, iv);
-
-            // Build DO'87'
-            byte[] do87 = BuildDO87(encryptedData);
-
-            // Build DO'97' with Le
-            byte[] do97 = BuildDO97(apdu[apdu.Length - 1]);  // Använd sista byten som Le
-
-            // Build header
-            byte[] header = new byte[] { apdu[0], apdu[1], apdu[2], apdu[3] };
-
-            // Calculate MAC
-            byte[] mac = CalculateMAC(header, do87, do97);
-
-            // Build DO'8E'
-            byte[] do8E = BuildDO8E(mac);
-
-            // Combine all
-            return CombineAll(apdu[0], apdu[1], do87, do97, do8E);
         }
 
-        private void InitializeSSC()
+        private byte[] CalculateIV()
         {
-            _ssc = new byte[16]; // 16 bytes av nollor för AES
-            Console.WriteLine($"SSC initialized: {BitConverter.ToString(_ssc)}");
+            // Använd AES för att kryptera SSC för att få IV
+            using var aes = Aes.Create();
+            aes.Key = _ksEnc;
+            aes.Mode = CipherMode.ECB;  // Vi krypterar bara ett block
+            aes.Padding = PaddingMode.None;
+
+            var encryptor = aes.CreateEncryptor();
+            var iv = new byte[16];
+            encryptor.TransformBlock(_ssc, 0, _ssc.Length, iv, 0);
+            return iv;
         }
+        //------------------------------------Padded data gives total 16byte data with padding. ✔️✅
+        private byte[] PadData(byte[] data)
+        {
+            int blockSize = 16;
+            int paddedLength = ((data.Length + blockSize) / blockSize) * blockSize;
+            byte[] paddedData = new byte[paddedLength];
+            Array.Copy(data, paddedData, data.Length);
+            paddedData[data.Length] = 0x80; // Längdbyte
+            return paddedData;
+        }
+
+        private byte[] EncryptWithKEncAes(byte[] data)
+        {
+            Console.WriteLine($"-IV for encryptData-: {BitConverter.ToString(CalculateIV())}");
+            Console.WriteLine($"-SSC used for encryptData-: {BitConverter.ToString(_ssc)}");
+            Console.WriteLine($"-ksEnc used for encryptData-: {BitConverter.ToString(_ksEnc)}");
+            Console.WriteLine($"-ksEnc length-: {_ksEnc.Length}");
+            //nödvändigt?
+           // paddedData = ApplyPadding(paddedData);
+
+            using var aes = Aes.Create();
+            aes.Key = _ksEnc;
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.IV = CalculateIV();
+
+
+            int blockSize = 16;
+            int paddedLength = (data.Length + blockSize - 1) / blockSize * blockSize;
+            byte[] paddedData = new byte[paddedLength];
+            Array.Copy(data, paddedData, data.Length);
+
+            var encryptor = aes.CreateEncryptor();
+            return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
+        }
+
+        private byte[] CalculateMac(byte[] data)
+        {
+            Console.WriteLine($"-ksMac using for calculateMac-: {BitConverter.ToString(_ksMac)}");
+            Console.WriteLine($"-ksMac length-: {_ksMac.Length}");
+
+            var cmac = new CMac(new AesEngine(),128);
+            cmac.Init(new KeyParameter(_ksMac));
+
+            // Padda till nästa 16-byte block
+            var paddedMacInput = PadData(data);
+  
+            Console.WriteLine($"-dataForMac after padding-: {BitConverter.ToString(paddedMacInput)}");
+            Console.WriteLine($"-dataForMac length-: {paddedMacInput.Length}");
+
+            byte[] fullMac = new byte[16];
+            cmac.BlockUpdate(paddedMacInput, 0, paddedMacInput.Length);
+            cmac.DoFinal(fullMac, 0);
+
+            return fullMac.ToArray();
+        }
+
+        public byte[] SelectFileDG1()
+        {
+            // Original command: 00 A4 02 0C 02 0101 ------------- should it be 8 bytes with padding? or 16 bytes with padding or just the header❓❔
+            byte[] commandHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00,0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(commandHeader)}");
+
+            byte[] fileId = new byte[] { 0x01, 0x01 };
+            Console.WriteLine($"-fileId-: {BitConverter.ToString(fileId)}");
+
+            // 1. Increment SSC ✔️✅
+            IncrementSsc();
+            Console.WriteLine($"-Incremented ssc-: {BitConverter.ToString(_ssc)}");
+
+            // 2. Pad and encrypt data checked ✔️✅
+            byte[] paddedData = PadData(fileId);
+            Console.WriteLine($"-padded fileId-: {BitConverter.ToString(paddedData)}");
+
+
+            byte[] encryptedData = EncryptWithKEncAes(paddedData);
+            Console.WriteLine($"-encryptedData-: {BitConverter.ToString(encryptedData)}");
+
+            // 3. Build DO'87' ----------------second number presents the remaining length of the data object. should be 0x11 ✔️✅
+            var DO87 = BuildDO87(encryptedData);
+            Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
+
+            // 4. Build data for MAC calculation
+            byte[] M = commandHeader.Concat(DO87).ToArray();
+            Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
+
+            Console.WriteLine($"Incremented SSC: {BitConverter.ToString(_ssc)}");
+
+            var dataForMac = _ssc.Concat(M).ToArray();
+            Console.WriteLine($"dataForMac: {BitConverter.ToString(dataForMac)}");
+
+            // 5. Calculate MAC
+            byte[] mac = CalculateMac(dataForMac);
+            Console.WriteLine($"-CalculateMac-: {BitConverter.ToString(mac)}");
+
+            // 6. Build DO'8E'
+            var do8E = new List<byte> { 0x8E, 0x08 };
+            do8E.AddRange(mac);
+
+            // 7. Build protected APDU
+            var protectedApdu = new List<byte>();
+            protectedApdu.AddRange(new byte[] { 0x0C, 0xA4, 0x02, 0x0C });
+            protectedApdu.Add((byte)(DO87.Length + do8E.Count)); // Lc
+            protectedApdu.AddRange(DO87);
+            protectedApdu.AddRange(do8E);
+            protectedApdu.Add(0x00); // Le
+
+            return protectedApdu.ToArray();
+        }
+
+        public bool VerifyResponse(byte[] response)
+        {
+            IncrementSsc();
+
+            // Parse DO'99' and DO'8E' from response
+            // Verify MAC
+            // Return true if verification successful
+
+            // Implementation details needed based on your response handling requirements
+            return true; // Placeholder
+        }
+
+
+       
 
         private void IncrementSSC()
         {
@@ -128,55 +217,8 @@ namespace VerifyIdentityProject.Platforms.Android
             return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
         }
 
-        private byte[] CalculateIV()
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = _ksEnc;
-                aes.Mode = CipherMode.ECB;
-                aes.Padding = PaddingMode.None;
-
-                using (var encryptor = aes.CreateEncryptor())
-                {
-                    return encryptor.TransformFinalBlock(_ssc, 0, _ssc.Length);
-                }
-            }
-        }
-
-        private byte[] PadData(byte[] data)
-        {
-            if (data == null || data.Length == 0)
-                return new byte[] { 0x01 };
-
-            int paddingLength = 16 - (data.Length % 16);
-            byte[] paddedData = new byte[data.Length + paddingLength];
-            Array.Copy(data, paddedData, data.Length);
-            paddedData[data.Length] = 0x01;
-
-            return paddedData;
-        }
-
-        private byte[] EncryptData(byte[] paddedData, byte[] iv)
-        {
-            using (var aes = Aes.Create())
-            {
-                aes.Key = _ksEnc;
-                aes.IV = iv;
-                aes.Mode = CipherMode.CBC;
-                aes.Padding = PaddingMode.None;
-
-                using (var encryptor = aes.CreateEncryptor())
-                {
-                    return encryptor.TransformFinalBlock(paddedData, 0, paddedData.Length);
-                }
-            }
-        }
-
         private byte[] BuildDO87(byte[] encryptedData)
         {
-            if (encryptedData == null || encryptedData.Length == 0)
-                return Array.Empty<byte>();
-
             // Format: 87 L 01 || Encrypted Data
             byte[] do87 = new byte[encryptedData.Length + 3];
             do87[0] = 0x87;
