@@ -36,14 +36,14 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     if (OidEndsWith(oid, "4.2.4"))
                     {
-
                         Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
+
                         // Step 2: Perform PACE protocol
                         var pace = new PaceProtocol(isoDep, mrzData, oid);
                         bool success = pace.PerformPaceProtocol();
+                        var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
                         Console.WriteLine(success ? "PACE-authentication succeeded!" : "PACE-authentication failed");
 
-                        var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
 
                         // Step 3: Perform Secure Messaging
                         var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
@@ -168,17 +168,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Error trying to read CardAccess: {ex.Message}");
                 throw;
             }
-        }
-
-        private static bool IsErrorResponse(byte[] response)
-        {
-            if (response == null || response.Length < 2)
-                return true;
-
-            byte sw1 = response[response.Length - 2];
-            byte sw2 = response[response.Length - 1];
-
-            return sw1 == 0x69 || sw1 == 0x6A || sw1 == 0x6D;
         }
 
         // Method to parse Card Access Data
