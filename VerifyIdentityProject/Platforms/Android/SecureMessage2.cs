@@ -133,13 +133,13 @@ namespace VerifyIdentityProject.Platforms.Android
             cmac.BlockUpdate(paddedMacInput, 0, paddedMacInput.Length);
             cmac.DoFinal(fullMac, 0);
 
-            return fullMac.ToArray();
+            return fullMac.Take(8).ToArray();
         }
 
         public byte[] SelectFileDG1()
         {
-            // Original command: 00 A4 02 0C 02 0101 ------------- should it be 8 bytes with padding? or 16 bytes with padding or just the header❓❔
-            byte[] commandHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00,0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+            // Original command: 00 A4 02 0C 02 0101 ------------- should it be 8 bytes with padding? or 16 bytes with padding or just the header❓❔ , 0x80, 0x00,0x00,0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            byte[] commandHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C };
             Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(commandHeader)}");
 
             byte[] fileId = new byte[] { 0x01, 0x01 };
@@ -188,21 +188,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return protectedApdu.ToArray();
         }
-
-        public bool VerifyResponse(byte[] response)
-        {
-            IncrementSsc();
-
-            // Parse DO'99' and DO'8E' from response
-            // Verify MAC
-            // Return true if verification successful
-
-            // Implementation details needed based on your response handling requirements
-            return true; // Placeholder
-        }
-
-
-       
 
         private void IncrementSSC()
         {
@@ -425,5 +410,4 @@ namespace VerifyIdentityProject.Platforms.Android
             return responseMAC.SequenceEqual(expectedMAC);
         }
     }
-
 }

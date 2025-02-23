@@ -59,7 +59,9 @@ public class SecureMessage
             ////-------------------------------------------------------------------  SELECT FILE för DG1
 
 
-            var secureMessage = new SecureMessage2(_ksEnc, _ksMac, _isoDep);
+            var secureMessage3 = new SecureMessage3(_ksEnc, _ksMac, _isoDep);
+            var selectDG1 = secureMessage3.SelectDG1();
+            var secureMessage = new SecureMessage(_ksEnc, _ksMac, _isoDep);
             bool secureMessageSuccess = secureMessage.PerformSecureMessage();
             Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
 

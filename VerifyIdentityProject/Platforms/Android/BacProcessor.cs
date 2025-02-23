@@ -93,7 +93,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 //DG1 method
                 CallDG1.Call(isoDep, KSEncParitet, KSMacParitet, SSC);
 
-
             }
             finally
             {
@@ -321,12 +320,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
-                byte[] N = PadIso9797Method2(NNopad);
-                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
-                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //use with no pad so compute can work!
-                Console.WriteLine($"-N Nopad-: {BitConverter.ToString(NNopad)}");
+                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
                 Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
@@ -358,12 +355,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
                 Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
-                byte[] K = PadIso9797Method2(SSC.Concat(DO99).ToArray());
-                Console.WriteLine($"(K) Padded data for MAC: {BitConverter.ToString(K)}");
+                byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
+                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
-                byte[] kNoPad = SSC.Concat(DO99).ToArray(); //removed pad so compute can work!
-                byte[] ccMac = ComputeMac3DES(kNoPad, KSMacParitet);
+                byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
                 Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
@@ -377,7 +373,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 //----------------------------------------------------------------------- 1 Read Binary of first four bytes
-                Console.WriteLine("/----------------------------------------------------------------------- 1 Read Binary of first four bytes");
+                Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
                 List<byte[]> dg1Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
                 if (dg1Segments.Count > 0)
                 {
@@ -466,12 +462,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
-                byte[] N = PadIso9797Method2(NNopad);
-                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+                //byte[] N = PadIso9797Method2(NNopad);
+                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
-                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //use with no pad so compute can work!
-                Console.WriteLine($"-N Nopad-: {BitConverter.ToString(NNopad)}");
+                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
                 Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
@@ -501,12 +496,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
                 Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
-                byte[] K = PadIso9797Method2(SSC.Concat(DO99).ToArray());
-                Console.WriteLine($"(K) Padded data for MAC: {BitConverter.ToString(K)}");
+                byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
+                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
-                byte[] kNoPad = SSC.Concat(DO99).ToArray(); //removed pad so compute can work!
-                byte[] ccMac = ComputeMac3DES(kNoPad, KSMacParitet);
+                byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
                 Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
@@ -1534,6 +1528,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Lägg till padding till EIFD
                 byte[] paddedData = PadIso9797Method2(data);
+                Console.WriteLine($"padded Data: {BitConverter.ToString(paddedData)}");
 
                 // MAC steg 1: Kryptera med nyckel 1
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
