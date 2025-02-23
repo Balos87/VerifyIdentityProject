@@ -108,6 +108,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     Console.WriteLine("ISO-DEP Tag detected. Starting PACE...");
+                    //BacProcessor bacProcessor = new BacProcessor(this);
+                    //bacProcessor.ProcessBac(isoDep);
                     PaceProcessor.PerformPace(isoDep);
 
                     // Trigger event to notify that an NFC chip was detected
