@@ -19,7 +19,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"Initial SSC: {BitConverter.ToString(SSC)}");
 
             // Command header
-            byte[] cmdHeader = new byte[] { 0x0C, 0xA4, 0x04, 0x0C, 0x80, 0x00, 0x00, 0x00 };
+            byte[] cmdHeader = new byte[] { 0x0C, 0xA4, 0x04, 0x0C };
             Console.WriteLine($"Command Header: {BitConverter.ToString(cmdHeader)}");
 
             // Application data
@@ -84,7 +84,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
             try
             {
-                //VerifyResponse(response, SSC, KSMac);
+                VerifyResponse(response, SSC, KSMac);
                 Console.WriteLine("Response verification successful");
             }
             catch (Exception ex)
@@ -157,7 +157,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private static byte[] ConstructProtectedAPDU(byte[] cmdHeader, byte[] DO87, byte[] DO8E)
         {
-            var newCmdHeader = cmdHeader.Take(4).ToArray();
             // Skapa DO'97' för Le
             byte[] DO97 = new byte[] { 0x97, 0x01, 0x00 };
             Console.WriteLine($"DO97: {BitConverter.ToString(DO97)}");
@@ -165,12 +164,11 @@ namespace VerifyIdentityProject.Platforms.Android
             // Beräkna total längd
             byte lc = (byte)(DO87.Length + DO97.Length + DO8E.Length);
 
-            // +1 för Le-fältet i slutet
-            var protectedAPDU = new byte[newCmdHeader.Length + 1 + DO87.Length + DO97.Length + DO8E.Length + 1];
+            var protectedAPDU = new byte[cmdHeader.Length + 1 + DO87.Length + DO97.Length + DO8E.Length];
 
             int offset = 0;
-            Array.Copy(newCmdHeader, 0, protectedAPDU, offset, newCmdHeader.Length);
-            offset += newCmdHeader.Length;
+            Array.Copy(cmdHeader, 0, protectedAPDU, offset, cmdHeader.Length);
+            offset += cmdHeader.Length;
 
             protectedAPDU[offset++] = lc;
 
@@ -181,10 +179,6 @@ namespace VerifyIdentityProject.Platforms.Android
             offset += DO97.Length;
 
             Array.Copy(DO8E, 0, protectedAPDU, offset, DO8E.Length);
-            offset += DO8E.Length;
-
-            // Lägger till Le = 00 i slutet
-            protectedAPDU[offset] = 0x00;
 
             return protectedAPDU;
         }
@@ -293,6 +287,47 @@ namespace VerifyIdentityProject.Platforms.Android
             k2[15] = (byte)(k1[15] << 1);
             if (msb)
                 k2[15] ^= 0x87;
+        }
+        private static void VerifyResponse(byte[] response, byte[] SSC, byte[] KSMac)
+        {
+            // Extrahera DO'99' och DO'8E'
+            byte[] DO99 = null;
+            byte[] responseMac = null;
+            int index = 0;
+
+            while (index < response.Length - 2)
+            {
+                byte tag = response[index];
+                byte length = response[index + 1];
+
+                if (tag == 0x99)
+                {
+                    DO99 = new byte[2 + length];
+                    Array.Copy(response, index, DO99, 0, 2 + length);
+                    index += 2 + length;
+                }
+                else if (tag == 0x8E)
+                {
+                    responseMac = new byte[length];
+                    Array.Copy(response, index + 2, responseMac, 0, length);
+                    break;
+                }
+                else
+                {
+                    index++;
+                }
+            }
+
+            if (DO99 == null || responseMac == null)
+                throw new Exception("Invalid response format");
+
+            // Beräkna MAC för verifiering
+            byte[] macInput = SSC.Concat(DO99).ToArray();
+            byte[] paddedMacInput = PadData(macInput);
+            byte[] calculatedMac = ComputeAesCmac(paddedMacInput, KSMac);
+
+            if (!calculatedMac.SequenceEqual(responseMac))
+                throw new Exception("Response MAC verification failed");
         }
     }
 
