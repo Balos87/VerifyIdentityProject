@@ -53,7 +53,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("[DOTNET] DO'87': " + BitConverter.ToString(do87).Replace("-", " "));
 
             // 4. Bygg data för MAC-beräkning
-            byte[] paddedHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00, 0x00, 0x00 };
+            byte[] paddedHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             byte[] dataToMac = ConcatenateArrays(paddedHeader, do87);
 
             // Padda hela M-strängen

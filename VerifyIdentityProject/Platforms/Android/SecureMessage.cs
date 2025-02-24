@@ -26,26 +26,26 @@ public class SecureMessage
         Console.WriteLine("-------------------------------------Secure Messaging started..");
         try
         {
-            //-------------------------------------------------------------------  SELECT APPLICATION
-            byte[] plainSelectAPDU = new byte[]
-            {
-                0x00,0xA4,0x04,0x0C,0x07,               
-                0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00
-            };
-            Console.WriteLine($"plainSelectAPDU selectApdu: {BitConverter.ToString(plainSelectAPDU)}");
+            ////-------------------------------------------------------------------  SELECT APPLICATION
+            //byte[] plainSelectAPDU = new byte[]
+            //{
+            //    0x00,0xA4,0x04,0x0C,0x07,
+            //    0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01,0x00
+            //};
+            //Console.WriteLine($"plainSelectAPDU selectApdu: {BitConverter.ToString(plainSelectAPDU)}");
 
-            byte[] response = _isoDep.Transceive(plainSelectAPDU);
-            if (!IsSuccessfulResponse(response))
-            {
-                Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(response)}");
-                return false;
-            }
-            Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
+            //byte[] response = _isoDep.Transceive(plainSelectAPDU);
+            //if (!IsSuccessfulResponse(response))
+            //{
+            //    Console.WriteLine($"Failed to select passport application. Response:{BitConverter.ToString(response)}");
+            //    return false;
+            //}
+            //Console.WriteLine($"Application selected. Response:{BitConverter.ToString(response)}");
 
             ////-------------------------------------------------------------------  SELECT FILE för DG1
             //SecureMessagingPACE sm = new SecureMessagingPACE(_ksEnc, _ksMac);
 
-            //byte[] cmdHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x02 };
+            //byte[] cmdHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C };
             //byte[] data = new byte[] { 0x01, 0x01 }; // Identifier för DG1
 
             //// Generera Secure Messaging APDU
@@ -61,9 +61,12 @@ public class SecureMessage
 
             var secureMessage3 = new SecureMessage3(_ksEnc, _ksMac, _isoDep);
             var selectDG1 = secureMessage3.SelectDG1();
-            var secureMessage = new SecureMessage(_ksEnc, _ksMac, _isoDep);
-            bool secureMessageSuccess = secureMessage.PerformSecureMessage();
-            Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
+
+            //SecureMessageOldBack.SelectApplication(_isoDep, _ksEnc, _ksMac, _ssc);
+            //var secureMessage = new SecureMessage2(_ksEnc, _ksMac, _isoDep);
+            //bool secureMessageSuccess = secureMessage.PerformSecureMessage();
+            //Console.WriteLine(secureMessageSuccess ? "Secure Message succeeded!" : "Secure Message failed");
+
 
             return true;
         }
