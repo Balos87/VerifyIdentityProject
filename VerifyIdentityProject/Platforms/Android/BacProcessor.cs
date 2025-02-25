@@ -513,7 +513,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
 
-                //----------------------------------------------------------------------- 1 Read Binary of first four bytes
+                //----------------------------------------------------------------------- Read all data Read Binary
                 Console.WriteLine("/----------------------------------------------------------------------- Read Binary");
                 List<byte[]> dg2Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
                 Console.WriteLine($"amount returned segment data: {dg2Segments.Count}");
@@ -1295,7 +1295,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 while (true)
                 {
-                    Console.WriteLine($"Reading DG1 at offset: {offset}");
+                    Console.WriteLine($"Reading DG at offset: {offset}");
 
                     // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00 };

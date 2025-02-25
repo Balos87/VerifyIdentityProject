@@ -48,8 +48,9 @@ namespace VerifyIdentityProject.Platforms.Android
                         // Step 3: Perform Secure Messaging
                         var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
                         var selectApplication = secureMessage.SelectApplication();
-                        var selectDG1 = secureMessage.SelectDG1();
+                        //var selectDG1 = secureMessage.SelectDG1();
                         var selectDG2 = secureMessage.SelectDG2();
+                        var selectDG1 = secureMessage.SelectDG1();
 
                     }
                 }

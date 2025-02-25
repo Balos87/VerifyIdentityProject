@@ -211,7 +211,7 @@ namespace VerifyIdentityProject.Platforms.Android
         public byte[] SelectDG2()
         {
             Console.WriteLine("------------------------------------------------------------Select DG2 with secure message started...");
-            var ssc = new byte[16]; // PACE: 16 bytes av nollor
+            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
             Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(ssc).Replace("-", " "));
             Console.WriteLine("[DOTNET] KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
             Console.WriteLine("[DOTNET] KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
@@ -303,7 +303,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 while (true)
                 {
-                    Console.WriteLine($"Reading DG1 at offset: {offset}");
+                    Console.WriteLine($"------------------Started Reading DG at offset: {offset}");
 
                     // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
@@ -368,6 +368,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     // Uppdatera offset för nästa block
                     offset += 0x20;
+                    Console.WriteLine($"----------------------------End of loop at offset: {offset}");
                 }
 
                 // Returnera all kombinerad data
