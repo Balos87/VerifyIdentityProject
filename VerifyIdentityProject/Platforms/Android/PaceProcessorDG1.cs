@@ -3,20 +3,20 @@ using VerifyIdentityProject.Helpers;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
-    public class PaceProcessor
+    public class PaceProcessorDG1
     {
         private readonly IsoDep _isoDep;
         private static byte[] AID_MRTD = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
-
-        public PaceProcessor(IsoDep isoDep)
+        private static string _mrz;
+        public PaceProcessorDG1(IsoDep isoDep)
         {
             _isoDep = isoDep;
         }
 
         // Main method to perform PACE
-        public static byte[] PerformPace(IsoDep isoDep)
+        public static string PerformPaceDG1(IsoDep isoDep)
         {
-            Console.WriteLine("<-PerformPace->");
+            Console.WriteLine("<-PerformPace DG1->");
             try
             {
                 // Step 0: Select the passport application
@@ -47,18 +47,20 @@ namespace VerifyIdentityProject.Platforms.Android
 
                         // Step 3: Perform Secure Messaging
                         var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
-                        var selectApplication = secureMessage.SelectApplication();
-                        var selectDG1 = secureMessage.SelectDG1();
-                        var selectDG2 = secureMessage.SelectDG2();
-                        //var selectDG1 = secureMessage.SelectDG1();
 
+                        // Step 4: Select eMRTD application with secure messaging
+                        var selectApplication = secureMessage.SelectApplication();
+
+                        // Step 5: Select and read EF.DG1 with secure messaging
+                        _mrz = secureMessage.SelectDG1();
+                        isoDep.Close();
                     }
                 }
                 Console.WriteLine("");
                 Console.WriteLine("<---------------------------------------->");
 
 
-                return cardAccess;
+                return _mrz;
             }
             catch (Exception ex)
             {

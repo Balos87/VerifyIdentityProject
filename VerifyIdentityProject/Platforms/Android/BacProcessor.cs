@@ -25,10 +25,6 @@ using Org.BouncyCastle.Utilities.IO;
 using static AndroidX.Concurrent.Futures.CallbackToFutureAdapter;
 using static Android.Graphics.PathIterator;
 
-
-
-
-
 #if ANDROID
 using static Android.OS.Environment;
 using static Android.Provider.MediaStore;
@@ -50,9 +46,6 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             _nfcReaderManager.HandleTagDiscovered(tag);
         }
-
-        //[DOTNET] 31-28    -30-12  -06-0A-     04-00-7F-00-07-02-02-04-02-04-  02-01-02-   02-01-10
-        //                  -30-12  -06-0A-     04-00-7F-00-07-02-02-04-04-04-  02-01-02-   02-01-0D
 
         public void ProcessBac(IsoDep isoDep)
         {
@@ -727,7 +720,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return result.ToArray();
             }
 
-            public static FaceImageInfo ParseDG2Pace(byte[] rawData, string fileName = "passport_photo")
+            public static byte[] ParseDG2Pace(byte[] rawData, string fileName = "passport_photo")
             {
                 try
                 {
@@ -826,10 +819,6 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine($"First 16 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
                     Console.WriteLine($"Last 20 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
 
-
-                    // Ta bort 80 00 sekvenser
-                    //jpegData = PickOutJPGDataOnly(jpegData);
-
                     const int chunkSize = 100;
                     for (int i = 0; i < jpegData.Length; i += chunkSize)
                     {
@@ -842,24 +831,24 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine($"Final JPEG header: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
                     Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 16).Take(16).ToArray())}");
 
-                    var nopad = RemovePaddingPace(jpegData);
-                    Console.WriteLine($"nopad JPEG length after padding removal: {nopad.Length}");
+                    var pureImgData = RemovePaddingPace(jpegData);
+                    Console.WriteLine($"nopad JPEG length after padding removal: {pureImgData.Length}");
 
-                    if (!IsValidJPEG(nopad))
+                    if (!IsValidJPEG(pureImgData))
                         throw new Exception("Extraherad data är inte en giltig JPEG");
 
                     if (jpegData.Length < 100)
-                        throw new Exception($"Misstänkt kort bilddata: {nopad.Length} bytes");
+                        throw new Exception($"Misstänkt kort bilddata: {pureImgData.Length} bytes");
 
                     var faceInfo = new FaceImageInfo
                     {
-                        ImageData = nopad,
+                        ImageData = pureImgData,
                         ImageFormat = "JPEG"
                     };
 
                     faceInfo.SavedFilePath = AutoSaveImage(faceInfo, fileName);
                     Console.WriteLine($"Image saved path: {faceInfo.SavedFilePath}");
-                    return faceInfo;
+                    return pureImgData;
                 }
                 catch (Exception ex)
                 {
@@ -1453,7 +1442,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-
         //Funkar bra
         public static List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
@@ -1526,7 +1514,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 return null;
             }
         }
-
 
         private static byte[] BuildEfComData(byte[] decryptedData)
         {
@@ -1650,7 +1637,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return data.Take(unpaddedLength).ToArray();
         }
-
 
         private static byte[] EncryptWithKEnc3DES(byte[] data, byte[] KEnc)
         {
@@ -1969,6 +1955,5 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
         }
-
     }
 }
