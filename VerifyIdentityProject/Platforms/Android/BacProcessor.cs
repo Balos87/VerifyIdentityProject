@@ -525,7 +525,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
                 var bildbit = DG2Parser.ParseDG2(completeData);
-                Console.WriteLine($"--------------DG2 {bildbit}");
 
                 Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
@@ -733,10 +732,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 try
                 {
                     Console.WriteLine($"Starting DG2 parse, total data length: {rawData.Length}");
-                    Console.WriteLine($"First 16 bytes: {BitConverter.ToString(rawData.Take(16).ToArray())}");
-                    Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(rawData.Skip(rawData.Length - 20).Take(20).ToArray())}");
-
-
                     // Hitta och validera DG2 data
                     int offset = 0;
                     while (offset < rawData.Length - 2)
@@ -751,9 +746,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
 
                     if (offset >= rawData.Length - 2)
-                    {
                         throw new Exception("Kunde inte hitta början av biometrisk data");
-                    }
 
                     // Skippa 7F61 tag
                     offset += 2;
@@ -776,9 +769,8 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
 
                     if (offset >= rawData.Length - 2)
-                    {
                         throw new Exception("Kunde inte hitta bilddata");
-                    }
+                    
 
                     // Skippa 5F2E tag
                     offset += 2;
@@ -802,9 +794,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
 
                     if (jpegStart == -1)
-                    {
                         throw new Exception("Kunde inte hitta JPEG start markör (FF D8)");
-                    }
 
                     // Hitta JPEG slut
                     int jpegEnd = -1;
@@ -820,9 +810,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
 
                     if (jpegEnd == -1)
-                    {
                         throw new Exception("Kunde inte hitta JPEG slut markör (FF D9)");
-                    }
 
                     // Beräkna faktisk JPEG storlek och kopiera datan
                     int jpegLength = jpegEnd - jpegStart;
@@ -840,14 +828,15 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                     // Ta bort 80 00 sekvenser
-                    jpegData = PickOutJPGDataOnly(jpegData);
+                    //jpegData = PickOutJPGDataOnly(jpegData);
+
                     const int chunkSize = 100;
                     for (int i = 0; i < jpegData.Length; i += chunkSize)
                     {
                         int length = Math.Min(chunkSize, jpegData.Length - i);
                         var chunk = new byte[length];
                         Array.Copy(jpegData, i, chunk, 0, length);
-                        Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
+                        //Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
                     }
                     Console.WriteLine($"Final JPEG length after padding removal: {jpegData.Length}");
                     Console.WriteLine($"Final JPEG header: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
@@ -857,13 +846,11 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine($"nopad JPEG length after padding removal: {nopad.Length}");
 
                     if (!IsValidJPEG(nopad))
-                    {
                         throw new Exception("Extraherad data är inte en giltig JPEG");
-                    }
+
                     if (jpegData.Length < 100)
-                    {
                         throw new Exception($"Misstänkt kort bilddata: {nopad.Length} bytes");
-                    }
+
                     var faceInfo = new FaceImageInfo
                     {
                         ImageData = nopad,
@@ -871,7 +858,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     };
 
                     faceInfo.SavedFilePath = AutoSaveImage(faceInfo, fileName);
-                    Console.WriteLine($"-------------SAVED PATH: {faceInfo.SavedFilePath}");
+                    Console.WriteLine($"Image saved path: {faceInfo.SavedFilePath}");
                     return faceInfo;
                 }
                 catch (Exception ex)
@@ -948,9 +935,9 @@ namespace VerifyIdentityProject.Platforms.Android
 
             private static byte[] PickOutJPGDataOnly(byte[] data)
             {
-                // Först, hitta den faktiska JPEG-datan
                 int startIndex = -1;
                 int endIndex = -1;
+                Console.WriteLine($"Length of data:{data.Length}");
 
                 // Hitta JPEG header (FF D8)
                 for (int i = 0; i < data.Length - 1; i++)
@@ -964,7 +951,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 // Hitta JPEG footer (FF D9)
-                Console.WriteLine($"Length of data:{data.Length}");
                 for (int i = data.Length - 2; i >= 0; i--)
                 {
                     if (data[i] == 0xFF && data[i + 1] == 0xD9)
@@ -975,11 +961,8 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
                 }
 
-
                 if (startIndex == -1 || endIndex == -1)
-                {
                     throw new Exception("Kunde inte hitta giltig JPEG-data");
-                }
 
                 // Extrahera bara den faktiska JPEG-datan
                 int length = endIndex - startIndex;
@@ -1028,9 +1011,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     var imageUri = resolver.Insert(Images.Media.ExternalContentUri, values);
 
                     if (imageUri == null)
-                    {
                         throw new Exception("Kunde inte skapa URI för att spara bilden.");
-                    }
 
                     using (var outputStream = resolver.OpenOutputStream(imageUri))
                     {
