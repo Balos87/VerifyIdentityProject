@@ -659,7 +659,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                     // Ta bort 80 00 sekvenser
-                    jpegData = RemovePadding(jpegData);
+                    jpegData = PickOutJPGDataOnly(jpegData);
                     const int chunkSize = 100;
                     for (int i = 0; i < jpegData.Length; i += chunkSize)
                     {
@@ -728,6 +728,195 @@ namespace VerifyIdentityProject.Platforms.Android
                 return result.ToArray();
             }
 
+            public static FaceImageInfo ParseDG2Pace(byte[] rawData, string fileName = "passport_photo")
+            {
+                try
+                {
+                    Console.WriteLine($"Starting DG2 parse, total data length: {rawData.Length}");
+                    Console.WriteLine($"First 16 bytes: {BitConverter.ToString(rawData.Take(16).ToArray())}");
+                    Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(rawData.Skip(rawData.Length - 20).Take(20).ToArray())}");
+
+
+                    // Hitta och validera DG2 data
+                    int offset = 0;
+                    while (offset < rawData.Length - 2)
+                    {
+                        // Leta efter biometrisk information tag (7F61)
+                        if (rawData[offset] == 0x7F && rawData[offset + 1] == 0x61)
+                        {
+                            Console.WriteLine($"Found 7F61 tag at offset: {offset}");
+                            break;
+                        }
+                        offset++;
+                    }
+
+                    if (offset >= rawData.Length - 2)
+                    {
+                        throw new Exception("Kunde inte hitta början av biometrisk data");
+                    }
+
+                    // Skippa 7F61 tag
+                    offset += 2;
+
+                    // Läs längden på biometrisk data
+                    var bioLength = DecodeASN1Length(rawData, offset);
+                    offset += bioLength.BytesUsed;
+
+                    Console.WriteLine($"Biometric data length: {bioLength.Length}");
+
+                    // Leta efter bildinformation (5F2E)
+                    while (offset < rawData.Length - 2)
+                    {
+                        if (rawData[offset] == 0x5F && rawData[offset + 1] == 0x2E)
+                        {
+                            Console.WriteLine($"Found image tag 5F2E at offset: {offset}");
+                            break;
+                        }
+                        offset++;
+                    }
+
+                    if (offset >= rawData.Length - 2)
+                    {
+                        throw new Exception("Kunde inte hitta bilddata");
+                    }
+
+                    // Skippa 5F2E tag
+                    offset += 2;
+
+                    // Läs längden på bilddata
+                    var imageLength = DecodeASN1Length(rawData, offset);
+                    offset += imageLength.BytesUsed;
+
+                    Console.WriteLine($"Image data length: {imageLength.Length}");
+
+                    int jpegStart = -1;
+                    for (int i = offset; i < rawData.Length - 1; i++)
+                    {
+                        if (rawData[i] == 0xFF && rawData[i + 1] == 0xD8)
+                        {
+                            jpegStart = i;
+                            Console.WriteLine($"JPEG jpegStart:{jpegStart}");
+
+                            break;
+                        }
+                    }
+
+                    if (jpegStart == -1)
+                    {
+                        throw new Exception("Kunde inte hitta JPEG start markör (FF D8)");
+                    }
+
+                    // Hitta JPEG slut
+                    int jpegEnd = -1;
+                    for (int i = jpegStart; i < rawData.Length - 1; i++)
+                    {
+                        if (rawData[i] == 0xFF && rawData[i + 1] == 0xD9)
+                        {
+                            jpegEnd = i + 2; // Inkludera FF D9
+                            Console.WriteLine($"JPEG jpegEnd:{jpegEnd}");
+
+                            break;
+                        }
+                    }
+
+                    if (jpegEnd == -1)
+                    {
+                        throw new Exception("Kunde inte hitta JPEG slut markör (FF D9)");
+                    }
+
+                    // Beräkna faktisk JPEG storlek och kopiera datan
+                    int jpegLength = jpegEnd - jpegStart;
+                    byte[] jpegData = new byte[jpegLength];
+                    Array.Copy(rawData, jpegStart, jpegData, 0, jpegLength);
+
+                    // Extrahera bilddata
+                    Console.WriteLine($"Raw image data length before copying rawdata over to jpegData: {rawData.Length}");
+                    Console.WriteLine($"First 16 bytes before copying rawdata over to jpegData: {BitConverter.ToString(rawData.Take(16).ToArray())}");
+                    Console.WriteLine($"Last 20 bytes before copying rawdata over to jpegData: {BitConverter.ToString(rawData.Skip(rawData.Length - 20).Take(20).ToArray())}");
+
+                    Console.WriteLine($"data length after copying rawdata over to jpegData: {jpegData.Length}");
+                    Console.WriteLine($"First 16 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
+                    Console.WriteLine($"Last 20 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
+
+
+                    // Ta bort 80 00 sekvenser
+                    jpegData = PickOutJPGDataOnly(jpegData);
+                    const int chunkSize = 100;
+                    for (int i = 0; i < jpegData.Length; i += chunkSize)
+                    {
+                        int length = Math.Min(chunkSize, jpegData.Length - i);
+                        var chunk = new byte[length];
+                        Array.Copy(jpegData, i, chunk, 0, length);
+                        Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
+                    }
+                    Console.WriteLine($"Final JPEG length after padding removal: {jpegData.Length}");
+                    Console.WriteLine($"Final JPEG header: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
+                    Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 16).Take(16).ToArray())}");
+
+                    var nopad = RemovePaddingPace(jpegData);
+                    Console.WriteLine($"nopad JPEG length after padding removal: {nopad.Length}");
+
+                    if (!IsValidJPEG(nopad))
+                    {
+                        throw new Exception("Extraherad data är inte en giltig JPEG");
+                    }
+                    if (jpegData.Length < 100)
+                    {
+                        throw new Exception($"Misstänkt kort bilddata: {nopad.Length} bytes");
+                    }
+                    var faceInfo = new FaceImageInfo
+                    {
+                        ImageData = nopad,
+                        ImageFormat = "JPEG"
+                    };
+
+                    faceInfo.SavedFilePath = AutoSaveImage(faceInfo, fileName);
+                    Console.WriteLine($"-------------SAVED PATH: {faceInfo.SavedFilePath}");
+                    return faceInfo;
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception("Fel vid parsning av DG2 data: " + ex.Message, ex);
+                }
+            }
+
+            public static byte[] RemovePaddingPace(byte[] input)
+            {
+                List<byte> result = new List<byte>();
+
+                for (int i = 0; i < input.Length; i++)
+                {
+                    // Kolla om vi har hittat början på en padding-sekvens
+                    if (i <= input.Length - 8 &&  // Se till att vi har nog med bytes kvar att kolla
+                        input[i] == 0x80 &&
+                        input[i + 1] == 0x00 &&
+                        input[i + 2] == 0x00 &&
+                        input[i + 3] == 0x00 &&
+                        input[i + 4] == 0x00 &&
+                        input[i + 5] == 0x00 &&
+                        input[i + 6] == 0x00 &&
+                        input[i + 7] == 0x00 &&
+                        input[i + 8] == 0x00 &&
+                        input[i + 9] == 0x00 &&
+                        input[i + 10] == 0x00 &&
+                        input[i + 11] == 0x00 &&
+                        input[i + 12] == 0x00 &&
+                        input[i + 13] == 0x00 &&
+                        input[i + 14] == 0x00 &&
+                        input[i + 15] == 0x00)
+                    {
+                        // Hoppa över padding-sekvensen
+                        i += 15;  // +7 eftersom for-loopen kommer lägga till +1
+                        continue;
+                    }
+
+                    // Lägg till byte om det inte var del av en padding
+                    result.Add(input[i]);
+                }
+
+                return result.ToArray();
+            }
+
             private static ASN1Length DecodeASN1Length(byte[] data, int offset)
             {
                 if (offset >= data.Length)
@@ -757,7 +946,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return new ASN1Length { Length = length, BytesUsed = 1 + numLengthBytes };
             }
 
-            private static byte[] RemovePadding(byte[] data)
+            private static byte[] PickOutJPGDataOnly(byte[] data)
             {
                 // Först, hitta den faktiska JPEG-datan
                 int startIndex = -1;

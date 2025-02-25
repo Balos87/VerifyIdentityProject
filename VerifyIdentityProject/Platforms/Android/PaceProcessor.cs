@@ -50,7 +50,7 @@ namespace VerifyIdentityProject.Platforms.Android
                         var selectApplication = secureMessage.SelectApplication();
                         //var selectDG1 = secureMessage.SelectDG1();
                         var selectDG2 = secureMessage.SelectDG2();
-                        var selectDG1 = secureMessage.SelectDG1();
+                        //var selectDG1 = secureMessage.SelectDG1();
 
                     }
                 }

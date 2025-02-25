@@ -285,7 +285,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
             Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-            var bildbit = DG2Parser.ParseDG2(completeData);
+            var bildbit = DG2Parser.ParseDG2Pace(completeData);
             Console.WriteLine($"--------------DG2 {bildbit.SavedFilePath}");
 
             Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
