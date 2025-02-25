@@ -525,7 +525,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
                 var bildbit = DG2Parser.ParseDG2(completeData);
-                Console.WriteLine($"--------------DG2 {bildbit.Status}");
+                Console.WriteLine($"--------------DG2 {bildbit}");
 
                 Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
@@ -547,7 +547,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 public int BytesUsed { get; set; }
             }
 
-            public static async Task<FaceImageInfo> ParseDG2(byte[] rawData, string fileName = "passport_photo")
+            public static FaceImageInfo ParseDG2(byte[] rawData, string fileName = "passport_photo")
             {
                 try
                 {
@@ -689,7 +689,7 @@ namespace VerifyIdentityProject.Platforms.Android
                         ImageFormat = "JPEG"
                     };
 
-                    faceInfo.SavedFilePath = await AutoSaveImage(faceInfo, fileName);
+                    faceInfo.SavedFilePath = AutoSaveImage(faceInfo, fileName);
                     Console.WriteLine($"-------------SAVED PATH: {faceInfo.SavedFilePath}");
                     return faceInfo;
                 }
@@ -819,7 +819,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 return false;
             }
 
-            private static async Task<string> AutoSaveImage(FaceImageInfo faceInfo, string fileName)
+            private static string AutoSaveImage(FaceImageInfo faceInfo, string fileName)
             {
                 try
                 {
@@ -850,7 +850,7 @@ namespace VerifyIdentityProject.Platforms.Android
                             throw new Exception("Kunde inte öppna OutputStream för att spara bilden.");
                         }
 
-                        await outputStream.WriteAsync(faceInfo.ImageData, 0, faceInfo.ImageData.Length);
+                        outputStream.Write(faceInfo.ImageData, 0, faceInfo.ImageData.Length);
                     }
 
                     Console.WriteLine($"Bilden sparades: {imageUri.Path}");
