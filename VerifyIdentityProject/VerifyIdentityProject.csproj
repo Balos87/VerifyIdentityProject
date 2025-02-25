@@ -96,5 +96,11 @@
 	  <None Remove="Resources\appsettings.json" />
 	</ItemGroup>
 
+	<ItemGroup>
+	  <MauiXaml Update="DG1Page.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+
 
 </Project>

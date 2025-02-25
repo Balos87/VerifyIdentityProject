@@ -8,8 +8,14 @@
     Title="VerifyIdentityProject">
 
     <ShellContent
-        Title=""
+        Title="Home"
         ContentTemplate="{DataTemplate local:MainPage}"
         Route="MainPage" />
+
+    <ShellContent
+        Title="Passport Data"
+        ContentTemplate="{DataTemplate local:DG1Page}"
+        Route="DG1Page"
+        IsVisible="False" />
 
 </Shell>
