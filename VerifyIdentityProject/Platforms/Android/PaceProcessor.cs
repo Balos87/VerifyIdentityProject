@@ -85,10 +85,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw new PaceException("The PACE process failed", ex);
             }
         }
-
         public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
         {
-            // Perform the PACE protocol.
+            Console.WriteLine("🔹 Starting PACE Protocol...");
+            Console.WriteLine($"🔹 MRZ: {mrz}");
+            Console.WriteLine($"🔹 OID: {BitConverter.ToString(oid)}");
+
+            // Step 1: Perform PACE authentication
             var pace = new PaceProtocol(isoDep, mrz, oid);
             bool success = await pace.PerformPaceProtocol();
 
@@ -99,18 +102,14 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+            Console.WriteLine($"🔹 Derived KSEnc: {BitConverter.ToString(pace.KSEnc)}");
+            Console.WriteLine($"🔹 Derived KSMAC: {BitConverter.ToString(pace.KSMAC)}");
 
-            // --- Some passports require an EXTERNAL AUTHENTICATE APDU before Secure Messaging starts.
-            byte[] externalAuthenticateApdu = new byte[] { 0x0C, 0x82, 0x00, 0x00, 0x10 };
-            byte[] response = await isoDep.TransceiveAsync(externalAuthenticateApdu);
-            Console.WriteLine($"🔹 External Authenticate Response: {BitConverter.ToString(response)}");
-            // --------------------------------- End of external authenticate
-
-            // Initialize Secure Messaging with the derived session keys.
+            // Step 2: Initialize Secure Messaging with derived session keys.
             SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+            Console.WriteLine($"🔹 SecureMessaging Initialized: SSC = {BitConverter.ToString(SecureMessaging.ComputeSSC())}");
 
             // ---- Reselect Passport Application (Unprotected SELECT) ----
-            // Build the SELECT APDU using AID_MRTD (e.g. { A0, 00, 00, 02, 47, 10, 01 })
             byte[] selectAppApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
                  .Concat(new byte[] { (byte)AID_MRTD.Length })
                  .Concat(AID_MRTD)
@@ -120,60 +119,217 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"🔹 Reselecting Passport Application with APDU: {BitConverter.ToString(selectAppApdu)}");
             byte[] selectAppResponse = await isoDep.TransceiveAsync(selectAppApdu);
             Console.WriteLine($"🔹 Passport Application SELECT response: {BitConverter.ToString(selectAppResponse)}");
-
-            // Validate that the passport application was selected (SW = 90 00)
-            if (selectAppResponse == null || selectAppResponse.Length < 2 ||
-                selectAppResponse[selectAppResponse.Length - 2] != 0x90 ||
-                selectAppResponse[selectAppResponse.Length - 1] != 0x00)
-            {
-                Console.WriteLine("❌ Passport Application selection failed.");
-                return;
-            }
             // ---- End Reselecting Passport Application ----
 
-            // ---- Select DG1 using Secure Message ----
-            // Now call SecureSelectDG1 to attempt secure selection of DG1.
-            SecureSelectDG1 secureSelectDG1 = new SecureSelectDG1(isoDep, secureMessaging);
-            bool dg1Selected = await secureSelectDG1.SelectDG1Async();
-
-            if (dg1Selected)
-            {
-                Console.WriteLine("📄 DG1 successfully selected!");
-            }
-            else
-            {
-                Console.WriteLine("❌ DG1 selection failed.");
-                Console.WriteLine("Note: A 68 82 response may indicate that DG1 is not selectable via a SELECT command. " +
-                                  "In many ePassports DG files are read using READ BINARY commands instead.");
-            }
-            // ---- End of Select DG1 ----
-
-            // ---- Read Binary using Secure Message ----
-            // Now call SecureReadDG1 to read DG1 using a secure READ BINARY command.
+            // Step 3: Directly read DG1 using READ BINARY.
+            Console.WriteLine("🔹 Attempting Secure READ DG1 (directly, without a separate SELECT)...");
             SecureReadDG1 secureReadDG1 = new SecureReadDG1(isoDep, secureMessaging);
             byte[] dg1Data = await secureReadDG1.ReadDG1Async();
 
-            if (dg1Data != null && dg1Data.Length >= 2)
+            if (dg1Data == null || dg1Data.Length < 2)
             {
-                // Optionally, extract and check the status word from the decrypted response.
-                int len = dg1Data.Length;
-                byte sw1 = dg1Data[len - 2];
-                byte sw2 = dg1Data[len - 1];
-                if (sw1 == 0x90 && sw2 == 0x00)
-                {
-                    Console.WriteLine("📄 DG1 successfully read!");
-                }
-                else
-                {
-                    Console.WriteLine($"❌ DG1 read failed. Status: {sw1:X2} {sw2:X2}");
-                }
+                Console.WriteLine("❌ DG1 read failed. No data returned.");
+                return;
             }
-            else
-            {
-                Console.WriteLine("❌ DG1 read failed.");
-            }
-            // ---- End of Read Binary ----
+
+            // In this implementation, dg1Data is the entire file content (already excluding status words).
+            Console.WriteLine($"📄 DG1 Data Read (raw): {BitConverter.ToString(dg1Data)}");
+
+            // (Optional) Further processing or parsing of DG1 data can be done here.
+            Console.WriteLine("✅ DG1 successfully read!");
         }
+
+        //public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
+        //{
+        //    Console.WriteLine("🔹 Starting PACE Protocol...");
+        //    Console.WriteLine($"🔹 MRZ: {mrz}");
+        //    Console.WriteLine($"🔹 OID: {BitConverter.ToString(oid)}");
+
+        //    // Step 1: Perform PACE authentication
+        //    var pace = new PaceProtocol(isoDep, mrz, oid);
+        //    bool success = await pace.PerformPaceProtocol();
+
+        //    if (!success)
+        //    {
+        //        Console.WriteLine("❌ PACE authentication failed.");
+        //        return;
+        //    }
+
+        //    Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+        //    Console.WriteLine($"🔹 Derived KSEnc: {BitConverter.ToString(pace.KSEnc)}");
+        //    Console.WriteLine($"🔹 Derived KSMAC: {BitConverter.ToString(pace.KSMAC)}");
+
+        //    // Step 2: Initialize Secure Messaging with derived session keys.
+        //    SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+        //    Console.WriteLine($"🔹 SecureMessaging Initialized: SSC = {BitConverter.ToString(SecureMessaging.ComputeSSC())}");
+
+        //    //// Step 3: External Authenticate (Some passports require this)
+        //    //byte[] externalAuthenticateApdu = new byte[] { 0x0C, 0x82, 0x00, 0x00, 0x10 };
+        //    //Console.WriteLine($"🔹 Sending External Authenticate APDU: {BitConverter.ToString(externalAuthenticateApdu)}");
+
+        //    //byte[] response = await isoDep.TransceiveAsync(externalAuthenticateApdu);
+        //    //Console.WriteLine($"🔹 External Authenticate Response: {BitConverter.ToString(response)}");
+
+        //    //if (response.Length < 2 || response[^2] != 0x90 || response[^1] != 0x00)
+        //    //{
+        //    //    Console.WriteLine("⚠️ Warning: External Authenticate may have failed. Continuing anyway...");
+        //    //}
+
+        //    // ---- Reselect Passport Application (Unprotected SELECT) ----
+        //    byte[] selectAppApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
+        //         .Concat(new byte[] { (byte)AID_MRTD.Length })
+        //         .Concat(AID_MRTD)
+        //         .Concat(new byte[] { 0x00 })
+        //         .ToArray();
+
+        //    Console.WriteLine($"🔹 Reselecting Passport Application with APDU: {BitConverter.ToString(selectAppApdu)}");
+        //    byte[] selectAppResponse = await isoDep.TransceiveAsync(selectAppApdu);
+        //    Console.WriteLine($"🔹 Passport Application SELECT response: {BitConverter.ToString(selectAppResponse)}");
+
+        //    // ---- End Reselecting Passport Application ----
+
+        //    // Step 4: Select DG1 using an unprotected SELECT command
+        //    Console.WriteLine("🔹 Attempting Unprotected SELECT DG1...");
+        //    SecureSelectDG1 secureSelectDG1 = new SecureSelectDG1(isoDep);
+        //    bool dg1Selected = await secureSelectDG1.SelectDG1Async();
+
+        //    if (!dg1Selected)
+        //    {
+        //        Console.WriteLine("❌ DG1 selection failed.");
+        //        Console.WriteLine("⚠️ Note: Some ePassports do not support selecting DG1 via SELECT; in such cases, DG1 must be read using READ BINARY.");
+        //        return;
+        //    }
+        //    Console.WriteLine("📄 DG1 successfully selected!");
+
+
+        //    // Step 5: Read DG1 using Secure Messaging
+        //    Console.WriteLine("🔹 Attempting Secure READ DG1...");
+        //    SecureReadDG1 secureReadDG1 = new SecureReadDG1(isoDep, secureMessaging);
+        //    byte[] dg1Data = await secureReadDG1.ReadDG1Async();
+
+        //    if (dg1Data == null || dg1Data.Length < 2)
+        //    {
+        //        Console.WriteLine("❌ DG1 read failed. No data returned.");
+        //        return;
+        //    }
+
+        //    // Step 6: Verify Response Status
+        //    int len = dg1Data.Length;
+        //    byte sw1 = dg1Data[len - 2];
+        //    byte sw2 = dg1Data[len - 1];
+        //    Console.WriteLine($"🔹 DG1 Read Response: {BitConverter.ToString(dg1Data)}");
+        //    Console.WriteLine($"🔹 Status Word (SW1 SW2): {sw1:X2} {sw2:X2}");
+
+        //    if (sw1 == 0x90 && sw2 == 0x00)
+        //    {
+        //        Console.WriteLine("✅ DG1 successfully read!");
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine($"❌ DG1 read failed. Status: {sw1:X2} {sw2:X2}");
+        //        if (sw1 == 0x69 && sw2 == 0x87)
+        //        {
+        //            Console.WriteLine("⚠️ Error: Expected Secure Messaging object is missing.");
+        //        }
+        //        else if (sw1 == 0x69 && sw2 == 0x82)
+        //        {
+        //            Console.WriteLine("⚠️ Error: Access conditions not satisfied for DG1.");
+        //        }
+        //        else if (sw1 == 0x68 && sw2 == 0x82)
+        //        {
+        //            Console.WriteLine("⚠️ Error: Secure Messaging is required but missing.");
+        //        }
+        //    }
+        //}
+
+        //public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
+        //{
+        //    // Perform the PACE protocol.
+        //    var pace = new PaceProtocol(isoDep, mrz, oid);
+        //    bool success = await pace.PerformPaceProtocol();
+
+        //    if (!success)
+        //    {
+        //        Console.WriteLine("❌ PACE authentication failed.");
+        //        return;
+        //    }
+
+        //    Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+
+        //    //// --- Some passports require an EXTERNAL AUTHENTICATE APDU before Secure Messaging starts.
+        //    //byte[] externalAuthenticateApdu = new byte[] { 0x0C, 0x82, 0x00, 0x00, 0x10 };
+        //    //byte[] response = await isoDep.TransceiveAsync(externalAuthenticateApdu);
+        //    //Console.WriteLine($"🔹 External Authenticate Response: {BitConverter.ToString(response)}");
+        //    //// --------------------------------- End of external authenticate
+
+        //    // Initialize Secure Messaging with the derived session keys.
+        //    SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+
+        //    //// ---- Reselect Passport Application (Unprotected SELECT) ----
+        //    //// Build the SELECT APDU using AID_MRTD (e.g. { A0, 00, 00, 02, 47, 10, 01 })
+        //    //byte[] selectAppApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
+        //    //     .Concat(new byte[] { (byte)AID_MRTD.Length })
+        //    //     .Concat(AID_MRTD)
+        //    //     .Concat(new byte[] { 0x00 })
+        //    //     .ToArray();
+
+        //    //Console.WriteLine($"🔹 Reselecting Passport Application with APDU: {BitConverter.ToString(selectAppApdu)}");
+        //    //byte[] selectAppResponse = await isoDep.TransceiveAsync(selectAppApdu);
+        //    //Console.WriteLine($"🔹 Passport Application SELECT response: {BitConverter.ToString(selectAppResponse)}");
+
+        //    //// Validate that the passport application was selected (SW = 90 00)
+        //    //if (selectAppResponse == null || selectAppResponse.Length < 2 ||
+        //    //    selectAppResponse[selectAppResponse.Length - 2] != 0x90 ||
+        //    //    selectAppResponse[selectAppResponse.Length - 1] != 0x00)
+        //    //{
+        //    //    Console.WriteLine("❌ Passport Application selection failed.");
+        //    //    return;
+        //    //}
+        //    //// ---- End Reselecting Passport Application ----
+
+        //    // ---- Select DG1 using Secure Message ----
+        //    // Now call SecureSelectDG1 to attempt secure selection of DG1.
+        //    SecureSelectDG1 secureSelectDG1 = new SecureSelectDG1(isoDep, secureMessaging);
+        //    bool dg1Selected = await secureSelectDG1.SelectDG1Async();
+
+        //    if (dg1Selected)
+        //    {
+        //        Console.WriteLine("📄 DG1 successfully selected!");
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("❌ DG1 selection failed.");
+        //        Console.WriteLine("Note: A 68 82 response may indicate that DG1 is not selectable via a SELECT command. " +
+        //                          "In many ePassports DG files are read using READ BINARY commands instead.");
+        //    }
+        //    // ---- End of Select DG1 ----
+
+        //    // ---- Read Binary using Secure Message ----
+        //    // Now call SecureReadDG1 to read DG1 using a secure READ BINARY command.
+        //    SecureReadDG1 secureReadDG1 = new SecureReadDG1(isoDep, secureMessaging);
+        //    byte[] dg1Data = await secureReadDG1.ReadDG1Async();
+
+        //    if (dg1Data != null && dg1Data.Length >= 2)
+        //    {
+        //        // Optionally, extract and check the status word from the decrypted response.
+        //        int len = dg1Data.Length;
+        //        byte sw1 = dg1Data[len - 2];
+        //        byte sw2 = dg1Data[len - 1];
+        //        if (sw1 == 0x90 && sw2 == 0x00)
+        //        {
+        //            Console.WriteLine("📄 DG1 successfully read!");
+        //        }
+        //        else
+        //        {
+        //            Console.WriteLine($"❌ DG1 read failed. Status: {sw1:X2} {sw2:X2}");
+        //        }
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("❌ DG1 read failed.");
+        //    }
+        //    // ---- End of Read Binary ----
+        //}
 
 
         ////Could not select dg1
