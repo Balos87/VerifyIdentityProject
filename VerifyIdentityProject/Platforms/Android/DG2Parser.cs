@@ -361,7 +361,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     Array.Copy(imageBlock, jpegStartIndex, jpegData, 0, jpegData.Length);
 
                     // Optionally remove any known padding
-                    jpegData = RemovePadding2(jpegData);
+                    jpegData = RemovePaddingPace(jpegData);
 
                     // Validate that the data is a valid JPEG (must have FF D8 and FF D9 markers)
                     if (!IsValidJPEG(jpegData))
