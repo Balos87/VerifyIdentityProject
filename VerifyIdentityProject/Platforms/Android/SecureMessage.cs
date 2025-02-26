@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using static VerifyIdentityProject.Platforms.Android.BacProcessor;
+using static VerifyIdentityProject.Platforms.Android.DG2Parser;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -211,56 +212,55 @@ namespace VerifyIdentityProject.Platforms.Android
         public byte[] SelectDG2()
         {
             Console.WriteLine("------------------------------------------------------------Select DG2 with secure message started...");
-            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
             Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
             Console.WriteLine("[DOTNET] KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
             Console.WriteLine("[DOTNET] KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
 
-            // Öka SSC före varje kommando
+            // Increase SSC before each command
             IncrementSSC(ref _ssc);
             Console.WriteLine("[DOTNET] SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
-            // Original command data för DG1
+            // Original command data for DG1 (example)
             byte[] commandData = new byte[] { 0x01, 0x02 };
 
-            // 1. Padda data för kryptering
+            // 1. Pad data for encryption
             byte[] paddedData = PadData(commandData);
             Console.WriteLine("[DOTNET] Padded data: " + BitConverter.ToString(paddedData).Replace("-", " "));
 
-            // 2. Kryptera data med AES-CBC
+            // 2. Encrypt data with AES-CBC
             byte[] encryptedData = EncryptData(paddedData, _ssc);
             Console.WriteLine("[DOTNET] Encrypted data: " + BitConverter.ToString(encryptedData).Replace("-", " "));
 
-            // 3. Bygg DO'87'
+            // 3. Build DO'87'
             byte[] do87 = BuildDO87(encryptedData);
             Console.WriteLine("[DOTNET] DO'87': " + BitConverter.ToString(do87).Replace("-", " "));
 
-            // 4. Bygg data för MAC-beräkning
+            // 4. Build header for MAC calculation and concatenate with DO87
             byte[] paddedHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             byte[] dataToMac = ConcatenateArrays(paddedHeader, do87);
             Console.WriteLine("[DOTNET] cmdHeader+DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // Padda hela M-strängen
+            // Pad the entire M string
             dataToMac = PadData(dataToMac);
             Console.WriteLine("[DOTNET] Padded data to MAC: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // 5. Beräkna MAC
+            // 5. Calculate MAC
             byte[] mac = CalculateMAC(dataToMac, _ssc);
             Console.WriteLine("[DOTNET] Calculated MAC: " + BitConverter.ToString(mac).Replace("-", " "));
 
-            // 6. Bygg DO'8E'
+            // 6. Build DO'8E'
             byte[] do8E = BuildDO8E(mac);
             Console.WriteLine("[DOTNET] DO'8E': " + BitConverter.ToString(do8E).Replace("-", " "));
 
-            // 7. Bygg final protected APDU
+            // 7. Build final protected APDU
             byte[] protectedApdu = BuildProtectedAPDU(paddedHeader, do87, do8E);
-
             Console.WriteLine("[DOTNET] Protected APDU: " + BitConverter.ToString(protectedApdu).Replace("-", " "));
 
+            // Send the APDU and receive the response
             var response = _isoDep.Transceive(protectedApdu);
-            Console.WriteLine("[DOTNET] reponse: " + BitConverter.ToString(response).Replace("-", " "));
+            Console.WriteLine("[DOTNET] response: " + BitConverter.ToString(response).Replace("-", " "));
 
-            // 8.Öka SSC för response verifiering
+            // 8. Increase SSC for response verification
             IncrementSSC(ref _ssc);
             Console.WriteLine("[DOTNET] SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
@@ -274,10 +274,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Response verification failed: {ex.Message}");
             }
 
-            //----------------------------------------------------------------------- All Read Binary 
+            // -----------------------------------------------------------------------
+            // Read Binary of DG (DG2 segments)
             Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
             List<byte[]> dg2Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
-            Console.WriteLine($"amount returned segment data: {dg2Segments.Count}");
+            Console.WriteLine($"Amount returned segment data: {dg2Segments.Count}");
 
             var completeData = dg2Segments.SelectMany(x => x).ToArray();
             Console.WriteLine($"Complete DG2 Data: {BitConverter.ToString(completeData)}");
@@ -285,12 +286,15 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
             Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-            var imgDataInBytes = DG2Parser.ParseDG2Pace(completeData);
+            // Call ParseDG2Pace which now returns a FaceImageInfo object.
+            FaceImageInfo faceInfo = DG2Parser.ParseDG2Pace(completeData);
+            byte[] imgDataInBytes = faceInfo.ImageData;
 
             Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
             return imgDataInBytes;
         }
+
 
         //---------------------------------------------------------------------------------------------------readbinary stuff
         public List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
