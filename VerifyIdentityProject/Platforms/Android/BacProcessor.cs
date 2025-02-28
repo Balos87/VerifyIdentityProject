@@ -724,7 +724,7 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 try
                 {
-                    Console.WriteLine($"Starting DG2 parse, total data length: {rawData.Length}");
+                    Console.WriteLine($"Starting DG2 PACE parse, total data length: {rawData.Length}");
                     // Hitta och validera DG2 data
                     int offset = 0;
                     while (offset < rawData.Length - 2)
@@ -827,13 +827,12 @@ namespace VerifyIdentityProject.Platforms.Android
                         Array.Copy(jpegData, i, chunk, 0, length);
                         //Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
                     }
-                    Console.WriteLine($"Final JPEG length after padding removal: {jpegData.Length}");
-                    Console.WriteLine($"Final JPEG header: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
-                    Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 16).Take(16).ToArray())}");
+
 
                     var pureImgData = RemovePaddingPace(jpegData);
-                    Console.WriteLine($"nopad JPEG length after padding removal: {pureImgData.Length}");
-
+                    Console.WriteLine($"Final JPEG length after padding removal: {pureImgData.Length}");
+                    Console.WriteLine($"Final JPEG header: {BitConverter.ToString(pureImgData.Take(16).ToArray())}");
+                    Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(pureImgData.Skip(pureImgData.Length - 16).Take(16).ToArray())}");
                     if (!IsValidJPEG(pureImgData))
                         throw new Exception("Extraherad data är inte en giltig JPEG");
 
