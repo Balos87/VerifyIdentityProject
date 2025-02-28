@@ -830,6 +830,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                     var pureImgData = RemovePaddingPace(jpegData);
+
                     Console.WriteLine($"Final JPEG length after padding removal: {pureImgData.Length}");
                     Console.WriteLine($"Final JPEG header: {BitConverter.ToString(pureImgData.Take(16).ToArray())}");
                     Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(pureImgData.Skip(pureImgData.Length - 16).Take(16).ToArray())}");
