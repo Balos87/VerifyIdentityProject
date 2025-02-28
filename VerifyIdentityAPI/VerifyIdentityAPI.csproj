@@ -22,7 +22,6 @@
     <PackageReference Include="OpenCvSharp4.Windows" Version="4.10.0.20241108" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2" />
     <PackageReference Include="Tesseract" Version="5.2.0" />
-    <PackageReference Include="Tesseract.Data.English" Version="4.0.0" />
     <PackageReference Include="Tesseract.Drawing" Version="5.2.0" />
   </ItemGroup>
 

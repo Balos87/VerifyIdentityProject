@@ -88,19 +88,159 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
         {
+            // Perform the PACE protocol.
             var pace = new PaceProtocol(isoDep, mrz, oid);
             bool success = await pace.PerformPaceProtocol();
 
-            if (success)
+            if (!success)
             {
-                Console.WriteLine("PACE-autentisering lyckades!");
-                // Nu kan du börja läsa data från passet
+                Console.WriteLine("❌ PACE authentication failed.");
+                return;
+            }
+
+            Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+
+            // Initialize Secure Messaging with the derived session keys.
+            SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+
+            // ---- Reselect Passport Application (Unprotected SELECT) ----
+            // Build the SELECT APDU using AID_MRTD (e.g. { A0, 00, 00, 02, 47, 10, 01 })
+            byte[] selectAppApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
+                 .Concat(new byte[] { (byte)AID_MRTD.Length })
+                 .Concat(AID_MRTD)
+                 .Concat(new byte[] { 0x00 })
+                 .ToArray();
+
+            Console.WriteLine($"🔹 Reselecting Passport Application with APDU: {BitConverter.ToString(selectAppApdu)}");
+            byte[] selectAppResponse = await isoDep.TransceiveAsync(selectAppApdu);
+            Console.WriteLine($"🔹 Passport Application SELECT response: {BitConverter.ToString(selectAppResponse)}");
+
+            // Validate that the passport application was selected (SW = 90 00)
+            if (selectAppResponse == null || selectAppResponse.Length < 2 ||
+                selectAppResponse[selectAppResponse.Length - 2] != 0x90 ||
+                selectAppResponse[selectAppResponse.Length - 1] != 0x00)
+            {
+                Console.WriteLine("❌ Passport Application selection failed.");
+                return;
+            }
+            // ---- End Reselecting Passport Application ----
+
+            // Now call SecureReadDG1 to read DG1 using a secure READ BINARY command.
+            SecureReadDG1 secureReadDG1 = new SecureReadDG1(isoDep, secureMessaging);
+            byte[] dg1Data = await secureReadDG1.ReadDG1Async();
+
+            if (dg1Data != null && dg1Data.Length >= 2)
+            {
+                // Optionally, extract and check the status word from the decrypted response.
+                int len = dg1Data.Length;
+                byte sw1 = dg1Data[len - 2];
+                byte sw2 = dg1Data[len - 1];
+                if (sw1 == 0x90 && sw2 == 0x00)
+                {
+                    Console.WriteLine("📄 DG1 successfully read!");
+                }
+                else
+                {
+                    Console.WriteLine($"❌ DG1 read failed. Status: {sw1:X2} {sw2:X2}");
+                }
             }
             else
             {
-                Console.WriteLine("PACE-autentisering misslyckades");
+                Console.WriteLine("❌ DG1 read failed.");
             }
         }
+
+
+        ////Could not select dg1
+        //public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
+        //{
+        //    // Perform the PACE protocol
+        //    var pace = new PaceProtocol(isoDep, mrz, oid);
+        //    bool success = await pace.PerformPaceProtocol();
+
+        //    if (!success)
+        //    {
+        //        Console.WriteLine("❌ PACE authentication failed.");
+        //        return;
+        //    }
+
+        //    Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+
+        //    // Initialize Secure Messaging using the derived session keys.
+        //    SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+
+        //    // ---- New Step: Reselect Passport Application ----
+        //    // Build the SELECT APDU using the AID_MRTD (e.g. { A0, 00, 00, 02, 47, 10, 01 })
+        //    byte[] selectAppApdu = new byte[] { 0x00, 0xA4, 0x04, 0x0C }
+        //         .Concat(new byte[] { (byte)AID_MRTD.Length })
+        //         .Concat(AID_MRTD)
+        //         .Concat(new byte[] { 0x00 })
+        //         .ToArray();
+
+        //    Console.WriteLine($"🔹 Reselecting Passport Application with APDU: {BitConverter.ToString(selectAppApdu)}");
+        //    byte[] selectAppResponse = await isoDep.TransceiveAsync(selectAppApdu);
+        //    Console.WriteLine($"🔹 Passport Application SELECT response: {BitConverter.ToString(selectAppResponse)}");
+
+        //    // Validate that the passport application was selected (SW = 90 00)
+        //    if (selectAppResponse == null || selectAppResponse.Length < 2 ||
+        //        selectAppResponse[selectAppResponse.Length - 2] != 0x90 ||
+        //        selectAppResponse[selectAppResponse.Length - 1] != 0x00)
+        //    {
+        //        Console.WriteLine("❌ Passport Application selection failed.");
+        //        return;
+        //    }
+        //    // ---- End of Application Reselection ----
+
+        //    // Now call SecureSelectDG1 to attempt secure selection of DG1.
+        //    SecureSelectDG1 secureSelectDG1 = new SecureSelectDG1(isoDep, secureMessaging);
+        //    bool dg1Selected = await secureSelectDG1.SelectDG1Async();
+
+        //    if (dg1Selected)
+        //    {
+        //        Console.WriteLine("📄 DG1 successfully selected!");
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("❌ DG1 selection failed.");
+        //        Console.WriteLine("Note: A 68 82 response may indicate that DG1 is not selectable via a SELECT command. " +
+        //                          "In many ePassports DG files are read using READ BINARY commands instead.");
+        //    }
+        //}
+
+
+        // EF.COM - FILE NOT FOUND
+        //public static async Task StartPaceProtocol(IsoDep isoDep, string mrz, byte[] oid)
+        //{
+        //    var pace = new PaceProtocol(isoDep, mrz, oid);
+        //    bool success = await pace.PerformPaceProtocol();
+
+        //    if (success)
+        //    {
+        //        Console.WriteLine("✅ PACE authentication succeeded! Secure Messaging can now be established.");
+
+        //        // Initialize Secure Messaging with the derived session keys.
+        //        SecureMessaging secureMessaging = new SecureMessaging(pace.KSEnc, pace.KSMAC, SecureMessaging.ComputeSSC());
+
+        //        // 🔹 Call Secure Select EF.COM after PACE is successful
+        //        SecureSelectEFCom secureSelect = new SecureSelectEFCom(isoDep, secureMessaging);
+
+        //        bool efComSelected = await secureSelect.SelectEFComAsync();
+        //        if (efComSelected)
+        //        {
+        //            Console.WriteLine("📄 EF.COM successfully selected!");
+        //        }
+        //        else
+        //        {
+        //            Console.WriteLine("❌ EF.COM selection failed.");
+        //        }
+
+        //    }
+        //    else
+        //    {
+        //        Console.WriteLine("❌ PACE authentication failed.");
+        //    }
+        //}
+
 
         private static bool OidEndsWith(byte[] oidBytes, string suffix)
         {
@@ -412,6 +552,34 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Error during PACEInfo validation: {ex.Message}");
                 throw;
             }
+        }
+
+        // ------------------- Fel, måste fixas, kolla headern och Le, sida 91 ICAO p11.
+        private static async Task<byte[]> ReadEfComFile(IsoDep isoDep, SecureMessaging secureMessaging)
+        {
+            Console.WriteLine("Reading EF.COM file...");
+
+            // Construct a READ BINARY command for EF.COM.
+            // Adjust the header based on your file selection – EF.COM’s file identifier is typically known.
+            // Here we assume a header similar to: [CLA, INS, P1, P2] = {0x0C, 0xB0, 0x00, 0x00}
+            byte[] readEfComHeader = new byte[] { 0x0C, 0xB0, 0x00, 0x00 };
+
+            // Use an Le of 0x00, indicating extended length or that the length is embedded in the TLV structure.
+            byte[] le = new byte[] { 0x00 };
+
+            // Protect the APDU using your secure messaging instance.
+            byte[] secureApdu = secureMessaging.ProtectCommand(readEfComHeader, null, le);
+            Console.WriteLine($"Sending protected EF.COM APDU: {BitConverter.ToString(secureApdu)}");
+
+            // Transceive the APDU.
+            byte[] response = await isoDep.TransceiveAsync(secureApdu);
+            Console.WriteLine($"Received EF.COM response: {BitConverter.ToString(response)}");
+
+            // Unprotect the response to obtain the clear EF.COM data.
+            byte[] efComData = secureMessaging.UnprotectResponse(response);
+            Console.WriteLine($"Decrypted EF.COM Data: {BitConverter.ToString(efComData)}");
+
+            return efComData;
         }
 
         // Helper to convert OID bytes to string
