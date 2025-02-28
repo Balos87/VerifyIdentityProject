@@ -286,8 +286,10 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
             Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-            // Call ParseDG2Pace which now returns a FaceImageInfo object.
-            FaceImageInfo faceInfo = DG2Parser.ParseDG2Pace(completeData);
+            FaceImageInfo faceInfo = DG2Parser.ParseDG2ToJPEG2000(completeData, "passport_photo");           
+
+            //// Call ParseDG2Pace which now returns a FaceImageInfo object.
+            //FaceImageInfo faceInfo = DG2Parser.ParseDG2Pace(completeData);
             byte[] imgDataInBytes = faceInfo.ImageData;
 
             Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
