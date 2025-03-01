@@ -57,11 +57,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] imageBytes = null;
 
                 Console.WriteLine($"Starting DG2 PACE parse, total data length: {dg2Bytes.Length}");
-                // Hitta och validera DG2 data
+
+                // Find and validate DG2 data
                 int offset = 0;
                 while (offset < dg2Bytes.Length - 2)
                 {
-                    // Leta efter biometrisk information tag (7F61)
+                    // Look for biometric information tag (7F61)
                     if (dg2Bytes[offset] == 0x7F && dg2Bytes[offset + 1] == 0x61)
                     {
                         Console.WriteLine($"Found 7F61 tag at offset: {offset}");
@@ -71,18 +72,18 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 if (offset >= dg2Bytes.Length - 2)
-                    throw new Exception("Kunde inte hitta början av biometrisk data");
+                    throw new Exception("Could not find the beginning of biometric data");
 
-                // Skippa 7F61 tag
+                // Skip 7F61 tag
                 offset += 2;
 
-                // Läs längden på biometrisk data
+                // Read the length of biometric data
                 var bioLength = DecodeASN1Length(dg2Bytes, offset);
                 offset += bioLength.BytesUsed;
 
                 Console.WriteLine($"Biometric data length: {bioLength.Length}");
 
-                // Leta efter bildinformation (5F2E)
+                // Look for image information (5F2E)
                 while (offset < dg2Bytes.Length - 2)
                 {
                     if (dg2Bytes[offset] == 0x5F && dg2Bytes[offset + 1] == 0x2E)
@@ -94,12 +95,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
 
                 if (offset >= dg2Bytes.Length - 2)
-                    throw new Exception("Kunde inte hitta bilddata");
+                    throw new Exception("Could not find image data");
 
-                // Skippa 5F2E tag
+                // Skip 5F2E tag
                 offset += 2;
 
-                // Läs längden på bilddata
+                // Read the length of image data
                 var imageLength = DecodeASN1Length(dg2Bytes, offset);
                 offset += imageLength.BytesUsed;
 
@@ -110,8 +111,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 for (int i = offset; i < dg2Bytes.Length - 7; i++)
                 {
-
-
                     // Check for JPEG header (FF D8 FF E0)
                     if (i < dg2Bytes.Length - 3 &&
                         dg2Bytes[i] == 0xFF &&
@@ -161,36 +160,34 @@ namespace VerifyIdentityProject.Platforms.Android
                     throw new Exception("Could not find any valid JPEG file type.");
                 }
 
-
-                // Hitta JPEG slut
+                // Find JPEG end
                 int jpegEnd = -1;
                 for (int i = jpegStart; i < dg2Bytes.Length - 1; i++)
                 {
                     if (dg2Bytes[i] == 0xFF && dg2Bytes[i + 1] == 0xD9)
                     {
-                        jpegEnd = i + 2; // Inkludera FF D9
+                        jpegEnd = i + 2; // Include FF D9
                         Console.WriteLine($"JPEG end found at:{jpegEnd}");
-
                         break;
                     }
                 }
 
                 if (jpegEnd == -1)
-                    throw new Exception("Kunde inte hitta JPEG slut markör (FF D9)");
+                    throw new Exception("Could not find JPEG end marker (FF D9)");
 
-                // Beräkna faktisk JPEG storlek och kopiera datan
+                // Calculate actual JPEG size and copy the data
                 int jpegLength = jpegEnd - jpegStart;
                 byte[] jpegData = new byte[jpegLength];
                 Array.Copy(dg2Bytes, jpegStart, jpegData, 0, jpegLength);
 
-                // Extrahera bilddata
-                Console.WriteLine($"Raw image data length before copying rawdata over to jpegData: {dg2Bytes.Length}");
-                Console.WriteLine($"First 16 bytes before copying rawdata over to jpegData: {BitConverter.ToString(dg2Bytes.Take(16).ToArray())}");
-                Console.WriteLine($"Last 20 bytes before copying rawdata over to jpegData: {BitConverter.ToString(dg2Bytes.Skip(dg2Bytes.Length - 20).Take(20).ToArray())}");
+                // Extract image data
+                Console.WriteLine($"Raw image data length before copying raw data over to jpegData: {dg2Bytes.Length}");
+                Console.WriteLine($"First 16 bytes before copying raw data over to jpegData: {BitConverter.ToString(dg2Bytes.Take(16).ToArray())}");
+                Console.WriteLine($"Last 20 bytes before copying raw data over to jpegData: {BitConverter.ToString(dg2Bytes.Skip(dg2Bytes.Length - 20).Take(20).ToArray())}");
 
-                Console.WriteLine($"data length after copying rawdata over to jpegData: {jpegData.Length}");
-                Console.WriteLine($"First 16 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
-                Console.WriteLine($"Last 20 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
+                Console.WriteLine($"Data length after copying raw data over to jpegData: {jpegData.Length}");
+                Console.WriteLine($"First 16 bytes after copying raw data over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
+                Console.WriteLine($"Last 20 bytes after copying raw data over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
 
                 const int chunkSize = 100;
                 for (int i = 0; i < jpegData.Length; i += chunkSize)
@@ -208,7 +205,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(pureImgData.Skip(pureImgData.Length - 16).Take(16).ToArray())}");
 
                 if (jpegData.Length < 100)
-                    throw new Exception($"Misstänkt kort bilddata: {pureImgData.Length} bytes");
+                    throw new Exception($"Suspiciously short image data: {pureImgData.Length} bytes");
 
                 FaceImageInfo faceInfo2 = new FaceImageInfo
                 {
@@ -223,9 +220,10 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                throw new Exception("Fel vid parsning av DG2 data: " + ex.Message, ex);
+                throw new Exception("Error while parsing DG2 data: " + ex.Message, ex);
             }
         }
+
 
         private static string AutoSaveImage(FaceImageInfo faceInfo, string fileNameBase, string extension)
         {
