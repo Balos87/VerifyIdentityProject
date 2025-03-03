@@ -3,6 +3,7 @@ using VerifyIdentityProject;
 using VerifyIdentityProject.Resources.Interfaces;
 using TesseractOcrMaui;
 using VerifyIdentityProject.Helpers.MRZReader;
+using SkiaSharp.Views.Maui.Controls.Hosting;
 
 public static class MauiProgram
 {
@@ -12,6 +13,7 @@ public static class MauiProgram
         var builder = MauiApp.CreateBuilder();
         builder
             .UseMauiApp<App>()
+            .UseSkiaSharp()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -22,6 +24,7 @@ public static class MauiProgram
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddTransient<MainPageViewModel>();
         builder.Services.AddTransient<MainPage>();
+        builder.Services.AddTransient<DgInformationFetchedPage>();
         builder.Services.AddSingleton<MrzReader>();
 
 #if ANDROID

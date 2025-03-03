@@ -25,6 +25,10 @@ using Org.BouncyCastle.Asn1;
 using Org.BouncyCastle.Utilities.IO;
 using static AndroidX.Concurrent.Futures.CallbackToFutureAdapter;
 using static Android.Graphics.PathIterator;
+using System.Drawing;
+using SkiaSharp;
+using System.IO;
+
 
 #if ANDROID
 using static Android.OS.Environment;
@@ -207,16 +211,30 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (jpegData.Length < 100)
                     throw new Exception($"Suspiciously short image data: {pureImgData.Length} bytes");
 
+                Console.WriteLine("Image data extracted successfully");
+
+                pureImgData = ImageConversionHelper.ConvertJp2ToJpeg_Magick(pureImgData);
+
+                Console.WriteLine("Trying to send image to view");
                 FaceImageInfo faceInfo2 = new FaceImageInfo
                 {
-                    ImageData = pureImgData,
+                    ImageData = pureImgData, // Now this is a standard JPEG
                     ImageFormat = "JP2"
                 };
 
-                string extension = "blabla";
-                faceInfo2.SavedFilePath = AutoSaveImage(faceInfo2, fileNameBase, extension);
-                Console.WriteLine($"Image saved path: {faceInfo2.SavedFilePath}");
+                // Navigate to the new page to display the image
+                MainThread.BeginInvokeOnMainThread(async () =>
+                {
+
+                    await Shell.Current.GoToAsync(nameof(DgInformationFetchedPage), true,
+                        new Dictionary<string, object>
+                        {
+                            { "ImageData", faceInfo2.ImageData }
+                        });
+                });
+
                 return faceInfo2;
+
             }
             catch (Exception ex)
             {
@@ -224,6 +242,24 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
+        public static byte[] ConvertJp2ToJpeg(byte[] jp2Data)
+        {
+            using var input = new MemoryStream(jp2Data);
+            using var codec = SKCodec.Create(input);
+            if (codec == null)
+                throw new Exception("SKCodec creation failed.");
+
+            using var bitmap = SKBitmap.Decode(codec);
+            if (bitmap == null)
+                throw new Exception("Decoding the image data failed.");
+
+            using var output = new MemoryStream();
+            bool encoded = bitmap.Encode(output, SKEncodedImageFormat.Jpeg, 100);
+            if (!encoded)
+                throw new Exception("Failed to encode the bitmap to JPEG format.");
+
+            return output.ToArray();
+        }
 
         private static string AutoSaveImage(FaceImageInfo faceInfo, string fileNameBase, string extension)
         {
