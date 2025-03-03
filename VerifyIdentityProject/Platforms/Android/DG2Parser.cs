@@ -211,28 +211,15 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (jpegData.Length < 100)
                     throw new Exception($"Suspiciously short image data: {pureImgData.Length} bytes");
 
-                Console.WriteLine("Image data extracted successfully");
-
-                pureImgData = ImageConversionHelper.ConvertJp2ToJpeg_Magick(pureImgData);
-
-                Console.WriteLine("Trying to send image to view");
                 FaceImageInfo faceInfo2 = new FaceImageInfo
                 {
-                    ImageData = pureImgData, // Now this is a standard JPEG
+                    ImageData = pureImgData,
                     ImageFormat = "JP2"
                 };
 
-                // Navigate to the new page to display the image
-                MainThread.BeginInvokeOnMainThread(async () =>
-                {
-
-                    await Shell.Current.GoToAsync(nameof(DgInformationFetchedPage), true,
-                        new Dictionary<string, object>
-                        {
-                            { "ImageData", faceInfo2.ImageData }
-                        });
-                });
-
+                string extension = "blabla";
+                faceInfo2.SavedFilePath = AutoSaveImage(faceInfo2, fileNameBase, extension);
+                Console.WriteLine($"Image saved path: {faceInfo2.SavedFilePath}");
                 return faceInfo2;
 
             }

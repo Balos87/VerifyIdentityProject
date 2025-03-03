@@ -111,9 +111,9 @@ namespace VerifyIdentityProject.Platforms.Android
                     //BacProcessor bacProcessor = new BacProcessor(this);
                     //bacProcessor.ProcessBac(isoDep);
                     Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
-                    //var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
+                    var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
 
-                    //Console.WriteLine($"Ready to send imgage. length: {img.Length}");
+                    Console.WriteLine($"Ready to send imgage. length: {img.Length}");
 
                     Console.WriteLine($"Ready to send mrz data:");
 
@@ -125,6 +125,20 @@ namespace VerifyIdentityProject.Platforms.Android
                         { "DG1Data", mrz }
                     });
                     });
+
+                    // TODO, make it work
+                    // Navigate to the new page to display the image
+                    //MainThread.BeginInvokeOnMainThread(async () =>
+                    //{
+
+                    //    await Shell.Current.GoToAsync(nameof(DgInformationFetchedPage), true,
+                    //        new Dictionary<string, object>
+                    //        {
+                    //        { "ImageData", faceInfo2.ImageData }
+                    //        });
+                    //});
+
+
                     foreach (var field in mrz)
                     {
                         Console.WriteLine($"{field.Key}: {field.Value}");
