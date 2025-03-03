@@ -7,14 +7,14 @@ namespace VerifyIdentityProject.Platforms.Android
     {
         private readonly IsoDep _isoDep;
         private static byte[] AID_MRTD = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
-        private static string _mrz;
+        private static Dictionary<string, string> _mrz;
         public PaceProcessorDG1(IsoDep isoDep)
         {
             _isoDep = isoDep;
         }
 
         // Main method to perform PACE
-        public static string PerformPaceDG1(IsoDep isoDep)
+        public static Dictionary<string,string> PerformPaceDG1(IsoDep isoDep)
         {
             Console.WriteLine("<-PerformPace DG1->");
             try

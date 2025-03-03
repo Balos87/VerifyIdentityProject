@@ -20,7 +20,7 @@ namespace VerifyIdentityProject.Platforms.Android
         private byte[] _ksEnc;
         private byte[] _ksMac;
         private byte[] _ssc;
-        private string _mrz;
+        private Dictionary<string, string> _dictionaryMrzData;
 
         public SecureMessage(byte[] ksEnc, byte[] ksMac, IsoDep isoDep)
         {
@@ -97,7 +97,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             return response;
         }
-        public string SelectDG1()
+        public Dictionary<string, string> SelectDG1()
         {
             Console.WriteLine("------------------------------------------------------------Select DG1 with secure message started...");
             //var ssc = new byte[16]; // PACE: 16 bytes av nollor
@@ -189,25 +189,25 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine($"Parsed nya");
                 var fullMrz = MRZByteParser.ParseMRZBytes(completeDG1);
-                _mrz = fullMrz;
+                //_mrz = fullMrz;
                 var splittedMrz = MRZByteParser.FormatMRZForBAC(fullMrz);
                 Console.WriteLine($"Hel MRZ: {fullMrz}");
                 Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
 
                 var extractedInfoFromMrz = MRZParser.ParseMRZ(splittedMrz);
 
-                var extractedInfoWithDescription = MRZParser.ToDictionary(extractedInfoFromMrz);
+                _dictionaryMrzData = MRZParser.ToDictionary(extractedInfoFromMrz);
 
                 var parsedMRZ = ParseMRZ(splittedMrz);
 
-                foreach (var field in extractedInfoWithDescription)
+                foreach (var field in _dictionaryMrzData)
                 {
                     Console.WriteLine($"{field.Key}: {field.Value}");
                 }
             }
             Console.WriteLine("/----------------------------------------------------------------------- DG1 process finished!");
 
-            return _mrz;
+            return _dictionaryMrzData;
         }
         public byte[] SelectDG2()
         {

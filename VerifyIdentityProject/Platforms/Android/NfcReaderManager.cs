@@ -110,12 +110,16 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine("ISO-DEP Tag detected. Starting PACE...");
                     //BacProcessor bacProcessor = new BacProcessor(this);
                     //bacProcessor.ProcessBac(isoDep);
-                    string mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
+                    Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
                     var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
 
                     Console.WriteLine($"Ready to send imgage. length: {img.Length}");
-                    Console.WriteLine($"Ready to send mrz data: {mrz}");
 
+                    Console.WriteLine($"Ready to send mrz data:");
+                    foreach (var field in mrz)
+                    {
+                        Console.WriteLine($"{field.Key}: {field.Value}");
+                    }
                     // Trigger event to notify that an NFC chip was detected
                     OnNfcChipDetected?.Invoke("RFID Chip detected! Processing data...");
                 }
