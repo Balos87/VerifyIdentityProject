@@ -111,11 +111,20 @@ namespace VerifyIdentityProject.Platforms.Android
                     //BacProcessor bacProcessor = new BacProcessor(this);
                     //bacProcessor.ProcessBac(isoDep);
                     Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
-                    var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
+                    //var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
 
-                    Console.WriteLine($"Ready to send imgage. length: {img.Length}");
+                    //Console.WriteLine($"Ready to send imgage. length: {img.Length}");
 
                     Console.WriteLine($"Ready to send mrz data:");
+
+                    // Navigate to DG1Page and pass data
+                    MainThread.BeginInvokeOnMainThread(async () =>
+                    {
+                        await Shell.Current.GoToAsync(nameof(DG1Page), true, new Dictionary<string, object>
+                    {
+                        { "DG1Data", mrz }
+                    });
+                    });
                     foreach (var field in mrz)
                     {
                         Console.WriteLine($"{field.Key}: {field.Value}");

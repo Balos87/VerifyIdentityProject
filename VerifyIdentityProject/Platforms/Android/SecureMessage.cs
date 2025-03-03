@@ -198,15 +198,6 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 _dictionaryMrzData = MRZParser.ToDictionary(extractedInfoFromMrz);
 
-                // Navigate to DG1Page and pass data
-                MainThread.BeginInvokeOnMainThread(async () =>
-                {
-                    await Shell.Current.GoToAsync(nameof(DG1Page), true, new Dictionary<string, object>
-                    {
-                        { "DG1Data", extractedInfoWithDescription }
-                    });
-                });
-
                 var parsedMRZ = ParseMRZ(splittedMrz);
 
                 foreach (var field in _dictionaryMrzData)
