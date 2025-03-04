@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Controls;
+using VerifyIdentityProject.Helpers;
 
 namespace VerifyIdentityProject
 {
@@ -34,16 +35,34 @@ namespace VerifyIdentityProject
                 {
                     try
                     {
-                        // Använd vår SkiaSharp-baserade hjälpare för att behandla bilden
-                        byte[] processedImage = SkiaImageHelper.ProcessImage(_imageData);
+                        // Identifiera bildformatet
+                        string format = IdentifyImageFormat(_imageData);
+                        Console.WriteLine($"Identifierat bildformat: {format}");
 
-                        if (processedImage != null)
+                        byte[] processedData;
+
+                        if (format == "JPEG2000")
                         {
-                            MainThread.BeginInvokeOnMainThread(() => {
-                                PassportImage = ImageSource.FromStream(() => new MemoryStream(processedImage));
-                                Console.WriteLine("Bild bearbetad och inställd i UI");
-                            });
+                            // Konvertera JPEG2000 till JPEG
+                            processedData = JP2Converter.ConvertJP2ToJpeg(_imageData);
+
+                            // Om konverteringen misslyckades, använd originaldatan
+                            if (processedData == null)
+                            {
+                                Console.WriteLine("Konvertering misslyckades, använder originaldata");
+                                processedData = _imageData;
+                            }
                         }
+                        else
+                        {
+                            // Om det inte är JPEG2000, använd originaldatan
+                            processedData = _imageData;
+                        }
+
+                        // Uppdatera UI på UI-tråden
+                        MainThread.BeginInvokeOnMainThread(() => {
+                            PassportImage = ImageSource.FromStream(() => new MemoryStream(processedData));
+                        });
                     }
                     catch (Exception ex)
                     {
@@ -53,6 +72,32 @@ namespace VerifyIdentityProject
             }
         }
 
+        private string IdentifyImageFormat(byte[] data)
+        {
+            if (data == null || data.Length < 12)
+                return "UNKNOWN";
+
+            // JPEG signatur (börjar med FFD8FF)
+            if (data[0] == 0xFF && data[1] == 0xD8 && data[2] == 0xFF)
+                return "JPEG";
+
+            // JPEG2000 JP2 signatur (börjar med 0000000C6A502020)
+            if (data.Length > 8 &&
+                data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x00 && data[3] == 0x0C &&
+                data[4] == 0x6A && data[5] == 0x50 && data[6] == 0x20 && data[7] == 0x20)
+                return "JPEG2000";
+
+            // Alternativ JPEG2000 J2K signatur (börjar med FF4FFF)
+            if (data.Length > 3 && data[0] == 0xFF && data[1] == 0x4F && data[2] == 0xFF)
+                return "JPEG2000";
+
+            // PNG signatur (börjar med 89504E47)
+            if (data.Length > 4 &&
+                data[0] == 0x89 && data[1] == 0x50 && data[2] == 0x4E && data[3] == 0x47)
+                return "PNG";
+
+            return "UNKNOWN";
+        }
 
         public ImageSource PassportImage
         {
