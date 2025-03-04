@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Buffers.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Maui.Media;
 using VerifyIdentityProject.Helpers;
@@ -19,13 +21,50 @@ namespace VerifyIdentityProject.Helpers.MRZReader
         public MrzReader(Action<string> mrzNotFoundCallback, INfcReaderManager nfcReaderManager)
         {
             var appsettings = GetSecrets.FetchAppSettings();
-            var localUrl = appsettings?.LOCAL_SERVER ?? string.Empty;
+
             _nfcReaderManager = nfcReaderManager;
             _mrzNotFoundCallback = mrzNotFoundCallback; // Store the callback
-            _httpClient = new HttpClient
+            _httpClient = new HttpClient();
+
+            Task.Run(async () =>
             {
-                BaseAddress = new Uri(localUrl) // Local API URL
-            };
+                var selectedUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+                _httpClient.BaseAddress = new Uri(selectedUrl);
+            }).Wait(); // Ensures BaseAddress is set before proceeding
+
+        }
+
+        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
+        {
+            if (await IsApiAvailable(apiUrl))
+            {
+                Console.WriteLine($"Using API URL: {apiUrl}");
+                return apiUrl;
+            }
+
+            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
+            return localUrl ?? string.Empty;
+        }
+
+        private static async Task<bool> IsApiAvailable(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            string healthCheckUrl = $"{url}api/health";
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(healthCheckUrl);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task ScanAndExtractMrzAsync()

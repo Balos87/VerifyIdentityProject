@@ -1,0 +1,4 @@
+﻿{
+  "LOCAL_SERVER": "http://YOUR_LOCAL_IP_HERE:5000/",
+  "API_URL": "Your_API_URL_here"
+}

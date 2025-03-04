@@ -10,5 +10,6 @@ namespace VerifyIdentityProject.Helpers
     {
         public string MRZ_NUMBERS { get; set; }
         public string LOCAL_SERVER { get; set; }
+        public string API_URL { get; set; }
     }
 }

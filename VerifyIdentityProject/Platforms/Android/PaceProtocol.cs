@@ -36,6 +36,7 @@ namespace VerifyIdentityProject.Platforms.Android
         private byte[] KSMAC;
         private byte[] KSEnc;
 
+
         public PaceProtocol(IsoDep isoDep, string mrz, byte[]oid)
         {
             this.isoDep = isoDep;

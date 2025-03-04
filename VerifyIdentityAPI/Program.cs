@@ -46,6 +46,9 @@ namespace VerifyIdentityAPI
 
             app.UseAuthorization();
 
+            // Configure the health check endpoint
+            app.MapGet("/api/health", () => Results.Ok("API is running"));
+
             // Configure the MRZ extraction endpoint
             app.MapPost("/api/mrz/extract", async (IFormFile file, IMrzService mrzService) =>
             {
