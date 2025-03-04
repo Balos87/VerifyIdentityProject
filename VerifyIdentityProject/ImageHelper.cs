@@ -40,15 +40,18 @@ namespace VerifyIdentityProject
                     }
 
                     Console.WriteLine("Kunde inte konvertera bild");
+                    // Om konverteringen misslyckades, prova fallback-metoden
+                    return CreateFallbackImage(imageData);
                 }
 
-                // Om det inte är JPEG2000 eller konverteringen misslyckades, returnera originaldata
+                // Om det inte är JPEG2000, returnera originaldata
                 return imageData;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Fel vid bildkonvertering: {ex.Message}");
-                return imageData; // Returnera originaldata vid fel
+                // Vid fel, försök med fallback-metoden
+                return CreateFallbackImage(imageData);
             }
         }
 
@@ -63,6 +66,78 @@ namespace VerifyIdentityProject
                     data[4] == 0x6A && data[5] == 0x50 && data[6] == 0x20 && data[7] == 0x20) ||
                    // Alternativ signatur för vissa JPEG2000-filer
                    (data[0] == 0xFF && data[1] == 0x4F && data[2] == 0xFF);
+        }
+
+        private static byte[] CreateFallbackImage(byte[] originalData)
+        {
+            try
+            {
+                // Skapa en ny bitmap
+                using (var bitmap = new SKBitmap(300, 400))
+                {
+                    // Fyll med en ljusgrå bakgrund
+                    using (var canvas = new SKCanvas(bitmap))
+                    {
+                        canvas.Clear(SKColors.LightGray);
+
+                        try
+                        {
+                            // Försök dekoda originalbilden
+                            var originalBitmap = SKBitmap.Decode(originalData);
+                            if (originalBitmap != null)
+                            {
+                                // Beräkna position för att centrera bilden
+                                float scaleX = (float)bitmap.Width / originalBitmap.Width;
+                                float scaleY = (float)bitmap.Height / originalBitmap.Height;
+                                float scale = Math.Min(scaleX, scaleY);
+
+                                int scaledWidth = (int)(originalBitmap.Width * scale);
+                                int scaledHeight = (int)(originalBitmap.Height * scale);
+                                int x = (bitmap.Width - scaledWidth) / 2;
+                                int y = (bitmap.Height - scaledHeight) / 2;
+
+                                // Rita den originala bilden på canvas
+                                var destRect = new SKRect(x, y, x + scaledWidth, y + scaledHeight);
+                                canvas.DrawBitmap(originalBitmap, destRect);
+                            }
+                            else
+                            {
+                                // Rita en text att bilden inte kunde laddas
+                                var paint = new SKPaint
+                                {
+                                    Color = SKColors.Black,
+                                    TextSize = 20,
+                                    TextAlign = SKTextAlign.Center
+                                };
+                                canvas.DrawText("Bilden kunde inte visas", bitmap.Width / 2, bitmap.Height / 2, paint);
+                            }
+                        }
+                        catch
+                        {
+                            // Minimal fallback om inget annat fungerar
+                            var paint = new SKPaint
+                            {
+                                Color = SKColors.Black,
+                                TextSize = 20,
+                                TextAlign = SKTextAlign.Center
+                            };
+                            canvas.DrawText("Passbild", bitmap.Width / 2, bitmap.Height / 2, paint);
+                        }
+                    }
+
+                    // Konvertera till JPEG
+                    using (var image = SKImage.FromBitmap(bitmap))
+                    {
+                        var data = image.Encode(SKEncodedImageFormat.Jpeg, 90);
+                        return data.ToArray();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Fel vid skapande av fallback-bild: {ex.Message}");
+                return originalData;
+            }
         }
     }
 }
