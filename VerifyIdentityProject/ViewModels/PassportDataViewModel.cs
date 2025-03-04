@@ -30,10 +30,22 @@ namespace VerifyIdentityProject
                 _imageData = value;
                 OnPropertyChanged();
 
-                // Konvertera byte-array till ImageSource när data uppdateras
                 if (_imageData != null && _imageData.Length > 0)
                 {
-                    PassportImage = ImageSource.FromStream(() => new MemoryStream(_imageData));
+                    try
+                    {
+                        // Konvertera bilden om det är JPEG2000
+                        byte[] processedImageData = ImageHelper.ConvertJpeg2000ToJpeg(_imageData);
+
+                        // Skapa ImageSource från den bearbetade bilddatan
+                        MainThread.BeginInvokeOnMainThread(() => {
+                            PassportImage = ImageSource.FromStream(() => new MemoryStream(processedImageData));
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Fel vid bildinställning: {ex.Message}");
+                    }
                 }
             }
         }
