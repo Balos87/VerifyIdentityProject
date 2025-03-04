@@ -218,7 +218,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 };
 
                 string extension = "blabla";
-                faceInfo2.SavedFilePath = AutoSaveImage(faceInfo2, fileNameBase, extension);
+                //faceInfo2.SavedFilePath = AutoSaveImage(faceInfo2, fileNameBase, extension);
                 Console.WriteLine($"Image saved path: {faceInfo2.SavedFilePath}");
                 return faceInfo2;
 

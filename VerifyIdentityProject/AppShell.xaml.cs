@@ -14,9 +14,8 @@ namespace VerifyIdentityProject
             _serviceProvider = serviceProvider;
 
             // Register DG1Page for navigation
-            Routing.RegisterRoute(nameof(DG1Page), typeof(DG1Page));
+            Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
 
-            // Example: Using the service provider to resolve MainPage
             Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>() });
             Routing.RegisterRoute(nameof(DgInformationFetchedPage), typeof(DgInformationFetchedPage));
 

@@ -113,32 +113,16 @@ namespace VerifyIdentityProject.Platforms.Android
                     Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
                     var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
 
-                    Console.WriteLine($"Ready to send imgage. length: {img.Length}");
-
-                    Console.WriteLine($"Ready to send mrz data:");
-
-                    // Navigate to DG1Page and pass data
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
-                        await Shell.Current.GoToAsync(nameof(DG1Page), true, new Dictionary<string, object>
-                    {
-                        { "DG1Data", mrz }
+                        await Shell.Current.GoToAsync(nameof(PassportDataPage), true, new Dictionary<string, object>
+                        {
+                            { "DG1Data", mrz },
+                            { "ImageData", img }
+                        });
                     });
-                    });
 
-                    // TODO, make it work
-                    // Navigate to the new page to display the image
-                    //MainThread.BeginInvokeOnMainThread(async () =>
-                    //{
-
-                    //    await Shell.Current.GoToAsync(nameof(DgInformationFetchedPage), true,
-                    //        new Dictionary<string, object>
-                    //        {
-                    //        { "ImageData", faceInfo2.ImageData }
-                    //        });
-                    //});
-
-
+                    
                     foreach (var field in mrz)
                     {
                         Console.WriteLine($"{field.Key}: {field.Value}");
