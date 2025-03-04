@@ -33,11 +33,8 @@ namespace VerifyIdentityProject.Platforms.Android
         private readonly string mrz;
         private AsymmetricKeyParameter privateKey;
         private ECPrivateKeyParameters privateKeyParameters;
-        private Org.BouncyCastle.Math.EC.ECPoint ourPublicKey;        // Vår publika nyckel från Key Agreement (steg 3)
-
-        private byte[] KSENC;
-        public byte[] KSEnc { get; private set; }  // Encryption Key (Readable but not writable outside)
-        public byte[] KSMAC { get; private set; }  // MAC Key (Readable but not writable outside)
+        private byte[] KSMAC;
+        private byte[] KSEnc;
 
 
         public PaceProtocol(IsoDep isoDep, string mrz, byte[]oid)
@@ -47,29 +44,41 @@ namespace VerifyIdentityProject.Platforms.Android
             this.oid = oid;
         }
 
-        public async Task<bool> PerformPaceProtocol()
+        public bool PerformPaceProtocol()
         {
             isoDep.Timeout = 400000;
             try
             {
-                // 1. MSE:SET AT
-                if (!await MseSetAtSelectPaceProtocol())
+                // 1. MSE:Set AT command to initiate PACE
+                if (!MseSetAtSelectPaceProtocol())
                     return false;
 
-                // 2. Få krypterad nonce
-                var encryptedNonce = await GetEncryptedNonce();
+                // 2. Get encrypted nonce from the passport
+                var encryptedNonce = GetEncryptedNonce();
                 if (encryptedNonce == null)
                     return false;
 
                 //Tested with dokument mrz and encryptedNonce and I got the same result as in the document ✅
                 //[DOTNET] DecryptNonce: 3F-00-C4-D3-9D-15-3F-2B-2A-21-4A-07-8D-89-9B-22
-                // 3. Dekryptera nonce
+                // 3. Decrypt the nonce using the password derived from the MRZ
                 var decryptedNonce = DecryptNonce(encryptedNonce);
 
-                // 4. Generera och skicka mappade parametrar
-                var mappedParams = await GenerateAndSendMappedParameters(decryptedNonce);
+                // 4. Generate and exchange ephemeral keys
+                // var mappingData = await PerformMapping(decryptedNonce);
+                // var (myKeyPair, theirPubKey) = await ExchangeEphemeralKeys(mappingData);
+                var mappedParams = GenerateAndSendMappedParameters(decryptedNonce);
                 if (!mappedParams)
                     return false;
+
+
+                //// Step 6: Calculate the shared secret
+                // var sharedSecret = CalculateSharedSecret(myKeyPair, theirPubKey);
+                //byte[] sharedSecret = null;
+                //// Step 7: Derive session keys
+                // var (KSenc, KSmac) = DeriveSessionKeys(sharedSecret);
+
+                //// Step 8: Perform Mutual Authentication
+                // await PerformMutualAuthentication(KSenc, KSmac);
 
                 return true;
             }
@@ -81,7 +90,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
        
-        private async Task<bool> MseSetAtSelectPaceProtocol()
+        private bool MseSetAtSelectPaceProtocol()
         {
             // Protocoll OID
             //byte[] protocolOID = new byte[] { 0x04, 0x00, 0x7F, 0x00, 0x07, 0x02, 0x02, 0x04, 0x02, 0x04 };
@@ -130,7 +139,7 @@ namespace VerifyIdentityProject.Platforms.Android
             return IsSuccessful(response);
         }
 
-        private async Task<byte[]> GetEncryptedNonce()
+        private byte[] GetEncryptedNonce()
         {
             Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
             var getNonceCommand = new byte[]
@@ -149,7 +158,7 @@ namespace VerifyIdentityProject.Platforms.Android
             sw.Start();
             Console.WriteLine("timer started...");
 
-            var response = await isoDep.TransceiveAsync(getNonceCommand);
+            var response = isoDep.Transceive(getNonceCommand);
             sw.Stop();
             Console.WriteLine("timer stopped...");
             Console.WriteLine("Total time:" + sw.Elapsed.TotalSeconds.ToString());
@@ -296,7 +305,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private async Task<bool> GenerateAndSendMappedParameters(byte[] decryptedNonce)
+        private bool GenerateAndSendMappedParameters(byte[] decryptedNonce)
         {
             Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
@@ -318,7 +327,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Sending ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
 
                 // Sending our public key and recieving chip public key - Checked should be ok, has the same TLV as documentation ✅
-                var chipPublicKey = await isoDep.TransceiveAsync(ourPublicKeyApdu);
+                var chipPublicKey = isoDep.Transceive(ourPublicKeyApdu);
                 Console.WriteLine($"Recieved chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
 
                 // Extract chip public key from response - Checked should be ok. It keeps 04||x||y ✅
@@ -357,7 +366,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine($"Sending gTildePublicKeyAPdu: {BitConverter.ToString(gTildePublicKeyAPdu)}");
                 // sending our gTilde-public key and recieving chip-gTilde-public key
-                var chipGTildePublicKey = await isoDep.TransceiveAsync(gTildePublicKeyAPdu);
+                var chipGTildePublicKey = isoDep.Transceive(gTildePublicKeyAPdu);
                 Console.WriteLine($"Recieved chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
 
                 // Extract chip-gTilde-public key from response
@@ -383,12 +392,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 // We use K to create KSMac and KSEnc
-                KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Encryption Key
-                KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // Authentication Key
-
-                Console.WriteLine($"🔹 KSEnc: {BitConverter.ToString(KSEnc)}");
-                Console.WriteLine($"🔹 KSMAC: {BitConverter.ToString(KSMAC)}");
-
+                KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // Krypteringsnyckel
+                KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // Autentiseringsnyckel
 
                 Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
                 Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
@@ -409,12 +414,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 var comand = ECDHKeyGenerator.BuildTokenCommand(TPCD);
                 Console.WriteLine($"sending TPCD command: {BitConverter.ToString(comand)}");
 
-                var responseTic = await isoDep.TransceiveAsync(comand);
+                var responseTic = isoDep.Transceive(comand);
                 Console.WriteLine($"responseTic respo: {BitConverter.ToString(responseTic)}");
 
 
 
-                return IsSuccessful(chipGTildePublicKey);
+                return true;
             }
             catch (Exception ex)
             {
@@ -423,6 +428,10 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
+        public (byte[] KSEnc, byte[] KSMac ) GetKsEncAndKsMac()
+        {
+            return(KSEnc, KSMAC);
+        }
 
         private static byte[] ParseTLV(byte[] data, byte expectedTag)
         {
