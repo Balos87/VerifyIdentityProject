@@ -1,4 +1,8 @@
-﻿namespace VerifyIdentityProject
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Maui.Controls;
+using System;
+
+namespace VerifyIdentityProject
 {
     public partial class AppShell : Shell
     {
@@ -9,11 +13,13 @@
             InitializeComponent();
             _serviceProvider = serviceProvider;
 
-            // Example: Using the service provider to resolve MainPage
+            // Register DG1Page for navigation
+            Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
+
             Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>() });
+            Routing.RegisterRoute(nameof(DgInformationFetchedPage), typeof(DgInformationFetchedPage));
+
 
         }
     }
-
-
 }

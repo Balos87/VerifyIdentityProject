@@ -58,8 +58,10 @@
 		<!-- Raw Assets -->
 
 	</ItemGroup>
-
+	
 	<ItemGroup>
+		<PackageReference Include="FreeImageNET" Version="3.17.1" />
+		<PackageReference Include="Magick.NET-Q8-AnyCPU" Version="14.5.0" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
@@ -69,6 +71,8 @@
 		<PackageReference Include="OpenCvSharp4.runtime.win" Version="4.10.0.20241108" />
 		<PackageReference Include="OpenCvSharp4.Windows" Version="4.10.0.20241108" />
 		<PackageReference Include="Sdcb.OpenCvSharp4.mini.runtime.android-arm64" Version="4.8.0.20230708" />
+		<PackageReference Include="SkiaSharp" Version="3.116.1" />
+		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.116.1" />
 		<PackageReference Include="Tesseract" Version="5.2.0" />
 		<PackageReference Include="Tesseract.Drawing" Version="5.2.0" />
 		<PackageReference Include="TesseractOcrMaui" Version="1.2.0" />
@@ -94,6 +98,24 @@
 
 	<ItemGroup>
 	  <None Remove="Resources\appsettings.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiXaml Update="DG1Page.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="DG2Page.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <MauiXaml Update="DgInformationFetchedPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
+	  <MauiXaml Update="PassportDataPage.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </MauiXaml>
 	</ItemGroup>
 
 

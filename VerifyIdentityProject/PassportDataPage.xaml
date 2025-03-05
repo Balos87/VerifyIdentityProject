@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="VerifyIdentityProject.PassportDataPage"
+             Title="Passport Information">
+    <ContentPage.Content>
+        <ScrollView>
+            <StackLayout Padding="9">
+                 <!--Show picture--> 
+                <Frame BorderColor="White" HasShadow="True" Padding="1" Margin="0,0,0,10"
+                       HorizontalOptions="Center">
+                    <Grid >
+                        <Image Source="{Binding PassportImage}"  
+                         Aspect="AspectFit"
+                         HorizontalOptions="Center" HeightRequest="260" WidthRequest="195"/>
+                    </Grid>
+                </Frame>
+
+                <!--<Border Stroke="Gray" 
+                        StrokeThickness="1"
+                        Background="White"
+                        StrokeShape="Rectangle"
+                        Padding="1" 
+                        Margin="0,0,0,10" 
+                        HorizontalOptions="Center">
+                    <Grid >
+                        <Image Source="{Binding PassportImage}"  
+                         Aspect="AspectFit"
+                         HorizontalOptions="Center" HeightRequest="260" WidthRequest="195"/>
+                    </Grid>
+                </Border>-->
+
+                <!-- Show MRZ-data -->
+                <Label Text="Passport Data" FontSize="24" FontAttributes="Bold" Margin="0,10,0,10"/>
+                <ListView ItemsSource="{Binding DG1Data}"
+                          HeightRequest="350"
+                          HasUnevenRows="True"
+                          SeparatorVisibility="Default">
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <ViewCell>
+                                <Grid Padding="10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Grid.Column="0" 
+                                           Text="{Binding Key}" 
+                                           FontAttributes="Bold"
+                                           Margin="0,0,10,0"/>
+                                    <Label Grid.Column="1" 
+                                           Text="{Binding Value}"
+                                           LineBreakMode="WordWrap"/>
+                                </Grid>
+                            </ViewCell>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+                
+            </StackLayout>
+        </ScrollView>
+    </ContentPage.Content>
+</ContentPage>

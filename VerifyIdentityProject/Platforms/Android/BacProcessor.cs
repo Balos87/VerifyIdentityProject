@@ -25,10 +25,6 @@ using Org.BouncyCastle.Utilities.IO;
 using static AndroidX.Concurrent.Futures.CallbackToFutureAdapter;
 using static Android.Graphics.PathIterator;
 
-
-
-
-
 #if ANDROID
 using static Android.OS.Environment;
 using static Android.Provider.MediaStore;
@@ -50,9 +46,6 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             _nfcReaderManager.HandleTagDiscovered(tag);
         }
-
-        //[DOTNET] 31-28    -30-12  -06-0A-     04-00-7F-00-07-02-02-04-02-04-  02-01-02-   02-01-10
-        //                  -30-12  -06-0A-     04-00-7F-00-07-02-02-04-04-04-  02-01-02-   02-01-0D
 
         public void ProcessBac(IsoDep isoDep)
         {
@@ -92,7 +85,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine("-------------------------------------------------Starting DG1");
                 //DG1 method
                 CallDG1.Call(isoDep, KSEncParitet, KSMacParitet, SSC);
-
 
             }
             finally
@@ -305,7 +297,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------  1.3 Build DO‘87’: DO87 = ‘87-09-01-63-75-43-29-08-C0-44-F6’ - Recieved: 87-09-01-63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] DO87 = BuildDO87(encryptedData);
                 Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
-
+                    
                 //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO‘87’: M = ‘0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6’ -- RÄTT
                 //                                                                                                       Recieved: 0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6
                 byte[] M = cmdHeader.Concat(DO87).ToArray();
@@ -321,12 +313,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
-                byte[] N = PadIso9797Method2(NNopad);
-                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
-                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //use with no pad so compute can work!
-                Console.WriteLine($"-N Nopad-: {BitConverter.ToString(NNopad)}");
+                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
                 Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
@@ -335,7 +325,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
 
 
-                //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
+                //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-
+                //8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
                 //                                                                                                                 Recieved: 0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00 
                 byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO87, DO8E);
                 Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
@@ -357,12 +348,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
                 Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
-                byte[] K = PadIso9797Method2(SSC.Concat(DO99).ToArray());
-                Console.WriteLine($"(K) Padded data for MAC: {BitConverter.ToString(K)}");
+                byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
+                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
-                byte[] kNoPad = SSC.Concat(DO99).ToArray(); //removed pad so compute can work!
-                byte[] ccMac = ComputeMac3DES(kNoPad, KSMacParitet);
+                byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
                 Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
@@ -376,7 +366,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 //----------------------------------------------------------------------- 1 Read Binary of first four bytes
-                Console.WriteLine("/----------------------------------------------------------------------- 1 Read Binary of first four bytes");
+                Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
                 List<byte[]> dg1Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
                 if (dg1Segments.Count > 0)
                 {
@@ -465,12 +455,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
-                byte[] N = PadIso9797Method2(NNopad);
-                Console.WriteLine($"-N-: {BitConverter.ToString(N)}");
+                //byte[] N = PadIso9797Method2(NNopad);
+                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
-                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //use with no pad so compute can work!
-                Console.WriteLine($"-N Nopad-: {BitConverter.ToString(NNopad)}");
+                byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
                 Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
@@ -500,12 +489,11 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
                 Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
-                byte[] K = PadIso9797Method2(SSC.Concat(DO99).ToArray());
-                Console.WriteLine($"(K) Padded data for MAC: {BitConverter.ToString(K)}");
+                byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
+                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
-                byte[] kNoPad = SSC.Concat(DO99).ToArray(); //removed pad so compute can work!
-                byte[] ccMac = ComputeMac3DES(kNoPad, KSMacParitet);
+                byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
                 Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
@@ -518,7 +506,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
 
-                //----------------------------------------------------------------------- 1 Read Binary of first four bytes
+                //----------------------------------------------------------------------- Read all data Read Binary
                 Console.WriteLine("/----------------------------------------------------------------------- Read Binary");
                 List<byte[]> dg2Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
                 Console.WriteLine($"amount returned segment data: {dg2Segments.Count}");
@@ -529,344 +517,14 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
                 Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-                var bildbit = DG2Parser.ParseDG2(completeData);
-                Console.WriteLine($"--------------DG2 {bildbit.Status}");
+                //var bildbit = DG2Parser.ParseDG2(completeData);
 
                 Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
             }
         }
 
-        public class DG2Parser
-        {
-            public class FaceImageInfo
-            {
-                public byte[] ImageData { get; set; }
-                public string ImageFormat { get; set; }
-                public string SavedFilePath { get; set; }
-            }
 
-            private class ASN1Length
-            {
-                public int Length { get; set; }
-                public int BytesUsed { get; set; }
-            }
-
-            public static async Task<FaceImageInfo> ParseDG2(byte[] rawData, string fileName = "passport_photo")
-            {
-                try
-                {
-                    Console.WriteLine($"Starting DG2 parse, total data length: {rawData.Length}");
-                    Console.WriteLine($"First 16 bytes: {BitConverter.ToString(rawData.Take(16).ToArray())}");
-                    Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(rawData.Skip(rawData.Length - 20).Take(20).ToArray())}");
-
-
-                    // Hitta och validera DG2 data
-                    int offset = 0;
-                    while (offset < rawData.Length - 2)
-                    {
-                        // Leta efter biometrisk information tag (7F61)
-                        if (rawData[offset] == 0x7F && rawData[offset + 1] == 0x61)
-                        {
-                            Console.WriteLine($"Found 7F61 tag at offset: {offset}");
-                            break;
-                        }
-                        offset++;
-                    }
-
-                    if (offset >= rawData.Length - 2)
-                    {
-                        throw new Exception("Kunde inte hitta början av biometrisk data");
-                    }
-
-                    // Skippa 7F61 tag
-                    offset += 2;
-
-                    // Läs längden på biometrisk data
-                    var bioLength = DecodeASN1Length(rawData, offset);
-                    offset += bioLength.BytesUsed;
-
-                    Console.WriteLine($"Biometric data length: {bioLength.Length}");
-
-                    // Leta efter bildinformation (5F2E)
-                    while (offset < rawData.Length - 2)
-                    {
-                        if (rawData[offset] == 0x5F && rawData[offset + 1] == 0x2E)
-                        {
-                            Console.WriteLine($"Found image tag 5F2E at offset: {offset}");
-                            break;
-                        }
-                        offset++;
-                    }
-
-                    if (offset >= rawData.Length - 2)
-                    {
-                        throw new Exception("Kunde inte hitta bilddata");
-                    }
-
-                    // Skippa 5F2E tag
-                    offset += 2;
-
-                    // Läs längden på bilddata
-                    var imageLength = DecodeASN1Length(rawData, offset);
-                    offset += imageLength.BytesUsed;
-
-                    Console.WriteLine($"Image data length: {imageLength.Length}");
-
-                    int jpegStart = -1;
-                    for (int i = offset; i < rawData.Length - 1; i++)
-                    {
-                        if (rawData[i] == 0xFF && rawData[i + 1] == 0xD8)
-                        {
-                            jpegStart = i;
-                            Console.WriteLine($"JPEG jpegStart:{jpegStart}");
-
-                            break;
-                        }
-                    }
-
-                    if (jpegStart == -1)
-                    {
-                        throw new Exception("Kunde inte hitta JPEG start markör (FF D8)");
-                    }
-
-                    // Hitta JPEG slut
-                    int jpegEnd = -1;
-                    for (int i = jpegStart; i < rawData.Length - 1; i++)
-                    {
-                        if (rawData[i] == 0xFF && rawData[i + 1] == 0xD9)
-                        {
-                            jpegEnd = i + 2; // Inkludera FF D9
-                            Console.WriteLine($"JPEG jpegEnd:{jpegEnd}");
-
-                            break;
-                        }
-                    }
-
-                    if (jpegEnd == -1)
-                    {
-                        throw new Exception("Kunde inte hitta JPEG slut markör (FF D9)");
-                    }
-
-                    // Beräkna faktisk JPEG storlek och kopiera datan
-                    int jpegLength = jpegEnd - jpegStart;
-                    byte[] jpegData = new byte[jpegLength];
-                    Array.Copy(rawData, jpegStart, jpegData, 0, jpegLength);
-
-                    // Extrahera bilddata
-                    Console.WriteLine($"Raw image data length before copying rawdata over to jpegData: {rawData.Length}");
-                    Console.WriteLine($"First 16 bytes before copying rawdata over to jpegData: {BitConverter.ToString(rawData.Take(16).ToArray())}");
-                    Console.WriteLine($"Last 20 bytes before copying rawdata over to jpegData: {BitConverter.ToString(rawData.Skip(rawData.Length - 20).Take(20).ToArray())}");
-
-                    Console.WriteLine($"data length after copying rawdata over to jpegData: {jpegData.Length}");
-                    Console.WriteLine($"First 16 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
-                    Console.WriteLine($"Last 20 bytes after copying rawdata over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
-
-
-                    // Ta bort 80 00 sekvenser
-                    jpegData = RemovePadding(jpegData);
-                    const int chunkSize = 100;
-                    for (int i = 0; i < jpegData.Length; i += chunkSize)
-                    {
-                        int length = Math.Min(chunkSize, jpegData.Length - i);
-                        var chunk = new byte[length];
-                        Array.Copy(jpegData, i, chunk, 0, length);
-                        Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
-                    }
-                    Console.WriteLine($"Final JPEG length after padding removal: {jpegData.Length}");
-                    Console.WriteLine($"Final JPEG header: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
-                    Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 16).Take(16).ToArray())}");
-
-                    var nopad = RemovePadding2(jpegData);
-                    Console.WriteLine($"nopad JPEG length after padding removal: {nopad.Length}");
-
-                    if (!IsValidJPEG(nopad))
-                    {
-                        throw new Exception("Extraherad data är inte en giltig JPEG");
-                    }
-                    if (jpegData.Length < 100)
-                    {
-                        throw new Exception($"Misstänkt kort bilddata: {nopad.Length} bytes");
-                    }
-                    var faceInfo = new FaceImageInfo
-                    {
-                        ImageData = nopad,
-                        ImageFormat = "JPEG"
-                    };
-
-                    faceInfo.SavedFilePath = await AutoSaveImage(faceInfo, fileName);
-                    Console.WriteLine($"-------------SAVED PATH: {faceInfo.SavedFilePath}");
-                    return faceInfo;
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Fel vid parsning av DG2 data: " + ex.Message, ex);
-                }
-            }
-
-            public static byte[] RemovePadding2(byte[] input)
-            {
-                List<byte> result = new List<byte>();
-
-                for (int i = 0; i < input.Length; i++)
-                {
-                    // Kolla om vi har hittat början på en padding-sekvens
-                    if (i <= input.Length - 8 &&  // Se till att vi har nog med bytes kvar att kolla
-                        input[i] == 0x80 &&
-                        input[i + 1] == 0x00 &&
-                        input[i + 2] == 0x00 &&
-                        input[i + 3] == 0x00 &&
-                        input[i + 4] == 0x00 &&
-                        input[i + 5] == 0x00 &&
-                        input[i + 6] == 0x00 &&
-                        input[i + 7] == 0x00)
-                    {
-                        // Hoppa över padding-sekvensen
-                        i += 7;  // +7 eftersom for-loopen kommer lägga till +1
-                        continue;
-                    }
-
-                    // Lägg till byte om det inte var del av en padding
-                    result.Add(input[i]);
-                }
-
-                return result.ToArray();
-            }
-
-            private static ASN1Length DecodeASN1Length(byte[] data, int offset)
-            {
-                if (offset >= data.Length)
-                {
-                    throw new Exception("Ogiltig offset för ASN.1 längd-avkodning");
-                }
-
-                if ((data[offset] & 0x80) == 0)
-                {
-                    // Kort form
-                    return new ASN1Length { Length = data[offset], BytesUsed = 1 };
-                }
-
-                // Lång form
-                int numLengthBytes = data[offset] & 0x7F;
-                if (numLengthBytes > 4)
-                {
-                    throw new Exception("För lång ASN.1 längd");
-                }
-
-                int length = 0;
-                for (int i = 0; i < numLengthBytes; i++)
-                {
-                    length = (length << 8) | data[offset + 1 + i];
-                }
-
-                return new ASN1Length { Length = length, BytesUsed = 1 + numLengthBytes };
-            }
-
-            private static byte[] RemovePadding(byte[] data)
-            {
-                // Först, hitta den faktiska JPEG-datan
-                int startIndex = -1;
-                int endIndex = -1;
-
-                // Hitta JPEG header (FF D8)
-                for (int i = 0; i < data.Length - 1; i++)
-                {
-                    if (data[i] == 0xFF && data[i + 1] == 0xD8)
-                    {
-                        startIndex = i;
-                        Console.WriteLine($"JPEG start index:{startIndex}");
-                        break;
-                    }
-                }
-
-                // Hitta JPEG footer (FF D9)
-                Console.WriteLine($"Length of data:{data.Length}");
-                for (int i = data.Length - 2; i >= 0; i--)
-                {
-                    if (data[i] == 0xFF && data[i + 1] == 0xD9)
-                    {
-                        endIndex = i + 2; // Inkludera FF D9
-                        Console.WriteLine($"JPEG end Index:{endIndex}");
-                        break;
-                    }
-                }
-
-
-                if (startIndex == -1 || endIndex == -1)
-                {
-                    throw new Exception("Kunde inte hitta giltig JPEG-data");
-                }
-
-                // Extrahera bara den faktiska JPEG-datan
-                int length = endIndex - startIndex;
-                byte[] jpegData = new byte[length];
-                Array.Copy(data, startIndex, jpegData, 0, length);
-
-                return jpegData;
-            }
-
-            private static bool IsValidJPEG(byte[] data)
-            {
-                if (data == null || data.Length < 4)
-                    return false;
-
-                // Kontrollera JPEG signatur och slutmarkör
-                if (data[0] != 0xFF || data[1] != 0xD8)
-                    return false;
-
-                // Sök efter JPEG slutmarkör
-                for (int i = data.Length - 2; i >= 0; i--)
-                {
-                    if (data[i] == 0xFF && data[i + 1] == 0xD9)
-                        return true;
-                }
-
-                return false;
-            }
-
-            private static async Task<string> AutoSaveImage(FaceImageInfo faceInfo, string fileName)
-            {
-                try
-                {
-                    // Bygg filnamn
-                    string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                    string fullFileName = $"{fileName}_{timestamp}.jpg";
-
-                    // Använd MediaStore för att spara bilden
-                    var context = global::Android.App.Application.Context;
-                    var resolver = context.ContentResolver;
-
-                    ContentValues values = new ContentValues();
-                    values.Put(IMediaColumns.DisplayName, fullFileName);
-                    values.Put(IMediaColumns.MimeType, "image/jpeg");
-                    values.Put(IMediaColumns.RelativePath, DirectoryPictures);
-
-                    var imageUri = resolver.Insert(Images.Media.ExternalContentUri, values);
-
-                    if (imageUri == null)
-                    {
-                        throw new Exception("Kunde inte skapa URI för att spara bilden.");
-                    }
-
-                    using (var outputStream = resolver.OpenOutputStream(imageUri))
-                    {
-                        if (outputStream == null)
-                        {
-                            throw new Exception("Kunde inte öppna OutputStream för att spara bilden.");
-                        }
-
-                        await outputStream.WriteAsync(faceInfo.ImageData, 0, faceInfo.ImageData.Length);
-                    }
-
-                    Console.WriteLine($"Bilden sparades: {imageUri.Path}");
-                    return imageUri.Path ?? "Okänd sökväg";
-                }
-                catch (Exception ex)
-                {
-                    throw new Exception("Kunde inte spara bilden: " + ex.Message, ex);
-                }
-            }
-        }
 
         //Funkar bra
         public class MRZParser
@@ -1288,7 +946,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-
         //Funkar bra
         public static List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
@@ -1300,7 +957,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 while (true)
                 {
-                    Console.WriteLine($"Reading DG1 at offset: {offset}");
+                    Console.WriteLine($"Reading DG at offset: {offset}");
 
                     // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00 };
@@ -1361,7 +1018,6 @@ namespace VerifyIdentityProject.Platforms.Android
                 return null;
             }
         }
-
 
         private static byte[] BuildEfComData(byte[] decryptedData)
         {
@@ -1486,7 +1142,6 @@ namespace VerifyIdentityProject.Platforms.Android
             return data.Take(unpaddedLength).ToArray();
         }
 
-
         private static byte[] EncryptWithKEnc3DES(byte[] data, byte[] KEnc)
         {
             using (var tripleDes = TripleDES.Create())
@@ -1533,6 +1188,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Lägg till padding till EIFD
                 byte[] paddedData = PadIso9797Method2(data);
+                Console.WriteLine($"padded Data: {BitConverter.ToString(paddedData)}");
 
                 // MAC steg 1: Kryptera med nyckel 1
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
@@ -1643,7 +1299,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         }
 
-        static byte[] AdjustAndSplitKey(byte[] key)
+        public static byte[] AdjustAndSplitKey(byte[] key)
         {
             if (key.Length != 16)
                 throw new ArgumentException("Key must be 16 bytes long for 3DES");
@@ -1659,7 +1315,7 @@ namespace VerifyIdentityProject.Platforms.Android
             return Ka.Concat(Kb).ToArray();
         }
 
-        static byte[] AdjustParityBitsExact(byte[] key)
+        public static byte[] AdjustParityBitsExact(byte[] key)
         {
             byte[] adjustedKey = new byte[key.Length];
 
@@ -1803,6 +1459,5 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             return response.Length >= 2 && response[^2] == 0x90 && response[^1] == 0x00;
         }
-
     }
 }
