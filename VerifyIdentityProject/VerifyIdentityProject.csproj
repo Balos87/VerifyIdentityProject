@@ -117,6 +117,14 @@
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>
 	</ItemGroup>
+	
+	<ItemGroup>
+		<!-- Register native libraries -->
+		<NativeLibrary Include="x64/FreeImage.dll" />
+		<NativeLibrary Include="x64/leptonica-1.82.0.dll" />
+		<NativeLibrary Include="x64/tesseract50.dll" />
+		<NativeLibrary Include="x32/FreeImage.dll" Condition="'$(Platform)' == 'x86'" />
+	</ItemGroup>
 
 
 </Project>

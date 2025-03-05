@@ -7,6 +7,9 @@ using VerifyIdentityProject.Helpers;
 using System;
 using System.Text;
 using Microsoft.Maui.Controls;
+using Android.Hardware.Lights;
+using static Android.Icu.Text.ListFormatter;
+using Android.Graphics;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -112,6 +115,27 @@ namespace VerifyIdentityProject.Platforms.Android
                     //bacProcessor.ProcessBac(isoDep);
                     Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
                     var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
+
+                    //PLACEHOLDER id: 25F25 : Need to send img to read and decode and convert to bitmap and jpeg for display
+                    // Decode JP2 image and extract metadata
+                    Jp2Decoder decoder = new Jp2Decoder();
+                    (byte[] decodedImageData, int width, int height) = decoder.ParseJp2(img);
+
+                    if (decodedImageData != null && width > 0 && height > 0)
+                    {
+                        ConvertToBitmapThenJpeg converter = new ConvertToBitmapThenJpeg();
+
+                        // Convert the decoded JP2 pixel data into a Bitmap
+                        Bitmap bitmap = converter.ConvertToBitmap(decodedImageData, width, height);
+
+                        // Save the bitmap as a JPEG using the instance method
+                        converter.SaveBitmapAsJpeg(bitmap, "/storage/emulated/0/Download/passport_image.jpg");
+                    }
+                    else
+                    {
+                        Console.WriteLine("Failed to decode JP2 image.");
+                    }
+
 
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
