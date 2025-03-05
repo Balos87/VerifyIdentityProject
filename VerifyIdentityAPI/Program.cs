@@ -7,6 +7,7 @@ using VerifyIdentityAPI.Services;
 using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using System.Web.Mvc;
+using ImageMagick;
 
 namespace VerifyIdentityAPI
 {
@@ -45,6 +46,28 @@ namespace VerifyIdentityAPI
             app.UseRouting(); // Ensure routing is configured first
 
             app.UseAuthorization();
+
+            // Byte[] to JPG conversion endpoint
+            app.MapPost("/api/convert/bytetojpg", async (byte[] inputBytes) =>
+            {
+                try
+                {
+                    if (inputBytes.Length == 0)
+                        return Results.BadRequest("No file uploaded.");
+
+                    // Convert byte to JPG
+                    using var image = new MagickImage(inputBytes);
+                    image.Format = MagickFormat.Jpeg;
+                    byte[] jpgBytes = image.ToByteArray();
+
+                    return Results.File(jpgBytes, "image/jpeg", "converted.jpg");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                    return Results.StatusCode(500);
+                }
+            }).DisableAntiforgery();
 
             // Configure the health check endpoint
             app.MapGet("/api/health", () => Results.Ok("API is running"));
