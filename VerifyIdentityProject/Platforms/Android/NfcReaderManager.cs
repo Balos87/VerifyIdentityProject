@@ -107,27 +107,23 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     // Fetch API URL the same way as MrzReader
                     var appsettings = GetSecrets.FetchAppSettings();
-                    string apiUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+                    string apiUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
 
+                    // Perform PACE and retrieve MRZ data
                     Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
 
-                    // Await async call so imgData gets the actual bytes
+                    // Perform PACE and retrieve image data
                     byte[] imgData = await PaceProcessorDG2.PerformPaceDG2Async(isoDep, apiUrl);
 
-                    // Use `await` inside MainThread.BeginInvokeOnMainThread to ensure async behavior
+                    // Navigate to the PassportDataPage with the MRZ and image data
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
                         await Shell.Current.GoToAsync(nameof(PassportDataPage), true, new Dictionary<string, object>
-                    {
-                        { "DG1Data", mrz },
-                        { "ImageData", imgData }
-                    });
+                        {
+                            { "DG1Data", mrz },
+                            { "ImageData", imgData }
                         });
-
-                    foreach (var field in mrz)
-                    {
-                        Console.WriteLine($"{field.Key}: {field.Value}");
-                    }
+                    });
 
                     // Trigger event to notify that an NFC chip was detected
                     OnNfcChipDetected?.Invoke("RFID Chip detected! Processing data...");
@@ -144,39 +140,5 @@ namespace VerifyIdentityProject.Platforms.Android
                 OnNfcChipDetected?.Invoke($"Error processing NFC: {ex.Message}");
             }
         }
-
-        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
-        {
-            if (await IsApiAvailable(apiUrl))
-            {
-                Console.WriteLine($"Using API URL: {apiUrl}");
-                return apiUrl;
-            }
-
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
-            return localUrl ?? string.Empty;
-        }
-
-        private static async Task<bool> IsApiAvailable(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-            {
-                return false;
-            }
-
-            string healthCheckUrl = $"{url}api/health";
-
-            try
-            {
-                using var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(healthCheckUrl);
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
     }
 }

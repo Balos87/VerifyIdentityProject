@@ -28,43 +28,10 @@ namespace VerifyIdentityProject.Helpers.MRZReader
 
             Task.Run(async () =>
             {
-                var selectedUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+                var selectedUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
                 _httpClient.BaseAddress = new Uri(selectedUrl);
             }).Wait(); // Ensures BaseAddress is set before proceeding
 
-        }
-
-        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
-        {
-            if (await IsApiAvailable(apiUrl))
-            {
-                Console.WriteLine($"Using API URL: {apiUrl}");
-                return apiUrl;
-            }
-
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
-            return localUrl ?? string.Empty;
-        }
-
-        private static async Task<bool> IsApiAvailable(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-            {
-                return false;
-            }
-
-            string healthCheckUrl = $"{url}api/health";
-
-            try
-            {
-                using var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(healthCheckUrl);
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
         }
 
         public async Task ScanAndExtractMrzAsync()

@@ -206,7 +206,7 @@ namespace VerifyIdentityProject.Helpers
 
         }
 
-        public bool IsSuccessfulResponsePace(byte[] response)
+        public static bool IsSuccessfulResponsePace(byte[] response)
         {
             Console.WriteLine("<-IsSuccessfulResponse->");
             if (response == null || response.Length < 2)

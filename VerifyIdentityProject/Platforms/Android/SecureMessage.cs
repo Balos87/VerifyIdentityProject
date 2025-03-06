@@ -353,14 +353,12 @@ namespace VerifyIdentityProject.Platforms.Android
                     // Steg 2: Skicka kommando till DG1
                     byte[] RAPDU = isoDep.Transceive(protectedAPDU);
                     Console.WriteLine($"Response: {BitConverter.ToString(RAPDU)}");
-                    bool success = secureMessagingHelper.IsSuccessfulResponsePace(RAPDU);
+                    bool success = SecureMessagingHelper.IsSuccessfulResponsePace(RAPDU);
                     if(!success)
                     {
                         Console.WriteLine($"Response failed. SW-{BitConverter.ToString(RAPDU)} ");
                         break;
                     }
-
-
 
                     // Steg 3: Kontrollera svar och verifiera CC
                     secureMessagingHelper.IncrementSSCPace(ref SSC);
