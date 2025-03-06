@@ -52,21 +52,15 @@ namespace VerifyIdentityProject.Platforms.Android
             public int Length { get; set; }
             public int BytesUsed { get; set; }
         }
-
-        public static FaceImageInfo ParseDG2PaceAllJpegs(byte[] dg2Bytes, string fileNameBase = "passport_photo")
+        public static async Task<FaceImageInfo> ParseDG2PaceAllJpegs(byte[] dg2Bytes, string apiUrl, string fileNameBase = "passport_photo")
         {
             try
             {
                 Console.WriteLine($"Starting JPEG2000 extraction from DG2, total DG2 length: {dg2Bytes.Length}");
-                byte[] imageBytes = null;
 
-                Console.WriteLine($"Starting DG2 PACE parse, total data length: {dg2Bytes.Length}");
-
-                // Find and validate DG2 data
                 int offset = 0;
                 while (offset < dg2Bytes.Length - 2)
                 {
-                    // Look for biometric information tag (7F61)
                     if (dg2Bytes[offset] == 0x7F && dg2Bytes[offset + 1] == 0x61)
                     {
                         Console.WriteLine($"Found 7F61 tag at offset: {offset}");
@@ -78,16 +72,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (offset >= dg2Bytes.Length - 2)
                     throw new Exception("Could not find the beginning of biometric data");
 
-                // Skip 7F61 tag
                 offset += 2;
-
-                // Read the length of biometric data
                 var bioLength = DecodeASN1Length(dg2Bytes, offset);
                 offset += bioLength.BytesUsed;
 
-                Console.WriteLine($"Biometric data length: {bioLength.Length}");
-
-                // Look for image information (5F2E)
                 while (offset < dg2Bytes.Length - 2)
                 {
                     if (dg2Bytes[offset] == 0x5F && dg2Bytes[offset + 1] == 0x2E)
@@ -101,10 +89,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (offset >= dg2Bytes.Length - 2)
                     throw new Exception("Could not find image data");
 
-                // Skip 5F2E tag
                 offset += 2;
-
-                // Read the length of image data
                 var imageLength = DecodeASN1Length(dg2Bytes, offset);
                 offset += imageLength.BytesUsed;
 
@@ -115,39 +100,28 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 for (int i = offset; i < dg2Bytes.Length - 7; i++)
                 {
-                    // Check for JPEG header (FF D8 FF E0)
                     if (i < dg2Bytes.Length - 3 &&
-                        dg2Bytes[i] == 0xFF &&
-                        dg2Bytes[i + 1] == 0xD8 &&
-                        dg2Bytes[i + 2] == 0xFF &&
-                        dg2Bytes[i + 3] == 0xE0)
+                        dg2Bytes[i] == 0xFF && dg2Bytes[i + 1] == 0xD8 &&
+                        dg2Bytes[i + 2] == 0xFF && dg2Bytes[i + 3] == 0xE0)
                     {
                         jpegStart = i;
                         detectedFormat = "JPEG";
                         break;
                     }
 
-                    // Check for JPEG2000 header (00 00 00 0C 6A 50 20 20)
-                    if (dg2Bytes[i] == 0x00 &&
-                        dg2Bytes[i + 1] == 0x00 &&
-                        dg2Bytes[i + 2] == 0x00 &&
-                        dg2Bytes[i + 3] == 0x0C &&
-                        dg2Bytes[i + 4] == 0x6A &&
-                        dg2Bytes[i + 5] == 0x50 &&
-                        dg2Bytes[i + 6] == 0x20 &&
-                        dg2Bytes[i + 7] == 0x20)
+                    if (dg2Bytes[i] == 0x00 && dg2Bytes[i + 1] == 0x00 &&
+                        dg2Bytes[i + 2] == 0x00 && dg2Bytes[i + 3] == 0x0C &&
+                        dg2Bytes[i + 4] == 0x6A && dg2Bytes[i + 5] == 0x50 &&
+                        dg2Bytes[i + 6] == 0x20 && dg2Bytes[i + 7] == 0x20)
                     {
                         jpegStart = i;
                         detectedFormat = "JPEG2000";
                         break;
                     }
 
-                    // Check for JPEG2000 Code Stream header (FF 4F FF 51)
                     if (i < dg2Bytes.Length - 3 &&
-                        dg2Bytes[i] == 0xFF &&
-                        dg2Bytes[i + 1] == 0x4F &&
-                        dg2Bytes[i + 2] == 0xFF &&
-                        dg2Bytes[i + 3] == 0x51)
+                        dg2Bytes[i] == 0xFF && dg2Bytes[i + 1] == 0x4F &&
+                        dg2Bytes[i + 2] == 0xFF && dg2Bytes[i + 3] == 0x51)
                     {
                         jpegStart = i;
                         detectedFormat = "JPEG2000 Code Stream";
@@ -155,22 +129,17 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
                 }
 
-                if (jpegStart != -1)
-                {
-                    Console.WriteLine($"Detected Format: {detectedFormat}, Start Position: {jpegStart}");
-                }
-                else
-                {
+                if (jpegStart == -1)
                     throw new Exception("Could not find any valid JPEG file type.");
-                }
 
-                // Find JPEG end
+                Console.WriteLine($"Detected Format: {detectedFormat}, Start Position: {jpegStart}");
+
                 int jpegEnd = -1;
                 for (int i = jpegStart; i < dg2Bytes.Length - 1; i++)
                 {
                     if (dg2Bytes[i] == 0xFF && dg2Bytes[i + 1] == 0xD9)
                     {
-                        jpegEnd = i + 2; // Include FF D9
+                        jpegEnd = i + 2;
                         Console.WriteLine($"JPEG end found at:{jpegEnd}");
                         break;
                     }
@@ -179,73 +148,70 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (jpegEnd == -1)
                     throw new Exception("Could not find JPEG end marker (FF D9)");
 
-                // Calculate actual JPEG size and copy the data
                 int jpegLength = jpegEnd - jpegStart;
                 byte[] jpegData = new byte[jpegLength];
                 Array.Copy(dg2Bytes, jpegStart, jpegData, 0, jpegLength);
 
-                // Extract image data
-                Console.WriteLine($"Raw image data length before copying raw data over to jpegData: {dg2Bytes.Length}");
-                Console.WriteLine($"First 16 bytes before copying raw data over to jpegData: {BitConverter.ToString(dg2Bytes.Take(16).ToArray())}");
-                Console.WriteLine($"Last 20 bytes before copying raw data over to jpegData: {BitConverter.ToString(dg2Bytes.Skip(dg2Bytes.Length - 20).Take(20).ToArray())}");
+                Console.WriteLine($"Extracted image data length before processing: {jpegData.Length} bytes");
 
-                Console.WriteLine($"Data length after copying raw data over to jpegData: {jpegData.Length}");
-                Console.WriteLine($"First 16 bytes after copying raw data over to jpegData: {BitConverter.ToString(jpegData.Take(16).ToArray())}");
-                Console.WriteLine($"Last 20 bytes after copying raw data over to jpegData: {BitConverter.ToString(jpegData.Skip(jpegData.Length - 20).Take(20).ToArray())}");
-
-                const int chunkSize = 100;
-                for (int i = 0; i < jpegData.Length; i += chunkSize)
-                {
-                    int length = Math.Min(chunkSize, jpegData.Length - i);
-                    var chunk = new byte[length];
-                    Array.Copy(jpegData, i, chunk, 0, length);
-                    //Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
-                }
-
+                // ✅ Apply Padding Removal BEFORE checking format again
                 var pureImgData = RemovePaddingPace(jpegData);
 
                 Console.WriteLine($"Final JPEG length after padding removal: {pureImgData.Length}");
                 Console.WriteLine($"Final JPEG header: {BitConverter.ToString(pureImgData.Take(16).ToArray())}");
                 Console.WriteLine($"Final JPEG footer: {BitConverter.ToString(pureImgData.Skip(pureImgData.Length - 16).Take(16).ToArray())}");
 
-                if (jpegData.Length < 100)
+                if (pureImgData.Length < 100)
                     throw new Exception($"Suspiciously short image data: {pureImgData.Length} bytes");
 
-                FaceImageInfo faceInfo2 = new FaceImageInfo
+                // ✅ Re-check the image format after padding removal
+                string finalDetectedFormat = "JPEG"; // Default
+                if (pureImgData.Length > 8)
                 {
-                    ImageData = pureImgData,
-                    ImageFormat = "JP2"
+                    if (pureImgData[0] == 0xFF && pureImgData[1] == 0xD8 && pureImgData[2] == 0xFF && pureImgData[3] == 0xE0)
+                    {
+                        finalDetectedFormat = "JPEG";
+                    }
+                    else if (pureImgData[0] == 0x00 && pureImgData[1] == 0x00 && pureImgData[2] == 0x00 &&
+                             pureImgData[3] == 0x0C && pureImgData[4] == 0x6A && pureImgData[5] == 0x50)
+                    {
+                        finalDetectedFormat = "JPEG2000";
+                    }
+                    else if (pureImgData[0] == 0xFF && pureImgData[1] == 0x4F && pureImgData[2] == 0xFF && pureImgData[3] == 0x51)
+                    {
+                        finalDetectedFormat = "JPEG2000 Code Stream";
+                    }
+                }
+
+                Console.WriteLine($"Final detected format after padding removal: {finalDetectedFormat}");
+
+                byte[] finalImageData = pureImgData;
+
+                // Convert only if it’s still a JPEG2000, we doublecheck to make sure we use the correct format
+                if (finalDetectedFormat == "JPEG2000" || finalDetectedFormat == "JPEG2000 Code Stream")
+                {
+                    Console.WriteLine("Sending image to API for JPEG conversion...");
+
+                    var converter = new Jpeg2000Converter();
+                    byte[] convertedImage = await converter.ConvertJpeg2000ToJpegAsync(pureImgData);
+
+                    Console.WriteLine($"Received converted JPEG data length: {convertedImage.Length} bytes");
+
+                    finalImageData = convertedImage;
+                }
+
+                var faceInfo2 = new FaceImageInfo
+                {
+                    ImageData = finalImageData,
+                    ImageFormat = "JPEG"
                 };
 
-                string extension = "blabla";
-                //faceInfo2.SavedFilePath = AutoSaveImage(faceInfo2, fileNameBase, extension);
-                Console.WriteLine($"Image saved path: {faceInfo2.SavedFilePath}");
                 return faceInfo2;
-
             }
             catch (Exception ex)
             {
                 throw new Exception("Error while parsing DG2 data: " + ex.Message, ex);
             }
-        }
-
-        public static byte[] ConvertJp2ToJpeg(byte[] jp2Data)
-        {
-            using var input = new MemoryStream(jp2Data);
-            using var codec = SKCodec.Create(input);
-            if (codec == null)
-                throw new Exception("SKCodec creation failed.");
-
-            using var bitmap = SKBitmap.Decode(codec);
-            if (bitmap == null)
-                throw new Exception("Decoding the image data failed.");
-
-            using var output = new MemoryStream();
-            bool encoded = bitmap.Encode(output, SKEncodedImageFormat.Jpeg, 100);
-            if (!encoded)
-                throw new Exception("Failed to encode the bitmap to JPEG format.");
-
-            return output.ToArray();
         }
 
         private static string AutoSaveImage(FaceImageInfo faceInfo, string fileNameBase, string extension)
@@ -295,50 +261,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw new Exception("Failed to save image: " + ex.Message, ex);
             }
         }
-
-        
-
-        //private static string AutoSaveImage(FaceImageInfo faceInfo, string fileName)
-        //{
-        //    try
-        //    {
-        //        // Bygg filnamn
-        //        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        //        string fullFileName = $"{fileName}_{timestamp}.jpg";
-
-        //        // Använd MediaStore för att spara bilden
-        //        var context = global::Android.App.Application.Context;
-        //        var resolver = context.ContentResolver;
-
-        //        ContentValues values = new ContentValues();
-        //        values.Put(IMediaColumns.DisplayName, fullFileName);
-        //        values.Put(IMediaColumns.MimeType, "image/jpeg");
-        //        values.Put(IMediaColumns.RelativePath, DirectoryPictures);
-
-        //        var imageUri = resolver.Insert(Images.Media.ExternalContentUri, values);
-
-        //        if (imageUri == null)
-        //            throw new Exception("Kunde inte skapa URI för att spara bilden.");
-
-        //        using (var outputStream = resolver.OpenOutputStream(imageUri))
-        //        {
-        //            if (outputStream == null)
-        //            {
-        //                throw new Exception("Kunde inte öppna OutputStream för att spara bilden.");
-        //            }
-
-        //            outputStream.Write(faceInfo.ImageData, 0, faceInfo.ImageData.Length);
-        //        }
-
-        //        Console.WriteLine($"Bilden sparades: {imageUri.Path}");
-        //        return imageUri.Path ?? "Okänd sökväg";
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw new Exception("Kunde inte spara bilden: " + ex.Message, ex);
-        //    }
-        //}
-        
+     
         private static ASN1Length DecodeASN1Length(byte[] data, int offset)
         {
             if (offset >= data.Length)

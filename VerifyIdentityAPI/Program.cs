@@ -48,23 +48,51 @@ namespace VerifyIdentityAPI
             app.UseAuthorization();
 
             // Byte[] to JPG conversion endpoint
-            app.MapPost("/api/convert/bytetojpg", async (byte[] inputBytes) =>
+            app.MapPost("/api/convert/bytetojpg", async (HttpContext context) =>
             {
                 try
                 {
-                    if (inputBytes.Length == 0)
-                        return Results.BadRequest("No file uploaded.");
+                    Console.WriteLine("Received image conversion request...");
 
-                    // Convert byte to JPG
+                    // Log request headers
+                    foreach (var header in context.Request.Headers)
+                    {
+                        Console.WriteLine($"Header: {header.Key} = {header.Value}");
+                    }
+
+                    // Ensure Content-Type is application/octet-stream
+                    if (!context.Request.ContentType?.Contains("application/octet-stream") ?? true)
+                    {
+                        Console.WriteLine("Error: Missing or incorrect Content-Type. Expected 'application/octet-stream'.");
+                        return Results.BadRequest("Unsupported Media Type - Content-Type must be 'application/octet-stream'.");
+                    }
+
+                    // Read request body as byte array
+                    using var memoryStream = new MemoryStream();
+                    await context.Request.Body.CopyToAsync(memoryStream);
+                    byte[] inputBytes = memoryStream.ToArray();
+
+                    Console.WriteLine($"Received byte array length: {inputBytes.Length}");
+
+                    if (inputBytes.Length == 0)
+                    {
+                        Console.WriteLine("Error: No data received.");
+                        return Results.BadRequest("No file uploaded.");
+                    }
+
+                    // Convert byte[] to JPG using Magick.NET
                     using var image = new MagickImage(inputBytes);
                     image.Format = MagickFormat.Jpeg;
                     byte[] jpgBytes = image.ToByteArray();
 
-                    return Results.File(jpgBytes, "image/jpeg", "converted.jpg");
+                    Console.WriteLine($"Conversion successful, output size: {jpgBytes.Length} bytes");
+
+                    // Return raw byte array instead of a file
+                    return Results.Bytes(jpgBytes, "image/jpeg");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine(ex.Message);
+                    Console.WriteLine($"Image conversion error: {ex.Message}");
                     return Results.StatusCode(500);
                 }
             }).DisableAntiforgery();

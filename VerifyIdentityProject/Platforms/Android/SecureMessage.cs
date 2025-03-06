@@ -209,7 +209,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
             return _dictionaryMrzData;
         }
-        public byte[] SelectDG2()
+
+        public async Task<byte[]> SelectDG2Async(string apiUrl)
         {
             Console.WriteLine("------------------------------------------------------------Select DG2 with secure message started...");
             Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
@@ -220,7 +221,7 @@ namespace VerifyIdentityProject.Platforms.Android
             IncrementSSC(ref _ssc);
             Console.WriteLine("[DOTNET] SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
-            // Original command data for DG1 (example)
+            // Original command data for DG2
             byte[] commandData = new byte[] { 0x01, 0x02 };
 
             // 1. Pad data for encryption
@@ -286,16 +287,16 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
             Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-            FaceImageInfo faceInfo = DG2Parser.ParseDG2PaceAllJpegs(completeData, "passport_photo");           
+            // Call ParseDG2PaceAllJpegs ASYNC and WAIT for the result
+            FaceImageInfo faceInfo = await DG2Parser.ParseDG2PaceAllJpegs(completeData, apiUrl, "passport_photo");
 
-            //// Call ParseDG2Pace which now returns a FaceImageInfo object.
-            //FaceImageInfo faceInfo = DG2Parser.ParseDG2Pace(completeData);
             byte[] imgDataInBytes = faceInfo.ImageData;
 
             Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
             return imgDataInBytes;
         }
+
 
 
         //---------------------------------------------------------------------------------------------------readbinary stuff

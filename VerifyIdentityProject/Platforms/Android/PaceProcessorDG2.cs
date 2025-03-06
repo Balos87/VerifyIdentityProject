@@ -14,7 +14,7 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Main method to perform PACE
-        public static byte[] PerformPaceDG2(IsoDep isoDep)
+        public static async Task<byte[]> PerformPaceDG2Async(IsoDep isoDep, string apiUrl)
         {
             Console.WriteLine("<-PerformPace DG2->");
             try
@@ -27,10 +27,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 var validOids = ValidateAndListPACEInfoWithDescriptions(cardAccess);
                 Console.WriteLine($"");
                 Console.WriteLine("______Valid PACE Protocols:");
-                //Fetch mrz data from secrets
+
+                // Fetch MRZ data from secrets
                 var secrets = GetSecrets.FetchSecrets();
                 var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
                 Console.WriteLine($"mrzData: {mrzData}");
+
+                byte[] imgBytes = null;
 
                 foreach (var oid in validOids)
                 {
@@ -44,28 +47,28 @@ namespace VerifyIdentityProject.Platforms.Android
                         var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
                         Console.WriteLine(success ? "PACE-authentication succeeded!" : "PACE-authentication failed");
 
-
                         // Step 3: Perform Secure Messaging
                         var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
 
                         // Step 4: Select eMRTD application with secure messaging
                         var selectApplication = secureMessage.SelectApplication();
 
-                        // Step 5: Select and read EF.DG2 with secure messaging
-                        ImgBytes = secureMessage.SelectDG2();
+                        // Step 5: Select and read EF.DG2 with secure messaging (awaiting the async call)
+                        imgBytes = await secureMessage.SelectDG2Async(apiUrl);
+
                     }
                 }
                 Console.WriteLine("");
                 Console.WriteLine("<---------------------------------------->");
 
-
-                return ImgBytes;
+                return imgBytes ?? throw new Exception("No image data retrieved.");
             }
             catch (Exception ex)
             {
                 throw new PaceException("The PACE process failed", ex);
             }
         }
+
 
         private static bool OidEndsWith(byte[] oidBytes, string suffix)
         {

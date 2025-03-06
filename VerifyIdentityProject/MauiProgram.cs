@@ -4,6 +4,7 @@ using VerifyIdentityProject.Resources.Interfaces;
 using TesseractOcrMaui;
 using VerifyIdentityProject.Helpers.MRZReader;
 using SkiaSharp.Views.Maui.Controls.Hosting;
+using VerifyIdentityProject.Helpers;
 
 public static class MauiProgram
 {
@@ -27,6 +28,7 @@ public static class MauiProgram
         builder.Services.AddTransient<DG1Page>();
         builder.Services.AddTransient<DgInformationFetchedPage>();
         builder.Services.AddSingleton<MrzReader>();
+        builder.Services.AddSingleton<Jpeg2000Converter>();
 
 
 #if ANDROID

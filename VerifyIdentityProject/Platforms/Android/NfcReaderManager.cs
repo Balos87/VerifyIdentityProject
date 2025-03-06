@@ -89,11 +89,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("<---------------------------------------->");
         }
 
-        /// <summary>
-        /// Handles NFC tag discovery and starts processing.
-        /// </summary>
-        /// <param name="tag">Detected NFC tag</param>
-        public void HandleTagDiscovered(Tag tag)
+        public async void HandleTagDiscovered(Tag tag)
         {
             Console.WriteLine("<- HandleTagDiscovered ->");
             Console.WriteLine("-----------------------------------------------------------");
@@ -108,25 +104,31 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     Console.WriteLine("ISO-DEP Tag detected. Starting PACE...");
-                    //BacProcessor bacProcessor = new BacProcessor(this);
-                    //bacProcessor.ProcessBac(isoDep);
-                    Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
-                    var img = PaceProcessorDG2.PerformPaceDG2(isoDep);
 
+                    // Fetch API URL the same way as MrzReader
+                    var appsettings = GetSecrets.FetchAppSettings();
+                    string apiUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+
+                    Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
+
+                    // Await async call so imgData gets the actual bytes
+                    byte[] imgData = await PaceProcessorDG2.PerformPaceDG2Async(isoDep, apiUrl);
+
+                    // Use `await` inside MainThread.BeginInvokeOnMainThread to ensure async behavior
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
                         await Shell.Current.GoToAsync(nameof(PassportDataPage), true, new Dictionary<string, object>
-                        {
-                            { "DG1Data", mrz },
-                            { "ImageData", img }
-                        });
+                    {
+                        { "DG1Data", mrz },
+                        { "ImageData", imgData }
                     });
+                        });
 
-                    
                     foreach (var field in mrz)
                     {
                         Console.WriteLine($"{field.Key}: {field.Value}");
                     }
+
                     // Trigger event to notify that an NFC chip was detected
                     OnNfcChipDetected?.Invoke("RFID Chip detected! Processing data...");
                 }
@@ -142,5 +144,39 @@ namespace VerifyIdentityProject.Platforms.Android
                 OnNfcChipDetected?.Invoke($"Error processing NFC: {ex.Message}");
             }
         }
+
+        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
+        {
+            if (await IsApiAvailable(apiUrl))
+            {
+                Console.WriteLine($"Using API URL: {apiUrl}");
+                return apiUrl;
+            }
+
+            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
+            return localUrl ?? string.Empty;
+        }
+
+        private static async Task<bool> IsApiAvailable(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+
+            string healthCheckUrl = $"{url}api/health";
+
+            try
+            {
+                using var httpClient = new HttpClient();
+                var response = await httpClient.GetAsync(healthCheckUrl);
+                return response.IsSuccessStatusCode;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
     }
 }
