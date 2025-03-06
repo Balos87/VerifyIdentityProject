@@ -368,35 +368,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw;
             }
         }
-
-        // ------------------- Fel, måste fixas, kolla headern och Le, sida 91 ICAO p11.
-        private static async Task<byte[]> ReadEfComFile(IsoDep isoDep, SecureMessaging secureMessaging)
-        {
-            Console.WriteLine("Reading EF.COM file...");
-
-            // Construct a READ BINARY command for EF.COM.
-            // Adjust the header based on your file selection – EF.COM’s file identifier is typically known.
-            // Here we assume a header similar to: [CLA, INS, P1, P2] = {0x0C, 0xB0, 0x00, 0x00}
-            byte[] readEfComHeader = new byte[] { 0x0C, 0xB0, 0x00, 0x00 };
-
-            // Use an Le of 0x00, indicating extended length or that the length is embedded in the TLV structure.
-            byte[] le = new byte[] { 0x00 };
-
-            // Protect the APDU using your secure messaging instance.
-            byte[] secureApdu = secureMessaging.ProtectCommand(readEfComHeader, null, le);
-            Console.WriteLine($"Sending protected EF.COM APDU: {BitConverter.ToString(secureApdu)}");
-
-            // Transceive the APDU.
-            byte[] response = await isoDep.TransceiveAsync(secureApdu);
-            Console.WriteLine($"Received EF.COM response: {BitConverter.ToString(response)}");
-
-            // Unprotect the response to obtain the clear EF.COM data.
-            byte[] efComData = secureMessaging.UnprotectResponse(response);
-            Console.WriteLine($"Decrypted EF.COM Data: {BitConverter.ToString(efComData)}");
-
-            return efComData;
-        }
-
+        
         // Helper to convert OID bytes to string
         private static string ConvertOidToString(byte[] oidBytes)
         {

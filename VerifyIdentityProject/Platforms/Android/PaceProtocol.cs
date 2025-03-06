@@ -58,27 +58,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (encryptedNonce == null)
                     return false;
 
-                //Tested with dokument mrz and encryptedNonce and I got the same result as in the document ✅
-                //[DOTNET] DecryptNonce: 3F-00-C4-D3-9D-15-3F-2B-2A-21-4A-07-8D-89-9B-22
                 // 3. Decrypt the nonce using the password derived from the MRZ
                 var decryptedNonce = DecryptNonce(encryptedNonce);
 
                 // 4. Generate and exchange ephemeral keys
-                // var mappingData = await PerformMapping(decryptedNonce);
-                // var (myKeyPair, theirPubKey) = await ExchangeEphemeralKeys(mappingData);
                 var mappedParams = GenerateAndSendMappedParameters(decryptedNonce);
                 if (!mappedParams)
                     return false;
-
-
-                //// Step 6: Calculate the shared secret
-                // var sharedSecret = CalculateSharedSecret(myKeyPair, theirPubKey);
-                //byte[] sharedSecret = null;
-                //// Step 7: Derive session keys
-                // var (KSenc, KSmac) = DeriveSessionKeys(sharedSecret);
-
-                //// Step 8: Perform Mutual Authentication
-                // await PerformMutualAuthentication(KSenc, KSmac);
 
                 return true;
             }
@@ -92,8 +78,6 @@ namespace VerifyIdentityProject.Platforms.Android
        
         private bool MseSetAtSelectPaceProtocol()
         {
-            // Protocoll OID
-            //byte[] protocolOID = new byte[] { 0x04, 0x00, 0x7F, 0x00, 0x07, 0x02, 0x02, 0x04, 0x02, 0x04 };
             byte[] protocolOID = oid;
 
             // Bygg MSE:SET AT kommandot
