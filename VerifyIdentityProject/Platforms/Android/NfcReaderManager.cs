@@ -123,6 +123,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     if (decodedImageData != null && width > 0 && height > 0)
                     {
+                        Console.WriteLine($"Decoded JP2 image: {decodedImageData.Length} bytes, {width}x{height} pixels");
+                        Console.WriteLine("Successfully decoded JP2 image.");
                         ConvertToBitmapThenJpeg converter = new ConvertToBitmapThenJpeg();
 
                         // Convert the decoded JP2 pixel data into a Bitmap
