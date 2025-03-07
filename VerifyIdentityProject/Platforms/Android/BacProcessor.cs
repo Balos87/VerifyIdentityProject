@@ -1,36 +1,9 @@
 ﻿using Android.Nfc;
 using Android.Nfc.Tech;
-using System;
 using System.Security.Cryptography;
 using VerifyIdentityProject.Helpers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using VerifyIdentityProject.Resources.Interfaces;
-using Android.App;
-using Xamarin.Google.Crypto.Tink.Subtle;
-using Microsoft.Maui.Controls;
-using Xamarin.Google.Crypto.Tink.Shaded.Protobuf;
-using System.Runtime.Intrinsics.X86;
-using System.Reflection.PortableExecutable;
-using System.Runtime.Intrinsics.Arm;
-using Xamarin.Google.Crypto.Tink.Util;
-using Xamarin.Google.Crypto.Tink.Prf;
-using Java.Lang.Ref;
-using Android.Media.TV;
-using Android.Graphics;
 using Org.BouncyCastle.Asn1;
-using Org.BouncyCastle.Utilities.IO;
-using static AndroidX.Concurrent.Futures.CallbackToFutureAdapter;
-using static Android.Graphics.PathIterator;
-
-#if ANDROID
-using static Android.OS.Environment;
-using static Android.Provider.MediaStore;
-using static Android.App.Application;
-using Android.Content;
-#endif
 
 namespace VerifyIdentityProject.Platforms.Android
 {

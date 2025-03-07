@@ -4,6 +4,8 @@ using System.Windows.Input;
 using VerifyIdentityProject.Services;
 using VerifyIdentityProject.Resources.Interfaces;
 using Microsoft.Maui.Controls;
+using System.Text.RegularExpressions;
+using VerifyIdentityProject.Helpers;
 
 #if ANDROID
 using Android.Widget;
@@ -17,9 +19,17 @@ namespace VerifyIdentityProject.ViewModels // Moved to ViewModels for proper org
     {
         private readonly INfcReaderManager _nfcReaderManager;
 
+        private readonly string _secretsFilePath = Path.Combine(FileSystem.AppDataDirectory, "secrets.json"); // Store in app data directory
+        private readonly SecretsManager _secretsManager;
+
         private string _passportData;
         private string _mrzNotFound;
         private ICommand _scanMrzCommand;
+        private string _manualMrz;
+        private ICommand _submitManualMrzCommand;
+        public ICommand SubmitManualMrzCommand =>
+            _submitManualMrzCommand ??= new Command(SubmitManualMrz);
+
 
 #if ANDROID
         private AlertDialog? _nfcDialog; // Nullable AlertDialog to prevent null reference errors
@@ -39,6 +49,45 @@ namespace VerifyIdentityProject.ViewModels // Moved to ViewModels for proper org
                 OnPropertyChanged(nameof(ScanMrzCommand));
             }
         }
+
+        public string ManualMrz
+        {
+            get => _manualMrz;
+            set
+            {
+                _manualMrz = value;
+                OnPropertyChanged(nameof(ManualMrz));
+            }
+        }
+
+        private void SubmitManualMrz()
+        {
+            if (IsValidMrz(ManualMrz))
+            {
+                // Update UI
+                PassportData = $"Manual MRZ submitted: {ManualMrz}";
+                MrzNotFound = ""; // Clear error message
+
+                // Update secrets.json
+                _secretsManager.SetMrzNumbers(ManualMrz);
+
+                // Automatically trigger NFC process
+                StartNfcCommand.Execute(null);
+            }
+            else
+            {
+                MrzNotFound = "Invalid MRZ format. Please check the input.";
+            }
+        }
+
+
+        private bool IsValidMrz(string mrz)
+        {
+            // PACE MRZ: Exactly 24 characters, no character restrictions
+            return !string.IsNullOrWhiteSpace(mrz) && mrz.Length == 24;
+        }
+
+
 
         public string MrzNotFound
         {
@@ -68,7 +117,7 @@ namespace VerifyIdentityProject.ViewModels // Moved to ViewModels for proper org
             _nfcReaderManager = nfcReaderManager ?? throw new ArgumentNullException(nameof(nfcReaderManager));
 
             _nfcReaderManager.OnNfcChipDetected += HandleNfcChipDetected;
-
+            _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
         }

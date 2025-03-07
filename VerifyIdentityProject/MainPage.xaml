@@ -10,12 +10,27 @@
                 Text="Verify Identity"
                 Style="{StaticResource Headline}"
                 SemanticProperties.HeadingLevel="Level1" />
-            <Image
+            <!--<Image
                 Source="verifybgpic.png"
                 HeightRequest="350"
                 Aspect="AspectFit"
-                SemanticProperties.Description="dot net bot in a hovercraft number nine" />
+                SemanticProperties.Description="dot net bot in a hovercraft number nine" />-->
 
+            <!-- Fallback manual MRZ entry -->
+            <Label Text="Or enter MRZ manually:" 
+                   Style="{StaticResource SubHeadline}" />
+
+                        <Entry 
+                Text="{Binding ManualMrz, Mode=TwoWay}" 
+                Placeholder="Enter MRZ manually"
+                MaxLength="88" />
+
+                        <Button 
+                Text="Submit Manual MRZ" 
+                Command="{Binding SubmitManualMrzCommand}" />
+
+                        <Label Text="{Binding MrzNotFound}" 
+                   TextColor="Red" />
 
 
             <Label
@@ -24,14 +39,15 @@
                 SemanticProperties.HeadingLevel="Level2"
                 SemanticProperties.Description="Welcome to dot net Multi platform App U I" />
 
+            <!-- Button for development testing runs, uses secrets.json mrz preset value -->
             <Button 
-                Text="Start NFC with PACE" 
+                Text="Developer Pace Run" 
                 Command="{Binding StartNfcCommand}" />
 
 
             <Button Text="Capture and Process MRZ" Command="{Binding ScanMrzCommand}" />
 
-            <Label Text="{Binding MrzNotFound}"
+            <Label Text="{Binding MrzNotFound}"                   
                    HorizontalOptions="Fill"/>
 
             <Label
