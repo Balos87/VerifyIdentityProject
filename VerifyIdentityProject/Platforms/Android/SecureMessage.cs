@@ -302,7 +302,7 @@ namespace VerifyIdentityProject.Platforms.Android
             return imgDataInBytes;
         }
 
-        //--------------------------------------------------------------------------------------------------- Readbinary stuff
+        //--------------------------------------------------------------------------------------------------- Readbinary
         public List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
             try
