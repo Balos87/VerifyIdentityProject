@@ -27,7 +27,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 var cardAccess = PaceHelper.ReadCardAccessPace(isoDep);
                 var validOids = PaceHelper.ValidateAndListPACEInfoWithDescriptionsPace(cardAccess);
                 Console.WriteLine($"");
-                Console.WriteLine("______Valid PACE Protocols:");
+                Console.WriteLine("<-----Valid PACE Protocols---->");
 
                 //Fetch mrz data from secrets
                 var secrets = GetSecrets.FetchSecrets();
@@ -45,7 +45,6 @@ namespace VerifyIdentityProject.Platforms.Android
                         bool success = pace.PerformPaceProtocol();
                         var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
                         Console.WriteLine(success ? "PACE-authentication succeeded!" : "PACE-authentication failed");
-
 
                         // Step 4: Perform Secure Messaging
                         var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);

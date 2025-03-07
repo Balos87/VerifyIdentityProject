@@ -80,7 +80,7 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             byte[] protocolOID = oid;
 
-            // Bygg MSE:SET AT kommandot
+            // Build MSE:SET AT command
             List<byte> command = new List<byte>
             {
                 0x00,    // CLA 
@@ -92,7 +92,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 (byte)protocolOID.Length  // OID length
             };
 
-            // Lägg till OID
+            // Adding OID 
             command.AddRange(protocolOID);
 
             // Password reference (0x83 tag)
@@ -103,7 +103,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 0x01     // Value: 0x01 for MRZ
             });
 
-            // Lägg till domain parameters reference (0x84 tag)
+            // Adding domain parameters reference (0x84 tag)
             command.AddRange(new byte[]
             {
                 0x84,    // Tag for domain parameters
@@ -134,23 +134,18 @@ namespace VerifyIdentityProject.Platforms.Android
                 0x00,    // P2
                 0x02,    // Lc
                 0x7C,    // Dynamic Authentication Data
-                0x00,    // Tom data
-                0x00     // Le (förväntat svar, sätter till 0x00 för att få längdindikation)
+                0x00,    // Empty data
+                0x00     // Le (expected response, set to 0x00 to get length indication)
             };
             Console.WriteLine($"Sending getNonceCommand: {BitConverter.ToString(getNonceCommand)}");
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-            Console.WriteLine("timer started...");
 
             var response = isoDep.Transceive(getNonceCommand);
-            sw.Stop();
-            Console.WriteLine("timer stopped...");
-            Console.WriteLine("Total time:" + sw.Elapsed.TotalSeconds.ToString());
             Console.WriteLine($"GetEncryptedNonce response: {BitConverter.ToString(response)}");
+
             if (!IsSuccessful(response))
                 return null;
 
-
+            // return the encrypted nonce extracted from the response
             return ParseEncryptedNonce(response);
         }
 
@@ -159,35 +154,33 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
             try
             {
-                // Ta bort status bytes (90 00)
+                // Remove status bytes (90 00)
                 var data = response.Take(response.Length - 2).ToArray();
 
-                // Kontrollera outer tag (7C)
                 if (data[0] != 0x7C)
-                    throw new Exception("Ogiltig outer tag i nonce svar");
+                    throw new Exception("Invalid outer tag in nonce response");
 
-                // Skippa outer tag och längd
+                // Skip outer tag and length
                 int index = 2;
 
-                // Hitta nonce tag (80)
                 if (data[index] != 0x80)
-                    throw new Exception("Kunde inte hitta nonce tag (80)");
+                    throw new Exception("Couldnt find nonce tag (80)");
 
-                // Läs nonce längd
+                // Get nonce length
                 int nonceLength = data[index + 1];
 
-                // Extrahera själva nonce datan
+                // Extract the nonce data
                 byte[] nonce = new byte[nonceLength];
                 Array.Copy(data, index + 2, nonce, 0, nonceLength);
 
-                Console.WriteLine($"Extraherad nonce längd: {nonceLength}");
-                Console.WriteLine($"Extraherad nonce: {BitConverter.ToString(nonce)}");
+                Console.WriteLine($"Extracted nonce length: {nonceLength}");
+                Console.WriteLine($"Extracted nonce: {BitConverter.ToString(nonce)}");
 
                 return nonce;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid parsing av nonce: {ex.Message}");
+                Console.WriteLine($"Error when parsing nonce: {ex.Message}");
                 return null;
             }
         }

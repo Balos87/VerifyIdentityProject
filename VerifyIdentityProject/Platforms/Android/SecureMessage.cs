@@ -36,50 +36,48 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
 
-            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
             Console.WriteLine("------------------------------------------------------------Select application with secure message started...");
             Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
             Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
             Console.WriteLine("KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
 
-            // Öka SSC före varje kommando
+            // Increase SSC before each command
             secureMessagingHelper.IncrementSSCPace(ref _ssc);
             Console.WriteLine("SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
-            // Original command data för select application
+            //Original command data for select application
             byte[] commandData = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
 
-            // 1. Padda data för kryptering
+            // 1. Pad data for encryption
             byte[] paddedData = secureMessagingHelper.PadDataPace(commandData);
-            Console.WriteLine("Padded data: " + BitConverter.ToString(paddedData).Replace("-", " "));
+            Console.WriteLine("Padded command data: " + BitConverter.ToString(paddedData).Replace("-", " "));
 
-            // 2. Kryptera data med AES-CBC
+            // 2. Encrypt data with AES-CBC
             byte[] encryptedData = secureMessagingHelper.EncryptDataPace(paddedData, _ssc);
-            Console.WriteLine("Encrypted data: " + BitConverter.ToString(encryptedData).Replace("-", " "));
+            Console.WriteLine("Encrypted command data: " + BitConverter.ToString(encryptedData).Replace("-", " "));
 
-            // 3. Bygg DO'87'
+            // 3. Build DO'87'
             byte[] do87 = secureMessagingHelper.BuildDO87Pace(encryptedData);
             Console.WriteLine("DO'87': " + BitConverter.ToString(do87).Replace("-", " "));
 
-            // 4. Bygg data för MAC-beräkning
+            // 4. Build data for MAC calculation
             byte[] paddedHeader = new byte[] { 0x0C, 0xA4, 0x04, 0x0C, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             byte[] dataToMac = secureMessagingHelper.ConcatenateArraysPace(paddedHeader, do87);
-            Console.WriteLine("cmdHeader+DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
+            Console.WriteLine("Padded CmdHeader + DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
 
-            // Padda hela M-strängen
             dataToMac = secureMessagingHelper.PadDataPace(dataToMac);
             Console.WriteLine("Padded data to MAC: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // 5. Beräkna MAC
+            // 5. Calculate MAC
             byte[] mac = secureMessagingHelper.CalculateMACPace(dataToMac, _ssc);
             Console.WriteLine("Calculated MAC: " + BitConverter.ToString(mac).Replace("-", " "));
 
-            // 6. Bygg DO'8E'
+            // 6. Build DO'8E'
             byte[] do8E = secureMessagingHelper.BuildDO8EPace(mac);
             Console.WriteLine("DO'8E': " + BitConverter.ToString(do8E).Replace("-", " "));
 
-            // 7. Bygg final protected APDU
+            // 7. Build final protected APDU
             byte[] protectedApdu = secureMessagingHelper.BuildProtectedAPDUPace(paddedHeader, do87, do8E);
             Console.WriteLine("Protected APDU: " + BitConverter.ToString(protectedApdu).Replace("-", " "));
 
@@ -87,7 +85,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("reponse: " + BitConverter.ToString(response).Replace("-", " "));
 
 
-            // 8.Öka SSC för response verifiering
+            // 8. Increase SSC for response verification
             secureMessagingHelper.IncrementSSCPace(ref _ssc);
             Console.WriteLine("SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
@@ -108,56 +106,55 @@ namespace VerifyIdentityProject.Platforms.Android
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
 
             Console.WriteLine("------------------------------------------------------------Select DG1 with secure message started...");
-            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
+
             Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
             Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
             Console.WriteLine("KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
 
-            // Öka SSC före varje kommando
+            // Increase SSC before each command
             secureMessagingHelper.IncrementSSCPace(ref _ssc);
             Console.WriteLine("SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
-            // Original command data för DG1
+            // Original command data for DG1
             byte[] commandData = new byte[] { 0x01, 0x01 };
 
-            // 1. Padda data för kryptering
+            // 1. Padded command data for encryption
             byte[] paddedData = secureMessagingHelper.PadDataPace(commandData);
-            Console.WriteLine("Padded data: " + BitConverter.ToString(paddedData).Replace("-", " "));
+            Console.WriteLine("Padded CmdData: " + BitConverter.ToString(paddedData).Replace("-", " "));
 
-            // 2. Kryptera data med AES-CBC
+            // 2. Encrypt data with AES-CBC
             byte[] encryptedData = secureMessagingHelper.EncryptDataPace(paddedData, _ssc);
             Console.WriteLine("Encrypted data: " + BitConverter.ToString(encryptedData).Replace("-", " "));
 
-            // 3. Bygg DO'87'
+            // 3. Build DO'87'
             byte[] do87 = secureMessagingHelper.BuildDO87Pace(encryptedData);
             Console.WriteLine("DO'87': " + BitConverter.ToString(do87).Replace("-", " "));
 
-            // 4. Bygg data för MAC-beräkning
+            // 4. Build data for calculating MAC
             byte[] paddedHeader = new byte[] { 0x0C, 0xA4, 0x02, 0x0C, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
             byte[] dataToMac = secureMessagingHelper.ConcatenateArraysPace(paddedHeader, do87);
-            Console.WriteLine("cmdHeader+DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
+            Console.WriteLine("Padded cmdHeader + DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // Padda hela M-strängen
+            // Pad the entire dataToMac (M) string
             dataToMac = secureMessagingHelper.PadDataPace(dataToMac);
             Console.WriteLine("Padded data to MAC: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // 5. Beräkna MAC
+            // 5. Calculate MAC
             byte[] mac = secureMessagingHelper.CalculateMACPace(dataToMac, _ssc);
             Console.WriteLine("Calculated MAC: " + BitConverter.ToString(mac).Replace("-", " "));
 
-            // 6. Bygg DO'8E'
+            // 6. Build DO'8E'
             byte[] do8E = secureMessagingHelper.BuildDO8EPace(mac);
             Console.WriteLine("DO'8E': " + BitConverter.ToString(do8E).Replace("-", " "));
 
-            // 7. Bygg final protected APDU
+            // 7. Build final protected APDU
             byte[] protectedApdu = secureMessagingHelper.BuildProtectedAPDUPace(paddedHeader, do87, do8E);
-
             Console.WriteLine("Protected APDU: " + BitConverter.ToString(protectedApdu).Replace("-", " "));
 
             var response = _isoDep.Transceive(protectedApdu);
             Console.WriteLine("reponse: " + BitConverter.ToString(response).Replace("-", " "));
 
-            // 8.Öka SSC för response verifiering
+            // 8.Increase SSC for response verifying
             secureMessagingHelper.IncrementSSCPace(ref _ssc);
             Console.WriteLine("SSC after increment: " + BitConverter.ToString(_ssc).Replace("-", " "));
 
@@ -171,7 +168,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Response verification failed: {ex.Message}");
             }
 
-            //----------------------------------------------------------------------- 1 Read Binary of first four bytes
+            //---------------------------------------------------------------------------- Read Binary
             Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
             List<byte[]> dg1Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
 
@@ -185,22 +182,20 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeDG1.Take(20).ToArray())}");
                 Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeDG1.Skip(completeDG1.Length - 20).Take(20).ToArray())}");
 
-                // Om du behöver se all data, kan du skriva ut i chunks
-                const int chunkSize = 100;
-                for (int i = 0; i < completeDG1.Length; i += chunkSize)
-                {
-                    int length = Math.Min(chunkSize, completeDG1.Length - i);
-                    var chunk = new byte[length];
-                    Array.Copy(completeDG1, i, chunk, 0, length);
-                    Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
-                }
+                //// To see all data, you must print in chunks
+                //const int chunkSize = 100;
+                //for (int i = 0; i < completeDG1.Length; i += chunkSize)
+                //{
+                //    int length = Math.Min(chunkSize, completeDG1.Length - i);
+                //    var chunk = new byte[length];
+                //    Array.Copy(completeDG1, i, chunk, 0, length);
+                //    Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
+                //}
 
-                Console.WriteLine($"Parsed nya");
                 var fullMrz = MRZByteParser.ParseMRZBytes(completeDG1);
-                //_mrz = fullMrz;
                 var splittedMrz = MRZByteParser.FormatMRZForBAC(fullMrz);
-                Console.WriteLine($"Hel MRZ: {fullMrz}");
-                Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
+                Console.WriteLine($"Whole MRZ: {fullMrz}");
+                Console.WriteLine($"Splitted MRZ:\n{splittedMrz}");
 
                 var extractedInfoFromMrz = MRZParser.ParseMRZ(splittedMrz);
 
@@ -252,7 +247,7 @@ namespace VerifyIdentityProject.Platforms.Android
             byte[] dataToMac = secureMessagingHelper.ConcatenateArraysPace(paddedHeader, do87);
             Console.WriteLine("cmdHeader+DO87: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
-            // Pad the entire M string
+            // Pad the entire dataToMac (M) string
             dataToMac = secureMessagingHelper.PadDataPace(dataToMac);
             Console.WriteLine("Padded data to MAC: " + BitConverter.ToString(dataToMac).Replace("-", " "));
 
@@ -286,8 +281,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Response verification failed: {ex.Message}");
             }
 
-            // -----------------------------------------------------------------------
-            // Read Binary of DG (DG2 segments)
+            // -----------------------------------------------------------------------Read Binary of DG (DG2 segments)
             Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
             List<byte[]> dg2Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
             Console.WriteLine($"Amount returned segment data: {dg2Segments.Count}");
@@ -317,13 +311,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
                 List<byte[]> fullData = new List<byte[]>();
                 int offset = 0;
-                const int blockSize = 0x20; // Standardstorlek för block i MRTD-kommunikation (32 bytes)
+                const int blockSize = 0x20; // Standard size for block in MRTD-communication (32 bytes)
 
                 while (true)
                 {
                     Console.WriteLine($"------------------Started Reading DG at offset: {offset}");
 
-                    // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
+                    // Step 1: Build READ BINARY command for current offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
                     Console.WriteLine($"cmdHeader: {BitConverter.ToString(cmdHeader)}");
 
@@ -350,7 +344,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     byte[] protectedAPDU = ReadBinaryHelper.ConstructProtectedAPDUPace(cmdHeader, DO97, DO8E);
                     Console.WriteLine($"Sending Protected APDU: {BitConverter.ToString(protectedAPDU)}");
 
-                    // Steg 2: Skicka kommando till DG1
+                    // Step 2: Send command to DG1
                     byte[] RAPDU = isoDep.Transceive(protectedAPDU);
                     Console.WriteLine($"Response: {BitConverter.ToString(RAPDU)}");
                     bool success = SecureMessagingHelper.IsSuccessfulResponsePace(RAPDU);
@@ -360,34 +354,34 @@ namespace VerifyIdentityProject.Platforms.Android
                         break;
                     }
 
-                    // Steg 3: Kontrollera svar och verifiera CC
+                    // step 3: Check response and verify CC
                     secureMessagingHelper.IncrementSSCPace(ref SSC);
                     readBinaryHelper.VerifyRapduCCPace(RAPDU, ref SSC, KSMac, KSEnc);
 
-                    // Extrahera och dekryptera data från RAPDU
+                    // Extract and decrypt data from RAPDU
                     byte[] do87 = ReadBinaryHelper.ExtractDO87Pace(RAPDU);
                     byte[] encryptedData = ReadBinaryHelper.ExtractEncryptedDataFromDO87Pace(do87);
                     byte[] decryptedData = secureMessagingHelper.DecryptDataPace(encryptedData, SSC);
 
-                    // Lägg till dekrypterad data till fullData
+                    // Add decrypted data to fullData
                     fullData.AddRange(decryptedData);
                     Console.WriteLine($"Decrypted Data added: {BitConverter.ToString(decryptedData)}");
 
                     Console.WriteLine($"Decrypted Data (Offset {offset}): {BitConverter.ToString(decryptedData)}");
 
-                    // Kontrollera om sista segmentet lästs
-                    if (decryptedData.Length < 0x20) // Mindre än maximalt möjligt per segment
+                    // Check if last segment has been read
+                    if (decryptedData.Length < 0x20) // Less than maximum possible per segment
                     {
                         Console.WriteLine("End of DG reached.");
                         break;
                     }
 
-                    // Uppdatera offset för nästa block
+                    // Update offset for next block
                     offset += 0x20;
                     Console.WriteLine($"----------------------------End of loop at offset: {offset}");
                 }
 
-                // Returnera all kombinerad data
+                // Return all combined data
                 return fullData;
             }
             catch (Exception ex)
@@ -396,14 +390,5 @@ namespace VerifyIdentityProject.Platforms.Android
                 return null;
             }
         }
-
-
-
-        //--------------------------------------------------------------------------------------------------- End of readbinary stuff
-
-        //--------------------------------------------------------------------------------------------------- Secure Message stuff
- 
-
-        //--------------------------------------------------------------------------------------------------- End of Secure Message stuff
     }
 }
