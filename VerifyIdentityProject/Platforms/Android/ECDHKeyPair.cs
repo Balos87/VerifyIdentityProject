@@ -28,32 +28,32 @@ public class ECDHKeyGenerator
         this.secureRandom = new SecureRandom();
     }
 
-    // Hjälpmetod för att sätta upp domänparametrarna för brainpoolP384r1
+    // Help method to set up the domain parameters for brainpoolP384r1 -- Not in use!
     public static ECDomainParameters SetupBrainpoolP384r1()
     {
-        // Hämta standardkurvparametrar för brainpoolP384r1
-        X9ECParameters ecP = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
+        // Getting the standard curve parameters for brainpoolP384r1 
+        X9ECParameters curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
 
-        // Skapa domänparametrar från kurvparametrarna
+        // Create a domain parameter from the curve parameters
         return new ECDomainParameters(
-            ecP.Curve,          // Kurvan
-            ecP.G,              // Generator punkt G
-            ecP.N,              // Ordning n
-            ecP.H,              // Cofactor
-            ecP.GetSeed()       // Kurvseed (kan vara null)
+            curve.Curve,          // Curve
+            curve.G,              // Generate point G
+            curve.N,              // Order n
+            curve.H,              // Cofactor
+            curve.GetSeed()       // Curveseed (Can be null)
         );
     }
 
     public ECDHKeyPair GenerateKeyPair()
     {
-        // 1. Generera privat nyckel med BouncyCastles inbyggda metod
+        // 1. Generate private key with BouncyCastle's built-in method
         BigInteger privateKey = BigIntegers.CreateRandomInRange(
-            BigInteger.One,  // Lägsta tillåtna värde
-            domainParameters.N.Subtract(BigInteger.One),  // Högsta tillåtna värde (n-1)
-            secureRandom  // Vår säkra slumptalsgenerator
+            BigInteger.One,  // Lowest allowed value (1)
+            domainParameters.N.Subtract(BigInteger.One),  // Highest allowed value (n-1)
+            secureRandom  // Our secure random number generator
         );
 
-        // 2. Skapar publik nyckel. (privat nyckel * G)
+        // 2. Create public key = privateKey * G and normalize it
         ECPoint publicKey = domainParameters.G.Multiply(privateKey).Normalize();
 
         if (!ValidatePublicKey(publicKey, domainParameters))
@@ -65,46 +65,39 @@ public class ECDHKeyGenerator
             PublicKey = publicKey
         };
     }
+
     private bool ValidatePublicKey(ECPoint publicKey, ECDomainParameters domainParams)
     {
-        // Kontrollera att punkten ligger på kurvan
+        // Check if point is on the curve
         if (!publicKey.IsValid())
-        {
             return false;
-        }
 
-        // Kontrollera att punkten har rätt ordning
+        // Check if point is in the correct order
         if (!publicKey.Multiply(domainParams.N).IsInfinity)
-        {
             return false;
-        }
 
-        // Kontrollera att punkten inte är punkten vid oändligheten
+        //Check if point is not infinity
         if (publicKey.IsInfinity)
-        {
             return false;
-        }
-
+        
         return true;
     }
 
-
-    //gör en byte array av publik nyckel
     public static byte[] PublicKeyToBytes(ECPoint publicKey)
     {
-        // Konvertera till okomprimerat format (0x04 || x || y)
+        // Convert to uncompressed format (0x04 || x || y)
         return publicKey.GetEncoded(false);
     }
 
-    //metod för att bygga APDU som sedan skickar våran publika nyckel till chip
+    // Method to build APDU that sends our public key to the chip
     public static byte[] BuildMapNonceCommand(byte[] publicKey)
     {
-        // Längder
+        // Counting the length
         byte mappingDataLength = (byte)publicKey.Length;  // len2
         byte dynamicAuthDataLength = (byte)(2 + mappingDataLength); // len1: 81 + len + data
         byte totalLength = (byte)(2 + dynamicAuthDataLength); // Lc: 7C + len + inner data
 
-        // Skapa kommandot
+        // Build command
         List<byte> command = new List<byte>();
 
         // Header
@@ -115,14 +108,14 @@ public class ECDHKeyGenerator
         command.Add(totalLength); // Lc
 
         // Dynamic Authentication Data
-        command.Add(0x7C);     // Tag för Dynamic Authentication Data
+        command.Add(0x7C);     // Tag for Dynamic Authentication Data
         command.Add(dynamicAuthDataLength);
 
         // Mapping Data
-        command.Add(0x81);     // Tag för Mapping Data
+        command.Add(0x81);     // Tag for Mapping Data
         command.Add(mappingDataLength);
 
-        // Lägg till publika nyckeln (som redan innehåller 04 || x || y)
+        // Adding the public key (which already contains 04 || x || y)
         command.AddRange(publicKey);
 
         // Le
@@ -131,31 +124,8 @@ public class ECDHKeyGenerator
         return command.ToArray();
     }
 
-    // Hjälpmetod för att validera kommandot ----------------Kanske ta bort denna?
-    public static bool ValidateCommand(byte[] command)
-    {
-        if (command == null || command.Length < 7) return false;
-
-        // Kontrollera header
-        if (command[0] != 0x10 || command[1] != 0x86 ||
-            command[2] != 0x00 || command[3] != 0x00)
-            return false;
-
-        // Kontrollera längder
-        byte declaredLength = command[4];
-        if (command.Length != declaredLength + 6) // 5 header bytes + Le byte
-            return false;
-
-        // Kontrollera tags
-        if (command[5] != 0x7C || command[7] != 0x81)
-            return false;
-
-        return true;
-    }
-
     public static byte[] ExtractPublicKeyFromResponse(byte[] response)
     {
-        // Validera minimum längd och status bytes
         if (response == null || response.Length < 7)
             throw new Exception("response is null or to short!");
 
@@ -170,7 +140,7 @@ public class ECDHKeyGenerator
 
         if (response[index++] != 0x82)
             throw new Exception("response is missing 82 tag!");
-        //here we se dataLength to the length value that is inclued in the response(61 = 97) and thats the length of the data that is following
+
         int dataLength = response[index++];
 
         if (response[index] != 0x04)
@@ -186,15 +156,14 @@ public class ECDHKeyGenerator
     {
         try
         {
-            // Skapa BigInteger från decryptedNonce
+            // Create BigInteger from decryptedNonce
             var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
             s = s.Mod(curveParams.N);
 
-            // Logga `s` och `domain.N`
             Console.WriteLine($"Nonce (s): {s.ToString(16)}");
             Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
 
-            // Validera att `s` är inom giltigt intervall: 1 ≤ s ≤ n-1
+            // Validate that s is within the valid range: 1 ≤ s ≤ n-1
             if (s.SignValue <= 0 || s.CompareTo(curveParams.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
                 throw new Exception("Nonce value is out of range for the curve domain.");
 
@@ -206,26 +175,27 @@ public class ECDHKeyGenerator
         }
     }
 
-    //1.brainpoolP384r1 parametrar  2.Vår privata nyckel från förr 3.Chippets publika nyckel som vi just extraherade
     public static ECPoint CalculateH(ECDomainParameters curveParameters, BigInteger ourPrivateKey, byte[] chipPublicKeyBytes)
     {
-        // Konvertera chippets publika nyckel från bytes till ECPoint
-        ECPoint chipPublicKey = curveParameters.Curve.DecodePoint(chipPublicKeyBytes);
-        // Validera chippets publika nyckel
+        // Convert chip public key from bytes to ECPoint
+        ECPoint chipPublicKey = curveParameters.Curve.DecodePoint(chipPublicKeyBytes); 
+
         if (!chipPublicKey.IsValid())
-            throw new ArgumentException("Ogiltig publik nyckel från chip");
-        // Beräkna H genom att multiplicera chippets publika nyckel med vår privata nyckel
+            throw new ArgumentException("Invalid public key from chip");
+
+        // Calculate H = chipPublicKey * ourPrivateKey
         ECPoint H = chipPublicKey.Multiply(ourPrivateKey);
-        // Validera resultatet
+
+        // Validate result
         if (H.IsInfinity)
-            throw new InvalidOperationException("Beräkningen resulterade i ogiltig punkt");
+            throw new InvalidOperationException("Calculation resulted in invalid point");
         return H;
     }
 
     public ECDHKeyPair GenerateKeyPairWithGTilde(ECPoint gTilde)
     {
-        // 1. Generera privat nyckel (ett slumpmässigt tal mellan 1 och n-1)
-        BigInteger n = domainParameters.N; // Kurvans ordning
+        // 1. Generate a private key (a random number between 1 and n-1)
+        BigInteger n = domainParameters.N; //curve order
         BigInteger privateKey;
         do
         {
@@ -233,7 +203,7 @@ public class ECDHKeyGenerator
         }
         while (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0);
 
-        // 2. Skapar publik nyckel. (privat nyckel * G)
+        // 2. Create public key = privateKey * G̃
         ECPoint publicKey = gTilde.Multiply(privateKey);
 
         return new ECDHKeyPair
@@ -245,7 +215,7 @@ public class ECDHKeyGenerator
 
     public static byte[] BuildKeyAgreementCommandGTilde(byte[] publicKey)
     {
-        // Längder
+        // Counting the length
         byte mappingDataLength = (byte)publicKey.Length;
         byte dynamicAuthDataLength = (byte)(2 + mappingDataLength); // 83 + len + data
         byte totalLength = (byte)(2 + dynamicAuthDataLength); // 7C + len + inner data
@@ -264,10 +234,9 @@ public class ECDHKeyGenerator
         command.Add(dynamicAuthDataLength);
 
         // Key Agreement Data
-        command.Add(0x83);     // Tag för Key Agreement (notera: 0x83 istället för 0x81)
+        command.Add(0x83);     // Tag for key agreement (note: 0x83 instead of 0x81)
         command.Add(mappingDataLength);
 
-        // Publik nyckel (innehåller redan 04 prefix)
         command.AddRange(publicKey);
 
         // Le
@@ -278,20 +247,18 @@ public class ECDHKeyGenerator
 
     public static byte[] ExtractGTildePublicKeyFromResponse(byte[] response)
     {
-        // Validera minimum längd och status bytes
         if (response == null || response.Length < 7)
             throw new Exception("response is null or to short!");
+
         if (response[response.Length - 2] != 0x90 || response[response.Length - 1] != 0x00)
             throw new Exception("response is not 90-00!");
 
         int index = 0;
 
-        // Kolla 7C tag
         if (response[index++] != 0x7C)
             throw new Exception("response is missing 7C start-tag!");
         index++;
 
-        // Kolla 84 tag (ändrat från 82)
         if (response[index++] != 0x84)
             throw new Exception("response is missing 84 tag!");
 
@@ -307,13 +274,13 @@ public class ECDHKeyGenerator
 
     public static byte[] DeriveKeyFromK(ECPoint K, int counter)
     {
-        // Vi behöver bara x-koordinaten från K
+        // We only need x-coordinate from K
         var normalizedK = K.Normalize();
         byte[] kBytes = normalizedK.AffineXCoord.GetEncoded();
         Console.WriteLine($"x kBytes: {BitConverter.ToString(kBytes)}");
         Console.WriteLine($"x kBytes.Length: {kBytes.Length}");
 
-        // Skapa counter som 32-bit big-endian
+        // Create counter as 32-bit big-endian
         byte[] counterBytes = BitConverter.GetBytes(counter);
         if (BitConverter.IsLittleEndian)
             Array.Reverse(counterBytes);
@@ -323,27 +290,26 @@ public class ECDHKeyGenerator
         kBytes.CopyTo(concatenated, 0);
         counterBytes.CopyTo(concatenated, kBytes.Length);
 
-        // Beräkna SHA-256
+        // Calculate SHA-256
         var sha256 = new Org.BouncyCastle.Crypto.Digests.Sha256Digest();
         byte[] hash = new byte[sha256.GetDigestSize()];
         sha256.BlockUpdate(concatenated, 0, concatenated.Length);
         sha256.DoFinal(hash, 0);
 
-        return hash;  // Detta ger oss en 32-byte (256-bit) nyckel
+        return hash;  // return 32-byte (256-bit) key
     }
-
 
     public static byte[] BuildAuthenticationTokenInput(byte[] publicKey, byte[] oid)
     {
         List<byte> data = new List<byte>();
 
-        // Beräkna total längd (OID längd + publik nyckel längd + extra bytes för taggar och längder)
-        int totalLength = 2 + oid.Length + 2 + publicKey.Length;  // 2 bytes för varje tagg+längd combo
+        // Count the total length (OID length + public key length + extra bytes for tags and lengths)
+        int totalLength = 2 + oid.Length + 2 + publicKey.Length;  // 2 bytes for each tagg+length combo
 
         // Public Key Data tag (7F49)
         data.Add(0x7F);
         data.Add(0x49);
-        data.Add((byte)totalLength);  // Dynamisk längd
+        data.Add((byte)totalLength);  // Dynamic length
 
         // OID
         data.Add(0x06);
@@ -374,20 +340,19 @@ public class ECDHKeyGenerator
 
     public static byte[] BuildTokenCommand(byte[] token)
     {
-        // Token ska vara 8 bytes
         if (token.Length != 8)
             throw new Exception("Token must be 8 bytes!");
 
         List<byte> command = new List<byte>();
 
         // Header
-        command.Add(0x00);     // CLA (sista kommandot, ingen chaining)
+        command.Add(0x00);     // CLA (no chaining)
         command.Add(0x86);     // INS (General Authenticate)
         command.Add(0x00);     // P1
         command.Add(0x00);     // P2
 
-        // Beräkna längder
-        byte tokenDataLength = 0x08;  // token är alltid 8 bytes
+        // Counting the length
+        byte tokenDataLength = 0x08;  // Token is always 8 bytes
         byte dynamicAuthDataLength = (byte)(2 + tokenDataLength); // 85 + len + data
         byte totalLength = (byte)(2 + dynamicAuthDataLength); // 7C + len + inner data
 
@@ -398,7 +363,7 @@ public class ECDHKeyGenerator
         command.Add(dynamicAuthDataLength);
 
         // Token data
-        command.Add(0x85);     // Tag för vår token
+        command.Add(0x85);     // Tag for our token
         command.Add(tokenDataLength);
         command.AddRange(token);
 
