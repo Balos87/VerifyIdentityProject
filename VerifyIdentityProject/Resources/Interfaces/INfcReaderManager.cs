@@ -10,6 +10,10 @@ namespace VerifyIdentityProject.Resources.Interfaces
     public interface INfcReaderManager
     {
         event Action<string> OnNfcChipDetected;
+        event Action<string> OnNfcTagDetected; 
+        event Action<string> OnNfcProcessingStarted; 
+        event Action<string> OnNfcProcessingCompleted; 
+
         void StartListening();
         void StopListening();
     }

@@ -5,6 +5,14 @@
              x:Class="VerifyIdentityProject.App">
     <Application.Resources>
         <ResourceDictionary>
+
+            <Color x:Key="PageBackgroundColor">#F4F4F4</Color>
+            <Color x:Key="PrimaryTextColor">#333333</Color>
+            <Color x:Key="SecondaryTextColor">#555555</Color>
+            <Color x:Key="FrameBackgroundColor">#FFFFFF</Color>
+            <Color x:Key="ButtonBackgroundColor">#007BFF</Color>
+            <Color x:Key="EntryBackgroundColor">#EEEEEE</Color>
+            
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
                 <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
