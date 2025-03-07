@@ -17,8 +17,6 @@ namespace VerifyIdentityProject
             Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
 
             Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>() });
-            Routing.RegisterRoute(nameof(DgInformationFetchedPage), typeof(DgInformationFetchedPage));
-
 
         }
     }

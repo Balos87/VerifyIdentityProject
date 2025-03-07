@@ -110,9 +110,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiXaml Update="DgInformationFetchedPage.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="PassportDataPage.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

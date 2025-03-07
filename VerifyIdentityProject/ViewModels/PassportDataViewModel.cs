@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Controls;
+using VerifyIdentityProject.Helpers;
 
 namespace VerifyIdentityProject
 {
