@@ -9,6 +9,7 @@ namespace VerifyIdentityProject
     {
         private MainPageViewModel _viewModel;
         private MrzReader _mrzReader;
+
         public MainPage(MainPageViewModel viewModel, INfcReaderManager nfcReaderManager)
         {
             InitializeComponent();
@@ -17,15 +18,13 @@ namespace VerifyIdentityProject
             copy.CopyAppSettingsFileToAppData();
 
             _viewModel = viewModel;
-            _mrzReader = new MrzReader(UpdateMrzNotFoundMessage, nfcReaderManager);
+            _mrzReader = new MrzReader(UpdatePassportData, nfcReaderManager);
             BindingContext = _viewModel;
-
-            // Assign the command from MrzReader
-            _viewModel.ScanMrzCommand = new Command(async () => await _mrzReader.ScanAndExtractMrzAsync());
         }
-        private void UpdateMrzNotFoundMessage(string message)
+
+        private void UpdatePassportData(string message)
         {
-            _viewModel.MrzNotFound = message;
+            _viewModel.PassportData = message;
         }
     }
 }

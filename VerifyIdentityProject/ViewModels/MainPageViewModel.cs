@@ -22,7 +22,6 @@ namespace VerifyIdentityProject.ViewModels
         private readonly string _secretsFilePath = Path.Combine(FileSystem.AppDataDirectory, "secrets.json");
 
         private string _passportData;
-        private string _mrzNotFound;
         private string _manualMrz;
         private bool _isScanning;
 
@@ -43,25 +42,15 @@ namespace VerifyIdentityProject.ViewModels
                     _manualMrz = value;
                     OnPropertyChanged(nameof(ManualMrz));
 
-                    // ✅ Clear error message if valid MRZ is entered
+                    // ✅ Show status update in PassportData (Status Message Window)
                     if (IsValidMrz(_manualMrz))
                     {
-                        MrzNotFound = "";
+                        PassportData = $"✅ Manual MRZ submitted: {_manualMrz}";
                     }
-                }
-            }
-        }
-
-
-        public string MrzNotFound
-        {
-            get => _mrzNotFound;
-            set
-            {
-                if (_mrzNotFound != value)
-                {
-                    _mrzNotFound = value;
-                    OnPropertyChanged(nameof(MrzNotFound));
+                    else
+                    {
+                        PassportData = "❌ Invalid MRZ format. Please check the input.";
+                    }
                 }
             }
         }
@@ -151,50 +140,61 @@ namespace VerifyIdentityProject.ViewModels
             });
         }
 
-        private void SubmitManualMrz()
-        {
-            if (IsValidMrz(ManualMrz))
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    PassportData = $"Manual MRZ submitted: {ManualMrz}";
-                    MrzNotFound = string.Empty;
-                });
-
-                _secretsManager.SetMrzNumbers(ManualMrz);
-
-                if (StartNfcCommand.CanExecute(null))
-                {
-                    StartNfcCommand.Execute(null);
-                }
-            }
-            else
-            {
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    MrzNotFound = "❌ Invalid MRZ format. Please check the input.";
-                });
-            }
-        }
-
         private async Task ScanMrzAsync()
         {
             try
             {
-                var mrzReader = new MrzReader(UpdateMrzNotFoundMessage, _nfcReaderManager);
+                var mrzReader = new MrzReader(UpdatePassportData, _nfcReaderManager);
                 await mrzReader.ScanAndExtractMrzAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"⚠️ Error capturing MRZ: {ex.Message}");
-                MrzNotFound = $"⚠️ Error capturing MRZ: {ex.Message}";
+                PassportData = $"⚠️ Error capturing MRZ: {ex.Message}";
             }
         }
 
-        private void UpdateMrzNotFoundMessage(string message)
+        private async void UpdatePassportData(string message)
         {
-            MrzNotFound = message;
+            if (message.StartsWith("✅ MRZ Extracted:"))
+            {
+                string mrzValue = message.Replace("✅ MRZ Extracted: ", "").Trim();
+
+                // ✅ Show MRZ found message and log the MRZ value
+                PassportData = $"📜 MRZ Found: {mrzValue}";
+
+                await Task.Delay(5000); // ⏳ Wait for 5 seconds before proceeding
+
+                // ✅ Now proceed to NFC scanning
+                PassportData = "📡 NFC Reader started. Please place your device on your passport.";
+                _nfcReaderManager.StartListening();
+            }
+            else
+            {
+                PassportData = message;
+            }
         }
+
+        private async void SubmitManualMrz()
+        {
+            if (IsValidMrz(ManualMrz))
+            {
+                // ✅ Show MRZ found message before proceeding
+                PassportData = $"📜 MRZ Found: {ManualMrz}";
+
+                _secretsManager.SetMrzNumbers(ManualMrz);
+
+                await Task.Delay(5000); // ⏳ Wait for 5 seconds
+
+                // ✅ Now start NFC after delay
+                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
+                StartNfcCommand.Execute(null);
+            }
+            else
+            {
+                PassportData = "❌ Invalid MRZ format. Please check the input.";
+            }
+        }
+
 
         private static bool IsValidMrz(string mrz) => !string.IsNullOrWhiteSpace(mrz) && mrz.Length == 24;
 
@@ -203,7 +203,7 @@ namespace VerifyIdentityProject.ViewModels
             try
             {
                 _nfcReaderManager.StartListening();
-                PassportData = "📡 NFC Reader started. Waiting for a tag...";
+                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
             }
             catch (Exception ex)
             {

@@ -14,35 +14,31 @@
                    TextColor="{DynamicResource PrimaryTextColor}"
                    HorizontalOptions="Center" />
 
-            <!-- Status Message -->
+            <!-- ✅ Centralized Status Message Window -->
             <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="15" CornerRadius="8">
                 <Label Text="{Binding PassportData}"
                        FontSize="18"
                        TextColor="{DynamicResource SecondaryTextColor}"
                        HorizontalOptions="Center"
-                       VerticalOptions="Center" />
+                       VerticalOptions="Center"
+                       LineBreakMode="WordWrap" />
             </Frame>
-
-
 
             <!-- Section: NFC Scanning -->
             <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                 <VerticalStackLayout Spacing="12">
-
 
                     <Label Text="Scan Your Passport"
                            FontSize="18"
                            FontAttributes="Bold"
                            TextColor="{DynamicResource SecondaryTextColor}" />
 
-
                     <Button Text="Capture and Process MRZ"
                             Command="{Binding ScanMrzCommand}"
                             BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="White"
+                            TextColor="{DynamicResource ButtonTextColor}"
                             CornerRadius="5"
                             Padding="12,8" />
-
 
                     <ActivityIndicator IsRunning="{Binding IsScanning}" 
                                        IsVisible="{Binding IsScanning}"
@@ -66,21 +62,16 @@
                         <Entry Text="{Binding ManualMrz, Mode=TwoWay}" 
                                Placeholder="Enter MRZ manually"
                                MaxLength="88"
-                               BackgroundColor="Transparent" />
+                               BackgroundColor="{DynamicResource EntryBackgroundColor}"
+                               TextColor="{DynamicResource PrimaryTextColor}" />
                     </Frame>
 
                     <Button Text="Submit MRZ"
                             Command="{Binding SubmitManualMrzCommand}"
                             BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="White"
+                            TextColor="{DynamicResource ButtonTextColor}"
                             CornerRadius="5"
                             Padding="12,8" />
-
-                    <!-- Error Message -->
-                    <Label Text="{Binding MrzNotFound}"
-                           TextColor="Red"
-                           FontSize="14"
-                           IsVisible="{Binding MrzNotFound, Converter={StaticResource StringToVisibilityConverter}}" />
 
                 </VerticalStackLayout>
             </Frame>
@@ -97,10 +88,9 @@
                     <Button Text="Developer Pace Run"
                             Command="{Binding StartNfcCommand}"
                             BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="White"
+                            TextColor="{DynamicResource ButtonTextColor}"
                             CornerRadius="5"
                             Padding="12,8" />
-
 
                 </VerticalStackLayout>
             </Frame>

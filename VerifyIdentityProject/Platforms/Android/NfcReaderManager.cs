@@ -52,8 +52,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 null
             );
 
-            Console.WriteLine("📡 NFC Reader started. Waiting for a tag...");
-            OnNfcChipDetected?.Invoke("📡 NFC Reader started. Waiting for a tag...");
+            Console.WriteLine("📡 NFC Reader started. Please place the device on the passport.");
+            OnNfcChipDetected?.Invoke("📡 NFC Reader started. Please place the device on the passport.");
         }
 
         /// <summary>

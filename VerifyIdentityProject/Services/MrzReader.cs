@@ -68,7 +68,7 @@ namespace VerifyIdentityProject.Services
         }
 
         // The method that checks MRZ and triggers the callback
-        private void CheckForMrzAndNotify(string mrzText)
+        private async void CheckForMrzAndNotify(string mrzText)
         {
             if (string.IsNullOrEmpty(mrzText))
             {
@@ -79,28 +79,22 @@ namespace VerifyIdentityProject.Services
             {
                 Console.WriteLine($"✅ MRZ Extracted: {mrzText}");
 
-                // Update MRZ in secrets.json
+                // ✅ Update UI: Show MRZ found message before starting NFC
+                _mrzNotFoundCallback?.Invoke($"📜 MRZ Found: {mrzText}");
+
+                // ✅ Store the MRZ in secrets.json
                 string secretsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secrets.json");
                 SecretsManager manager = new SecretsManager(secretsFilePath);
                 manager.SetMrzNumbers(mrzText);
 
-                // ✅ Update UI
-                _mrzNotFoundCallback?.Invoke(""); // Clear any error messages
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    var viewModel = Shell.Current.BindingContext as MainPageViewModel;
-                    if (viewModel != null)
-                    {
-                        viewModel.ManualMrz = mrzText; // ✅ Set the extracted MRZ
-                    }
-                });
+                // ✅ Wait for 5 seconds before proceeding to NFC
+                await Task.Delay(5000);
 
-                // ✅ Start NFC process
+                // ✅ Now start NFC after the delay
+                _mrzNotFoundCallback?.Invoke("📡 NFC Reader started. Please place the device on the passport");
                 _nfcReaderManager.StartListening();
             }
         }
-
-
 
         private async Task<string> ExtractMrzFromApiAsync(string imagePath)
         {
