@@ -42,9 +42,16 @@ namespace VerifyIdentityProject.ViewModels
                 {
                     _manualMrz = value;
                     OnPropertyChanged(nameof(ManualMrz));
+
+                    // ✅ Clear error message if valid MRZ is entered
+                    if (IsValidMrz(_manualMrz))
+                    {
+                        MrzNotFound = "";
+                    }
                 }
             }
         }
+
 
         public string MrzNotFound
         {
@@ -174,22 +181,19 @@ namespace VerifyIdentityProject.ViewModels
         {
             try
             {
-                string scannedMrz = await Task.Run(() => "YOUR_SCANNED_MRZ_HERE");
-
-                if (IsValidMrz(scannedMrz))
-                {
-                    ManualMrz = scannedMrz;
-                    MrzNotFound = string.Empty;
-                }
-                else
-                {
-                    MrzNotFound = "❌ Invalid MRZ format. Please check the input.";
-                }
+                var mrzReader = new MrzReader(UpdateMrzNotFoundMessage, _nfcReaderManager);
+                await mrzReader.ScanAndExtractMrzAsync();
             }
             catch (Exception ex)
             {
-                MrzNotFound = $"⚠️ Error scanning MRZ: {ex.Message}";
+                Console.WriteLine($"⚠️ Error capturing MRZ: {ex.Message}");
+                MrzNotFound = $"⚠️ Error capturing MRZ: {ex.Message}";
             }
+        }
+
+        private void UpdateMrzNotFoundMessage(string message)
+        {
+            MrzNotFound = message;
         }
 
         private static bool IsValidMrz(string mrz) => !string.IsNullOrWhiteSpace(mrz) && mrz.Length == 24;

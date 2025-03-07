@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Microsoft.Maui.Media;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
+using VerifyIdentityProject.ViewModels;
 
 namespace VerifyIdentityProject.Services
 {
@@ -71,24 +72,35 @@ namespace VerifyIdentityProject.Services
         {
             if (string.IsNullOrEmpty(mrzText))
             {
-                Console.WriteLine("No MRZ detected in the image.");
-                _mrzNotFoundCallback?.Invoke("No MRZ detected in the image.");
+                Console.WriteLine("❌ No MRZ detected in the image.");
+                _mrzNotFoundCallback?.Invoke("❌ No MRZ detected in the image.");
             }
             else
             {
-                // Define the path to your secrets.json file.
+                Console.WriteLine($"✅ MRZ Extracted: {mrzText}");
+
+                // Update MRZ in secrets.json
                 string secretsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secrets.json");
-
-                // Create an instance of the SecretsManager.
                 SecretsManager manager = new SecretsManager(secretsFilePath);
-
-                // Update the MRZ_NUMBERS value.
                 manager.SetMrzNumbers(mrzText);
-                // Clear message if MRZ is found
-                _mrzNotFoundCallback?.Invoke("Place your phone on passport."); // Clear message
+
+                // ✅ Update UI
+                _mrzNotFoundCallback?.Invoke(""); // Clear any error messages
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var viewModel = Shell.Current.BindingContext as MainPageViewModel;
+                    if (viewModel != null)
+                    {
+                        viewModel.ManualMrz = mrzText; // ✅ Set the extracted MRZ
+                    }
+                });
+
+                // ✅ Start NFC process
                 _nfcReaderManager.StartListening();
             }
         }
+
+
 
         private async Task<string> ExtractMrzFromApiAsync(string imagePath)
         {

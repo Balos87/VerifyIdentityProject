@@ -43,6 +43,7 @@
                             CornerRadius="5"
                             Padding="12,8" />
 
+
                     <ActivityIndicator IsRunning="{Binding IsScanning}" 
                                        IsVisible="{Binding IsScanning}"
                                        Color="{DynamicResource PrimaryTextColor}"
