@@ -15,7 +15,6 @@ namespace VerifyIdentityProject.Helpers
         public byte[] _ksEnc;
         public byte[] _ksMac;
         public byte[] _ssc;
-        public Dictionary<string, string> _dictionaryMrzData;
 
         public SecureMessagingHelper(byte[] ksEnc, byte[] ksMac)
         {
@@ -23,7 +22,6 @@ namespace VerifyIdentityProject.Helpers
             _ksMac = ksMac;
             _ssc = new byte[16];
         }
-
 
         public byte[] PadDataPace(byte[] data)
         {
@@ -43,7 +41,6 @@ namespace VerifyIdentityProject.Helpers
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
 
-                // För PACE: IV är krypterad SSC
                 byte[] iv = CalculateIVPace(ssc);
                 Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
                 aes.IV = iv;
@@ -63,7 +60,6 @@ namespace VerifyIdentityProject.Helpers
                 aes.Mode = CipherMode.CBC;
                 aes.Padding = PaddingMode.None;
 
-                // För PACE: IV är krypterad SSC
                 byte[] iv = CalculateIVPace(ssc);
                 Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
                 aes.IV = iv;
@@ -95,8 +91,6 @@ namespace VerifyIdentityProject.Helpers
         {
             Console.WriteLine("SSC value before CalculateMAC: " + BitConverter.ToString(ssc).Replace("-", " "));
 
-            // För PACE: Använd AES-CMAC
-            // Först konkatenera SSC
             byte[] macInput = ConcatenateArraysPace(ssc, data);
             Console.WriteLine("Full MAC input with SSC: " + BitConverter.ToString(macInput).Replace("-", " "));
 
@@ -113,8 +107,8 @@ namespace VerifyIdentityProject.Helpers
 
         public byte[] BuildProtectedAPDUPace(byte[] header, byte[] do87, byte[] do8E)
         {
-            // Använd original header här (utan padding)
-            byte[] protectedApdu = header.Take(4) // Notera: P2 = 0x0C här
+            // use original header here (without padding)
+            byte[] protectedApdu = header.Take(4) // Note that P2 = 0x0C here
                 .Concat(new byte[] { (byte)(do87.Length + do8E.Length) })
                 .Concat(do87)
                 .Concat(do8E)
@@ -147,7 +141,6 @@ namespace VerifyIdentityProject.Helpers
                 if (++_ssc[i] != 0)
                     break;
             }
-
         }
 
         public byte[] ConcatenateArraysPace(params byte[][] arrays)
@@ -157,7 +150,7 @@ namespace VerifyIdentityProject.Helpers
 
         public void VerifyResponsePace(byte[] response, byte[] SSC, byte[] KSMac)
         {
-            // Extrahera DO'99' och DO'8E'
+            // Extract DO'99' and DO'8E'
             byte[] DO99 = null;
             byte[] responseMac = null;
             int index = 0;
@@ -190,20 +183,19 @@ namespace VerifyIdentityProject.Helpers
             if (DO99 == null || responseMac == null)
                 throw new Exception("Invalid response format");
 
-            // Beräkna MAC för verifiering
             byte[] macInput = DO99;
             Console.WriteLine("macInput (DO99): " + BitConverter.ToString(macInput).Replace("-", " "));
 
             byte[] paddedMacInput = PadDataPace(macInput);
             Console.WriteLine("paddedMacInput: " + BitConverter.ToString(paddedMacInput).Replace("-", " "));
 
+            //Calculate MAC for verification 
             byte[] calculatedMac = CalculateMACPace(paddedMacInput, SSC);
             Console.WriteLine("calculatedMac: " + BitConverter.ToString(calculatedMac).Replace("-", " "));
 
             bool isEqual = calculatedMac.SequenceEqual(responseMac);
             if (isEqual)
                 Console.WriteLine($"{BitConverter.ToString(calculatedMac)} == {BitConverter.ToString(responseMac)}: {isEqual}");
-
         }
 
         public static bool IsSuccessfulResponsePace(byte[] response)
