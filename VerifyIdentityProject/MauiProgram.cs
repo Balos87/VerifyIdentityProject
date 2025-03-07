@@ -2,9 +2,9 @@
 using VerifyIdentityProject;
 using VerifyIdentityProject.Resources.Interfaces;
 using TesseractOcrMaui;
-using VerifyIdentityProject.Helpers.MRZReader;
 using SkiaSharp.Views.Maui.Controls.Hosting;
-using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Services;
+using VerifyIdentityProject.ViewModels;
 
 public static class MauiProgram
 {

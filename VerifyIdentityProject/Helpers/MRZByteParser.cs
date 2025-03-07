@@ -20,7 +20,7 @@ namespace VerifyIdentityProject.Helpers
             {
                 byte b = bytes[i];
 
-                // Börja läsa efter vi hittar 'P' eller '<'
+                // Start reading after we find 'P' or '<'
                 if (!startedReading && (b == 0x50 || b == 0x3C))
                 {
                     startedReading = true;
@@ -28,10 +28,10 @@ namespace VerifyIdentityProject.Helpers
 
                 if (startedReading)
                 {
-                    // Inkludera bara giltiga MRZ-tecken
-                    if ((b >= 0x30 && b <= 0x39) ||  // Siffror
-                        (b >= 0x41 && b <= 0x5A) ||  // Stora bokstäver
-                        b == 0x3C)                   // < tecken
+                    // Include only valid MRZ characters
+                    if ((b >= 0x30 && b <= 0x39) ||  // Numbers
+                        (b >= 0x41 && b <= 0x5A) ||  // Uppercase letters
+                        b == 0x3C)                   // < symbol
                     {
                         mrz.Append((char)b);
                     }
@@ -40,19 +40,19 @@ namespace VerifyIdentityProject.Helpers
 
             string result = mrz.ToString();
 
-            // Säkerställ att resultatet har korrekt längd för MRZ (44 tecken per rad)
+            // Ensure the result has the correct length for MRZ (44 characters per row)
             if (result.Length >= 88)
             {
                 return result.Substring(0, 88);
             }
 
-            // Fyll ut med < tecken om det behövs
+            // Pad with '<' characters if needed
             return result.PadRight(88, '<');
         }
 
         public static string FormatMRZForBAC(string mrz)
         {
-            // Säkerställ att vi har exakt två rader med 44 tecken var
+            // Ensure we have exactly two rows of 44 characters each
             string[] lines = new string[2];
 
             if (mrz.Length >= 44)
@@ -67,32 +67,6 @@ namespace VerifyIdentityProject.Helpers
             }
 
             return lines[0] + "\n" + lines[1];
-        }
-
-        public static (string DocumentNumber, string DateOfBirth, string DateOfExpiry) ExtractBACElements(string mrz)
-        {
-            // Extrahera relevanta delar för BAC
-            string documentNumber = "";
-            string dateOfBirth = "";
-            string dateOfExpiry = "";
-
-            try
-            {
-                // Dokumentnummer finns vanligtvis i andra raden
-                string[] lines = mrz.Split('\n');
-                if (lines.Length >= 2)
-                {
-                    documentNumber = lines[1].Substring(0, 9).Trim('<');
-                    dateOfBirth = lines[1].Substring(13, 6);
-                    dateOfExpiry = lines[1].Substring(21, 6);
-                }
-            }
-            catch
-            {
-                // Vid fel, returnera tomma strängar
-            }
-
-            return (documentNumber, dateOfBirth, dateOfExpiry);
         }
     }
 }

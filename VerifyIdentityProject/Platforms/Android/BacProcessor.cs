@@ -162,7 +162,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 apduCommand[2] = 0x00;  // P1
                 apduCommand[3] = 0x00;  // P2
                 apduCommand[4] = (byte)cmd_data.Length;  // Lc
-                Array.Copy(cmd_data, 0, apduCommand, 5, cmd_data.Length);  // Kopiera cmd_data (källa, KällanstartIndex,destination, destinIndex,längden)
+                Array.Copy(cmd_data, 0, apduCommand, 5, cmd_data.Length);  // Copy cmd_data (source, sourceStartIndex, destination, destinationIndex, length)
                 apduCommand[5 + cmd_data.Length] = 0x28;  // Le
 
 
@@ -232,15 +232,15 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             try
             {
-                // Ladda DG2 som ASN.1-struktur
+                // Load DG2 as an ASN.1 structure
                 Asn1InputStream asn1Stream = new Asn1InputStream(dg2Data);
                 var asn1Object = asn1Stream.ReadObject();
 
-                // Hämta den sekvens som innehåller JPEG
+                // Get the sequence that contains JPEG
                 Asn1Sequence dg2Sequence = asn1Object as Asn1Sequence;
-                if (dg2Sequence == null) throw new Exception("Felaktig DG2-struktur.");
+                if (dg2Sequence == null) throw new Exception("Invalid DG2 structure.");
 
-                // Iterera genom noderna för att hitta JPEG
+                // Iterate through nodes to find JPEG
                 foreach (var obj in dg2Sequence)
                 {
                     if (obj is Asn1OctetString octetString)
@@ -250,24 +250,25 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
                 }
 
-                throw new Exception("Ingen JPEG-data hittades i DG2.");
+                throw new Exception("No JPEG data found in DG2.");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid ASN.1-parsning: {ex.Message}");
+                Console.WriteLine($"Error during ASN.1 parsing: {ex.Message}");
                 throw;
             }
         }
 
         private static bool IsJPEGData(byte[] data)
         {
-            // Kontrollera om datan börjar med JPEG-startmarkör (0xFF, 0xD8) och slutar med JPEG-slutmarkör (0xFF, 0xD9)
+            // Check if the data starts with the JPEG start marker (0xFF, 0xD8) and ends with the JPEG end marker (0xFF, 0xD9)
             return data.Length > 4 &&
                    data[0] == 0xFF &&
                    data[1] == 0xD8 &&
                    data[data.Length - 2] == 0xFF &&
                    data[data.Length - 1] == 0xD9;
         }
+
         public class CallDG1
         {
             public static void Call(IsoDep isoDep, byte[] KSEncParitet, byte[] KSMacParitet, byte[] SSC)
@@ -596,39 +597,39 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 try
                 {
-                    // Konvertera bytes till string
+                    // Convert bytes to string
                     string mrzData = Encoding.ASCII.GetString(data);
 
-                    // Rensa bort eventuella null-bytes och trimma
+                    // Remove null bytes and trim
                     mrzData = new string(mrzData.Where(c => c != '\0').ToArray()).Trim();
 
                     Console.WriteLine("\n=== Passport Data (DG1) ===\n");
 
-                    // Hantera '<' specialtecken och dela upp namnen
+                    // Handle '<' special characters and split names
                     string[] nameParts = mrzData.Split(new[] { "<<" }, StringSplitOptions.None);
 
-                    // Extrahera landkod (de första tre tecknen efter P eller I)
+                    // Extract country code (first three characters after P or I)
                     string documentType = mrzData.Substring(0, 1);
                     string countryCode = mrzData.Substring(1, 3);
 
-                    // Extrahera och formatera namn
+                    // Extract and format names
                     string surname = nameParts[0].Substring(4).Replace("<", " ").Trim();
                     string givenNames = nameParts.Length > 1 ? nameParts[1].Replace("<", " ").Trim() : "";
 
-                    // Presentera datan på ett snyggt sätt
+                    // Present the data nicely
                     Console.WriteLine($"Document Type: {(documentType == "P" ? "Passport" : documentType)}");
                     Console.WriteLine($"Country Code: {countryCode}");
                     Console.WriteLine($"Surname: {surname}");
                     Console.WriteLine($"Given Names: {givenNames}");
 
-                    // Visa även rådatan för verifiering
+                    // Also display raw data for verification
                     Console.WriteLine("\nRaw MRZ Data:");
                     Console.WriteLine(mrzData);
 
-                    // Visa hexadecimal representation
+                    // Show hexadecimal representation
                     Console.WriteLine("\nHexadecimal representation:");
                     Console.WriteLine(BitConverter.ToString(data));
-                    Console.WriteLine($"Raw data:{data}");
+                    Console.WriteLine($"Raw data: {data}");
 
                 }
                 catch (Exception ex)
@@ -639,7 +640,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
             }
 
-            // Hjälpmetod för att konvertera MRZ-datum till läsbart format
+            // Helper method to convert MRZ date to readable format
             private static string FormatMRZDate(string mrzDate)
             {
                 if (mrzDate.Length != 6) return mrzDate;
@@ -650,7 +651,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     int month = int.Parse(mrzDate.Substring(2, 2));
                     int day = int.Parse(mrzDate.Substring(4, 2));
 
-                    // Antag att år 00-99 är 1900-1999
+                    // Assume that years 00-99 correspond to 1900-1999
                     if (year < 50) year += 2000;
                     else year += 1900;
 
@@ -662,7 +663,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
             }
 
-            // Hjälpmetod för att validera checksiffror
+            // Helper method to validate check digits
             private static bool ValidateCheckDigit(string data, int checkDigitPosition)
             {
                 if (checkDigitPosition >= data.Length) return false;
@@ -692,20 +693,19 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        //Funkar bra
         public static List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
             try
             {
                 List<byte[]> fullData = new List<byte[]>();
                 int offset = 0;
-                const int blockSize = 0x20; // Standardstorlek för block i MRTD-kommunikation (32 bytes)
+                const int blockSize = 0x20; // Standard block size for MRTD communication (32 bytes)
 
                 while (true)
                 {
                     Console.WriteLine($"Reading DG at offset: {offset}");
 
-                    // Steg 1: Bygg READ BINARY-kommando för nuvarande offset
+                    // Step 1: Build READ BINARY command for the current offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00 };
                     byte[] DO97 = { 0x97, 0x01, (byte)blockSize };
                     byte[] M = cmdHeader.Concat(DO97).ToArray();
@@ -721,7 +721,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     Console.WriteLine($"Sending Protected APDU: {BitConverter.ToString(protectedAPDU)}");
 
-                    // Steg 2: Skicka kommando till DG1
+                    // Step 2: Send command to DG1
                     byte[] RAPDU = isoDep.Transceive(protectedAPDU);
 
                     if (RAPDU.Length < 2 || RAPDU[^2] != 0x90 || RAPDU[^1] != 0x00)
@@ -729,33 +729,34 @@ namespace VerifyIdentityProject.Platforms.Android
                         Console.WriteLine($"Error reading DG: {BitConverter.ToString(RAPDU)}");
                         break;
                     }
-                    // Steg 3: Kontrollera svar och verifiera CC
+
+                    // Step 3: Check response and verify CC
                     IncrementSSC(ref SSC);
                     VerifyRapduCC(RAPDU, ref SSC, KSMac, KSEnc);
 
-                    // Extrahera och dekryptera data från RAPDU
+                    // Extract and decrypt data from RAPDU
                     byte[] do87 = ExtractDO87(RAPDU);
                     byte[] encryptedData = ExtractEncryptedDataFromDO87(do87);
                     byte[] decryptedData = DecryptWithKEnc3DES(encryptedData, KSEnc);
 
-                    // Lägg till dekrypterad data till fullData
+                    // Add decrypted data to fullData
                     fullData.AddRange(decryptedData);
                     Console.WriteLine($"Decrypted Data added: {BitConverter.ToString(decryptedData)}");
 
                     Console.WriteLine($"Decrypted Data (Offset {offset}): {BitConverter.ToString(decryptedData)}");
 
-                    // Kontrollera om sista segmentet lästs
-                    if (decryptedData.Length < 0x20) // Mindre än maximalt möjligt per segment
+                    // Check if the last segment has been read
+                    if (decryptedData.Length < 0x20) // Less than the maximum possible per segment
                     {
                         Console.WriteLine("End of DG reached.");
                         break;
                     }
 
-                    // Uppdatera offset för nästa block
+                    // Update offset for the next block
                     offset += 0x20;
                 }
 
-                // Returnera all kombinerad data
+                // Return all combined data
                 return fullData;
             }
             catch (Exception ex)
@@ -767,10 +768,10 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private static byte[] BuildEfComData(byte[] decryptedData)
         {
-            // Header för EF.COM data
+            // Header for EF.COM data
             byte[] header = { 0x60, 0x14, 0x5F, 0x01 };
 
-            // Kombinera header och avkodad data
+            // Combine header and decoded data
             return header.Concat(decryptedData).ToArray();
         }
 
@@ -779,7 +780,7 @@ namespace VerifyIdentityProject.Platforms.Android
             if (ksMac.Length != 16 && ksMac.Length != 24)
                 throw new ArgumentException("Key length must be 16 or 24 bytes for 3DES.");
 
-            // Dela upp nyckeln
+            // Split the key
             byte[] key1 = ksMac.Take(8).ToArray();
             byte[] key2 = ksMac.Skip(8).Take(8).ToArray();
 
@@ -796,43 +797,43 @@ namespace VerifyIdentityProject.Platforms.Android
                 des2.Padding = PaddingMode.None;
                 des2.IV = new byte[8];
 
-                // Lägg till padding
+                // Add padding
                 byte[] paddedData = PadIso9797Method2(data);
 
-                // MAC steg 1: Kryptera
+                // MAC step 1: Encrypt
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
 
-                // MAC steg 2: Dekryptera
+                // MAC step 2: Decrypt
                 byte[] decrypted = des2.CreateDecryptor().TransformFinalBlock(intermediate, intermediate.Length - 8, 8);
 
-                // MAC steg 3: Kryptera igen
+                // MAC step 3: Encrypt again
                 return des1.CreateEncryptor().TransformFinalBlock(decrypted, 0, 8);
             }
         }
 
         private static byte[] ExtractDO8E2(byte[] rapdu)
         {
-            // DO8E startar med taggen 0x8E
+            // DO8E starts with the tag 0x8E
             int index = Array.IndexOf(rapdu, (byte)0x8E);
             if (index == -1) throw new InvalidOperationException("DO8E not found in RAPDU.");
 
-            int length = rapdu[index + 1]; // DO8E längd
-            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Längd + Data
+            int length = rapdu[index + 1]; // DO8E length
+            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Length + Data
         }
 
         private static byte[] ExtractDO87(byte[] rapdu)
         {
-            // DO87 startar med taggen 0x87
+            // DO87 starts with the tag 0x87
             int index = Array.IndexOf(rapdu, (byte)0x87);
             if (index == -1) throw new InvalidOperationException("DO87 not found in RAPDU.");
 
-            int length = rapdu[index + 1]; // DO87 längd
-            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Längd + Data
+            int length = rapdu[index + 1]; // DO87 length
+            return rapdu.Skip(index).Take(2 + length).ToArray(); // Tag + Length + Data
         }
 
         private static byte[] ExtractDO99(byte[] rapdu)
         {
-            // DO99 startar med taggen 0x99
+            // DO99 starts with the tag 0x99
             int index = Array.IndexOf(rapdu, (byte)0x99);
             if (index == -1) throw new InvalidOperationException("DO99 not found in RAPDU.");
 
@@ -841,31 +842,31 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private static byte[] DecryptDO87WithKSEnc(byte[] do87, byte[] ksEnc)
         {
-            // Kontrollera att DO87 är korrekt strukturerad
+            // Verify that DO87 is correctly structured
             if (do87[0] != 0x87) throw new InvalidOperationException("Invalid DO87 structure. Missing 0x87 tag.");
 
-            // Extrahera den krypterade datan från DO87
-            int dataLength = do87[1] - 1; // Minska 1 för indikator (0x01)
+            // Extract the encrypted data from DO87
+            int dataLength = do87[1] - 1; // Subtract 1 for the indicator (0x01)
             if (dataLength <= 0 || dataLength + 2 > do87.Length)
                 throw new InvalidOperationException("Invalid DO87 data length.");
 
             byte[] encryptedData = do87.Skip(3).Take(dataLength).ToArray();
             Console.WriteLine($"Encrypted Data: {BitConverter.ToString(encryptedData)}");
 
-            // Dekryptera med KSEnc
+            // Decrypt using KSEnc
             using (var tripleDes = TripleDES.Create())
             {
                 tripleDes.Key = ksEnc;
                 tripleDes.Mode = CipherMode.CBC;
                 tripleDes.Padding = PaddingMode.None;
-                tripleDes.IV = new byte[8]; // IV = 8 nollbytes
+                tripleDes.IV = new byte[8]; // IV = 8 null bytes
 
                 using (var decryptor = tripleDes.CreateDecryptor())
                 {
                     byte[] decryptedData = decryptor.TransformFinalBlock(encryptedData, 0, encryptedData.Length);
                     Console.WriteLine($"Decrypted Data with padding: {BitConverter.ToString(decryptedData)}");
 
-                    // Returnera utan padding
+                    // Return without padding
                     return RemovePadding(decryptedData);
                 }
             }
@@ -879,7 +880,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 unpaddedLength--;
             }
 
-            // Kontrollera ISO-9797-1 Padding Metod 2 (sista byte ska vara 0x80)
+            // Check ISO-9797-1 Padding Method 2 (last byte should be 0x80)
             if (unpaddedLength > 0 && data[unpaddedLength - 1] == 0x80)
             {
                 unpaddedLength--;
@@ -892,12 +893,12 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             using (var tripleDes = TripleDES.Create())
             {
-                tripleDes.Key = KEnc;               // 3DES-nyckel (24 bytes)
-                tripleDes.Mode = CipherMode.CBC;    // CBC-läge
-                tripleDes.Padding = PaddingMode.None; // Ingen padding
-                tripleDes.IV = new byte[8];         // IV sätts till 8 nollbytes (3DES använder 8-byte block)
+                tripleDes.Key = KEnc;               // 3DES key (24 bytes)
+                tripleDes.Mode = CipherMode.CBC;    // CBC mode
+                tripleDes.Padding = PaddingMode.None; // No padding
+                tripleDes.IV = new byte[8];         // IV set to 8 null bytes (3DES uses 8-byte blocks)
 
-                // Padding till blockstorlek (8 bytes för 3DES)
+                // Padding to block size (8 bytes for 3DES)
                 int blockSize = 8;
                 int paddedLength = (data.Length + blockSize - 1) / blockSize * blockSize;
                 byte[] paddedData = new byte[paddedLength];
@@ -910,10 +911,10 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
+
         public static byte[] ComputeMac3DES(byte[] data, byte[] KMac)
         {
-
-            // Dela upp nyckeln för 3DES
+            // Split the key for 3DES
             byte[] key1 = new byte[8];
             byte[] key2 = new byte[8];
             Array.Copy(KMac, 0, key1, 0, 8);
@@ -932,20 +933,20 @@ namespace VerifyIdentityProject.Platforms.Android
                 des2.Padding = PaddingMode.None;
                 des2.IV = new byte[8];
 
-                // Lägg till padding till EIFD
+                // Add padding to EIFD
                 byte[] paddedData = PadIso9797Method2(data);
-                Console.WriteLine($"padded Data: {BitConverter.ToString(paddedData)}");
+                Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
 
-                // MAC steg 1: Kryptera med nyckel 1
+                // MAC Step 1: Encrypt with key 1
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
 
-                // MAC steg 2: Dekryptera slutet med nyckel 2
+                // MAC Step 2: Decrypt the last block with key 2
                 byte[] finalBlock = des2.CreateDecryptor().TransformFinalBlock(intermediate, intermediate.Length - 8, 8);
 
-                // MAC steg 3: Kryptera igen med nyckel 1
+                // MAC Step 3: Encrypt again with key 1
                 byte[] mac = des1.CreateEncryptor().TransformFinalBlock(finalBlock, 0, 8);
 
-                // Returnera de första 8 byten av MAC
+                // Return the first 8 bytes of the MAC
                 byte[] result = new byte[8];
                 Array.Copy(mac, 0, result, 0, 8);
                 return result;
@@ -958,7 +959,7 @@ namespace VerifyIdentityProject.Platforms.Android
             int paddedLength = ((data.Length + blockSize) / blockSize) * blockSize;
             byte[] paddedData = new byte[paddedLength];
             Array.Copy(data, paddedData, data.Length);
-            paddedData[data.Length] = 0x80; // Längdbyte
+            paddedData[data.Length] = 0x80; // Padding byte
             return paddedData;
         }
 
@@ -966,11 +967,10 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             using (var tripleDes = TripleDES.Create())
             {
-                tripleDes.Key = KEnc;               // 3DES-nyckel (24 bytes)
+                tripleDes.Key = KEnc;               // 3DES key (24 bytes)
                 tripleDes.Mode = CipherMode.CBC;
                 tripleDes.Padding = PaddingMode.None;
-                tripleDes.IV = new byte[8];         // IV = 8 nollbytes
-
+                tripleDes.IV = new byte[8];         // IV = 8 null bytes
 
                 var decryptedData = tripleDes.CreateDecryptor().TransformFinalBlock(data, 0, data.Length);
 
@@ -980,19 +980,18 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private static byte[] CheckRndIfd(byte[] decryptedR, byte[] rndIfd)
         {
-            byte[] receivedRndIifd = decryptedR.Skip(8).Take(8).ToArray(); // Nästa 8 bytes
-            byte[] receivedRndIc = decryptedR.Take(8).ToArray();   // Första 8 bytes
-            byte[] receivedKic = decryptedR.Skip(16).Take(16).ToArray(); // Sista 16 bytes
+            byte[] receivedRndIfd = decryptedR.Skip(8).Take(8).ToArray(); // Next 8 bytes
+            byte[] receivedRndIc = decryptedR.Take(8).ToArray();   // First 8 bytes
+            byte[] receivedKic = decryptedR.Skip(16).Take(16).ToArray(); // Last 16 bytes
 
             Console.WriteLine($"rndIfd: {BitConverter.ToString(rndIfd)}");
 
-            Console.WriteLine($"received-RndIfd: {BitConverter.ToString(receivedRndIifd)}");
-            Console.WriteLine($"received-RndIc: {BitConverter.ToString(receivedRndIc)}");
-            Console.WriteLine($"received-Kic: {BitConverter.ToString(receivedKic)}");
+            Console.WriteLine($"Received RndIfd: {BitConverter.ToString(receivedRndIfd)}");
+            Console.WriteLine($"Received RndIc: {BitConverter.ToString(receivedRndIc)}");
+            Console.WriteLine($"Received Kic: {BitConverter.ToString(receivedKic)}");
 
-
-            // Jämför `RND.IFD` med genererad `RND.IFD`
-            if (!receivedRndIifd.SequenceEqual(rndIfd)) // `rndIfd` är din genererade data
+            // Compare `RND.IFD` with generated `RND.IFD`
+            if (!receivedRndIfd.SequenceEqual(rndIfd)) // `rndIfd` is the generated data
             {
                 Console.WriteLine("Error: Received RND.IFD does not match generated RND.IFD.");
             }
@@ -1017,7 +1016,7 @@ namespace VerifyIdentityProject.Platforms.Android
             return kSeed;
         }
 
-        static byte[] DeriveKey(byte[] kseed, int counter)
+        static byte[] DeriveKey(byte[] kSeed, int counter)
         {
             // Convert counter to a 4-byte big-endian array
             byte[] counterBytes = BitConverter.GetBytes(counter);
@@ -1027,9 +1026,9 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             // Concatenate Kseed and counter
-            byte[] data = new byte[kseed.Length + counterBytes.Length];
-            Buffer.BlockCopy(kseed, 0, data, 0, kseed.Length);
-            Buffer.BlockCopy(counterBytes, 0, data, kseed.Length, counterBytes.Length);
+            byte[] data = new byte[kSeed.Length + counterBytes.Length];
+            Buffer.BlockCopy(kSeed, 0, data, 0, kSeed.Length);
+            Buffer.BlockCopy(counterBytes, 0, data, kSeed.Length, counterBytes.Length);
 
             // Compute SHA-1 hash of the concatenated data
             byte[] derivedHash;
@@ -1042,7 +1041,6 @@ namespace VerifyIdentityProject.Platforms.Android
             byte[] key = new byte[16];
             Array.Copy(derivedHash, key, 16);
             return key;
-
         }
 
         public static byte[] AdjustAndSplitKey(byte[] key)
@@ -1050,11 +1048,11 @@ namespace VerifyIdentityProject.Platforms.Android
             if (key.Length != 16)
                 throw new ArgumentException("Key must be 16 bytes long for 3DES");
 
-            // Dela nyckeln i två delar
-            byte[] KaPrime = key.Take(8).ToArray();  // Första 8 bytes
-            byte[] KbPrime = key.Skip(8).Take(8).ToArray();  // Sista 8 bytes
+            // Split the key into two parts
+            byte[] KaPrime = key.Take(8).ToArray();  // First 8 bytes
+            byte[] KbPrime = key.Skip(8).Take(8).ToArray();  // Last 8 bytes
 
-            // Justera paritetsbitarna
+            // Adjust parity bits
             byte[] Ka = AdjustParityBitsExact(KaPrime);
             byte[] Kb = AdjustParityBitsExact(KbPrime);
 
@@ -1070,21 +1068,20 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte currentByte = key[i];
                 int numSetBits = CountSetBits(currentByte);
 
-                // Om antalet '1'-bitar är jämnt, justera sista biten
+                // If the number of '1' bits is even, adjust the last bit
                 if (numSetBits % 2 == 0)
                 {
-                    adjustedKey[i] = (byte)(currentByte ^ 1); // Ändra sista biten för att det ska bli Parity
+                    adjustedKey[i] = (byte)(currentByte ^ 1); // Change the last bit to enforce parity
                 }
                 else
                 {
-                    adjustedKey[i] = currentByte; // Behåll byte som den är
+                    adjustedKey[i] = currentByte; // Keep the byte unchanged
                 }
             }
 
             return adjustedKey;
         }
 
-        // Räknar antalet '1'-bitar i en byte
         static int CountSetBits(byte b)
         {
             int count = 0;
@@ -1098,16 +1095,16 @@ namespace VerifyIdentityProject.Platforms.Android
 
         static byte[] ComputeSSC(byte[] rndIc2, byte[] rndIfd2)
         {
-            // Kontrollera att input är minst 8 bytes
+            // Ensure input is at least 8 bytes long
             if (rndIc2.Length < 8 || rndIfd2.Length < 8)
             {
                 throw new ArgumentException("RND.IC and RND.IFD must be at least 8 bytes long.");
             }
 
-            // Ta de sista 4 bytes från RND.IC och RND.IFD
+            // Take the last 4 bytes from RND.IC and RND.IFD
             byte[] ssc = new byte[8];
-            Array.Copy(rndIc2, rndIc2.Length - 4, ssc, 0, 4); // Sista 4 bytes från RND.IC
-            Array.Copy(rndIfd2, rndIfd2.Length - 4, ssc, 4, 4); // Sista 4 bytes från RND.IFD
+            Array.Copy(rndIc2, rndIc2.Length - 4, ssc, 0, 4); // Last 4 bytes from RND.IC
+            Array.Copy(rndIfd2, rndIfd2.Length - 4, ssc, 4, 4); // Last 4 bytes from RND.IFD
 
             Console.WriteLine($"ssc: {BitConverter.ToString(ssc)}");
             return ssc;
@@ -1116,9 +1113,9 @@ namespace VerifyIdentityProject.Platforms.Android
         static byte[] BuildDO87(byte[] encryptedData)
         {
             byte[] DO87 = new byte[1 + 1 + 1 + encryptedData.Length];
-            DO87[0] = 0x87; // Tag för DO87
-            DO87[1] = (byte)(1 + encryptedData.Length); // Längd
-            DO87[2] = 0x01; // Indikator för krypterat data
+            DO87[0] = 0x87; // Tag for DO87
+            DO87[1] = (byte)(1 + encryptedData.Length); // Length
+            DO87[2] = 0x01; // Indicator for encrypted data
             Array.Copy(encryptedData, 0, DO87, 3, encryptedData.Length);
             return DO87;
         }
@@ -1157,13 +1154,13 @@ namespace VerifyIdentityProject.Platforms.Android
             byte[] shortCmdHeader = cmdHeader.Take(4).ToArray();
             byte lc = (byte)(DO87.Length + DO8E.Length);
 
-            // Bygg Protected APDU
+            // Build Protected APDU
             byte[] protectedAPDU = new byte[shortCmdHeader.Length + 1 + DO87.Length + DO8E.Length + 1];
-            Array.Copy(shortCmdHeader, 0, protectedAPDU, 0, shortCmdHeader.Length); // Kopiera CmdHeader
-            protectedAPDU[shortCmdHeader.Length] = lc;                        // Lägg till Lc
-            Array.Copy(DO87, 0, protectedAPDU, shortCmdHeader.Length + 1, DO87.Length); // Lägg till DO87
-            Array.Copy(DO8E, 0, protectedAPDU, shortCmdHeader.Length + 1 + DO87.Length, DO8E.Length); // Lägg till DO8E
-            protectedAPDU[^1] = 0x00;                                   // Lägg till Le (0x00)
+            Array.Copy(shortCmdHeader, 0, protectedAPDU, 0, shortCmdHeader.Length); // Copy CmdHeader
+            protectedAPDU[shortCmdHeader.Length] = lc; // Add Lc
+            Array.Copy(DO87, 0, protectedAPDU, shortCmdHeader.Length + 1, DO87.Length); // Add DO87
+            Array.Copy(DO8E, 0, protectedAPDU, shortCmdHeader.Length + 1 + DO87.Length, DO8E.Length); // Add DO8E
+            protectedAPDU[^1] = 0x00; // Add Le (0x00)
 
             return protectedAPDU;
         }
@@ -1193,7 +1190,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw new ArgumentException("Invalid DO‘87’ format");
 
             int length = DO87[1];
-            if (DO87[2] != 0x01) // Förväntar indikator för krypterat data
+            if (DO87[2] != 0x01) // Expecting an indicator for encrypted data
                 throw new ArgumentException("Invalid encrypted data indicator");
 
             byte[] encryptedData = new byte[length - 1];

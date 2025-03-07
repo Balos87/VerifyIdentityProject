@@ -178,7 +178,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Complete DG1 Data: {BitConverter.ToString(completeDG1)}");
                 Console.WriteLine($"Complete DG1 Data.Length: {completeDG1.Length}");
 
-                // Skriv ut första och sista bytes för att verifiera
+                // To see first and last 20 bytes
                 Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeDG1.Take(20).ToArray())}");
                 Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeDG1.Skip(completeDG1.Length - 20).Take(20).ToArray())}");
 

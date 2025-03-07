@@ -285,7 +285,7 @@ public class ECDHKeyGenerator
         if (BitConverter.IsLittleEndian)
             Array.Reverse(counterBytes);
 
-        // Concatenera K || counter
+        // Concatenate K || counter
         byte[] concatenated = new byte[kBytes.Length + 4];
         kBytes.CopyTo(concatenated, 0);
         counterBytes.CopyTo(concatenated, kBytes.Length);

@@ -1,6 +1,7 @@
 ﻿using VerifyIdentityProject.Helpers;
-using VerifyIdentityProject.Helpers.MRZReader;
 using VerifyIdentityProject.Resources.Interfaces;
+using VerifyIdentityProject.Services;
+using VerifyIdentityProject.ViewModels;
 
 namespace VerifyIdentityProject
 {

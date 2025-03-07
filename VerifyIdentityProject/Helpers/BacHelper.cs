@@ -71,11 +71,11 @@ public static class BacHelper
         if (key.Length != 16)
             throw new ArgumentException("Key must be 16 bytes long for 3DES");
 
-        // Dela nyckeln i två delar
-        byte[] KaPrime = key.Take(8).ToArray();  // Första 8 bytes
-        byte[] KbPrime = key.Skip(8).Take(8).ToArray();  // Sista 8 bytes
+        // Split the key into two parts
+        byte[] KaPrime = key.Take(8).ToArray();  // First 8 bytes
+        byte[] KbPrime = key.Skip(8).Take(8).ToArray();  // Last 8 bytes
 
-        // Justera paritetsbitarna
+        // Adjust the parity bits
         byte[] Ka = AdjustParityBitsExact(KaPrime);
         byte[] Kb = AdjustParityBitsExact(KbPrime);
 
@@ -91,21 +91,20 @@ public static class BacHelper
             byte currentByte = key[i];
             int numSetBits = CountSetBits(currentByte);
 
-            // Om antalet '1'-bitar är jämnt, justera sista biten
+            // If the number of '1' bits is even, adjust the last bit
             if (numSetBits % 2 == 0)
             {
-                adjustedKey[i] = (byte)(currentByte ^ 1); // Ändra sista biten
+                adjustedKey[i] = (byte)(currentByte ^ 1); // Toggle the last bit
             }
             else
             {
-                adjustedKey[i] = currentByte; // Behåll byte som den är
+                adjustedKey[i] = currentByte; // Keep the byte as it is
             }
         }
 
         return adjustedKey;
     }
 
-    // Räknar antalet '1'-bitar i en byte
     static int CountSetBits(byte b)
     {
         int count = 0;
@@ -116,4 +115,5 @@ public static class BacHelper
         }
         return count;
     }
+
 }

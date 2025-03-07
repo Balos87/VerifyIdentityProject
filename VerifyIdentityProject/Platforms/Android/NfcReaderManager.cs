@@ -109,11 +109,13 @@ namespace VerifyIdentityProject.Platforms.Android
                     var appsettings = GetSecrets.FetchAppSettings();
                     string apiUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
 
-                    // Perform PACE and retrieve MRZ data
-                    Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
+                    // Perform PACE and retrieve mrz data
+                    var paceProcessorDG1 = new PaceProcessorDG1(isoDep);
+                    Dictionary<string, string> mrz = paceProcessorDG1.PerformPaceDG1();
 
                     // Perform PACE and retrieve image data
-                    byte[] imgData = await PaceProcessorDG2.PerformPaceDG2Async(isoDep, apiUrl);
+                    var paceProcessorDG2 = new PaceProcessorDG2(isoDep);
+                    var imgData = await paceProcessorDG2.PerformPaceDG2Async(apiUrl);
 
                     // Navigate to the PassportDataPage with the MRZ and image data
                     MainThread.BeginInvokeOnMainThread(async () =>

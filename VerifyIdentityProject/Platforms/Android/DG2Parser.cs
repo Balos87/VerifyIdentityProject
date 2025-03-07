@@ -28,6 +28,7 @@ using static Android.Graphics.PathIterator;
 using System.Drawing;
 using SkiaSharp;
 using System.IO;
+using VerifyIdentityProject.Services;
 
 
 #if ANDROID
@@ -52,6 +53,7 @@ namespace VerifyIdentityProject.Platforms.Android
             public int Length { get; set; }
             public int BytesUsed { get; set; }
         }
+
         public static async Task<FaceImageInfo> ParseDG2PaceAllJpegs(byte[] dg2Bytes, string apiUrl, string fileNameBase = "passport_photo")
         {
             try
@@ -154,7 +156,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine($"Extracted image data length before processing: {jpegData.Length} bytes");
 
-                // ✅ Apply Padding Removal BEFORE checking format again
+                // Apply Padding Removal BEFORE checking format again
                 var pureImgData = RemovePaddingPace(jpegData);
 
                 Console.WriteLine($"Final JPEG length after padding removal: {pureImgData.Length}");
@@ -164,7 +166,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (pureImgData.Length < 100)
                     throw new Exception($"Suspiciously short image data: {pureImgData.Length} bytes");
 
-                // ✅ Re-check the image format after padding removal
+                // Re-check the image format after padding removal
                 string finalDetectedFormat = "JPEG"; // Default
                 if (pureImgData.Length > 8)
                 {
@@ -213,73 +215,25 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw new Exception("Error while parsing DG2 data: " + ex.Message, ex);
             }
         }
-
-        private static string AutoSaveImage(FaceImageInfo faceInfo, string fileNameBase, string extension)
-        {
-            try
-            {
-                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                string fullFileName = $"{fileNameBase}_{timestamp}{extension}";
-
-                // Decide MIME type based on extension
-                string mimeType = "image/jpeg"; // fallback
-                if (extension.Equals(".jp2", StringComparison.OrdinalIgnoreCase))
-                {
-                    mimeType = "image/jp2";
-                }
-                else if (extension.Equals(".j2k", StringComparison.OrdinalIgnoreCase))
-                {
-                    mimeType = "image/jp2";
-                    // Some apps expect 'image/jp2' for J2K codestream, but it's not always recognized.
-                    // Another possibility is "image/jpx" or "image/x-j2k" depending on the decoder.
-                }
-
-                var context = global::Android.App.Application.Context;
-                var resolver = context.ContentResolver;
-                ContentValues values = new ContentValues();
-                values.Put(IMediaColumns.DisplayName, fullFileName);
-                values.Put(IMediaColumns.MimeType, mimeType);
-                values.Put(IMediaColumns.RelativePath, DirectoryPictures);
-
-                var imageUri = resolver.Insert(Images.Media.ExternalContentUri, values);
-                if (imageUri == null)
-                    throw new Exception("Failed to create URI for saving the image.");
-
-                using (var outputStream = resolver.OpenOutputStream(imageUri))
-                {
-                    if (outputStream == null)
-                        throw new Exception("Failed to open output stream for saving the image.");
-
-                    outputStream.Write(faceInfo.ImageData, 0, faceInfo.ImageData.Length);
-                }
-
-                Console.WriteLine($"Image saved: {imageUri.Path}");
-                return imageUri.Path ?? "Unknown path";
-            }
-            catch (Exception ex)
-            {
-                throw new Exception("Failed to save image: " + ex.Message, ex);
-            }
-        }
      
         private static ASN1Length DecodeASN1Length(byte[] data, int offset)
         {
             if (offset >= data.Length)
             {
-                throw new Exception("Ogiltig offset för ASN.1 längd-avkodning");
+                throw new Exception("Invalid offset for ASN.1 length decoding");
             }
 
             if ((data[offset] & 0x80) == 0)
             {
-                // Kort form
+                // Short form
                 return new ASN1Length { Length = data[offset], BytesUsed = 1 };
             }
 
-            // Lång form
+            // Long form
             int numLengthBytes = data[offset] & 0x7F;
             if (numLengthBytes > 4)
             {
-                throw new Exception("För lång ASN.1 längd");
+                throw new Exception("Too long ASN.1 length");
             }
 
             int length = 0;
@@ -289,21 +243,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             return new ASN1Length { Length = length, BytesUsed = 1 + numLengthBytes };
-        }
-
-        // Revised RemovePaddingPace using a helper to detect an exact 16-byte padding block.
-        private static bool IsPaddingBlock(byte[] input, int index)
-        {
-            if (index > input.Length - 16)
-                return false;
-            if (input[index] != 0x80)
-                return false;
-            for (int j = 1; j < 16; j++)
-            {
-                if (input[index + j] != 0x00)
-                    return false;
-            }
-            return true;
         }
 
         public static byte[] RemovePaddingPace(byte[] input)
@@ -341,83 +280,6 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             return result.ToArray();
-        }
-
-        //public static byte[] RemovePaddingPace(byte[] input)
-        //{
-        //    List<byte> result = new List<byte>();
-
-        //    for (int i = 0; i < input.Length; i++)
-        //    {
-        //        if (IsPaddingBlock(input, i))
-        //        {
-        //            // Skip exactly 16 bytes (current byte + next 15)
-        //            i += 15;
-        //            continue;
-        //        }
-        //        result.Add(input[i]);
-        //    }
-
-        //    return result.ToArray();
-        //}
-
-
-        private static byte[] PickOutJPGDataOnly(byte[] data)
-        {
-            int startIndex = -1;
-            int endIndex = -1;
-            Console.WriteLine($"Length of data:{data.Length}");
-
-            // Hitta JPEG header (FF D8)
-            for (int i = 0; i < data.Length - 1; i++)
-            {
-                if (data[i] == 0xFF && data[i + 1] == 0xD8)
-                {
-                    startIndex = i;
-                    Console.WriteLine($"JPEG start index:{startIndex}");
-                    break;
-                }
-            }
-
-            // Hitta JPEG footer (FF D9)
-            for (int i = data.Length - 2; i >= 0; i--)
-            {
-                if (data[i] == 0xFF && data[i + 1] == 0xD9)
-                {
-                    endIndex = i + 2; // Inkludera FF D9
-                    Console.WriteLine($"JPEG end Index:{endIndex}");
-                    break;
-                }
-            }
-
-            if (startIndex == -1 || endIndex == -1)
-                throw new Exception("Kunde inte hitta giltig JPEG-data");
-
-            // Extrahera bara den faktiska JPEG-datan
-            int length = endIndex - startIndex;
-            byte[] jpegData = new byte[length];
-            Array.Copy(data, startIndex, jpegData, 0, length);
-
-            return jpegData;
-        }
-
-        private static bool IsValidJPEG(byte[] data)
-        {
-            if (data == null || data.Length < 4)
-                return false;
-
-            // Kontrollera JPEG signatur och slutmarkör
-            if (data[0] != 0xFF || data[1] != 0xD8)
-                return false;
-
-            // Sök efter JPEG slutmarkör
-            for (int i = data.Length - 2; i >= 0; i--)
-            {
-                if (data[i] == 0xFF && data[i + 1] == 0xD9)
-                    return true;
-            }
-
-            return false;
         }
 
     }

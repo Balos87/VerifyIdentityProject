@@ -11,7 +11,7 @@ using Microsoft.Maui.Media;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
 
-namespace VerifyIdentityProject.Helpers.MRZReader
+namespace VerifyIdentityProject.Services
 {
     public class MrzReader
     {

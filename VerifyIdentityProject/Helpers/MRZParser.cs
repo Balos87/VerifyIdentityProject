@@ -26,7 +26,7 @@ namespace VerifyIdentityProject.Helpers
             public char PersonalNumberCheckDigit { get; set; }
             public char FinalCheckDigit { get; set; }
 
-            // Formaterade datum
+            // Formatted Date properties for easier consumption
             public DateTime? ParsedBirthDate => ParseDate(BirthDate);
             public DateTime? ParsedExpiryDate => ParseDate(ExpiryDate);
         }
@@ -35,16 +35,16 @@ namespace VerifyIdentityProject.Helpers
         {
 
 
-            // Dela upp MRZ i rader
+            // Split MRZ-data into lines
             string[] lines = cleanMRZ.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length < 2)
                 throw new InvalidOperationException("MRZ måste innehålla minst två rader.");
 
-            // Säkerställ att raderna har rätt längd
+            // Ensure each line is exactly 44 characters long
             string line1 = lines[0].PadRight(44, '<');
             string line2 = lines[1].PadRight(44, '<');
 
-            // Hantera namn
+            // Handle optional third line
             string fullNamePart = line1.Substring(5);
             string[] nameParts = fullNamePart.Split(new[] { "<<" }, StringSplitOptions.None);
             string surname = nameParts[0].Replace("<", "").Trim();
@@ -83,7 +83,7 @@ namespace VerifyIdentityProject.Helpers
                 int month = int.Parse(date.Substring(2, 2));
                 int day = int.Parse(date.Substring(4, 2));
 
-                // Hantera århundrade (19xx eller 20xx)
+                // Handle two-digit year
                 int fullYear = year + (year >= 50 ? 1900 : 2000);
 
                 return new DateTime(fullYear, month, day);
@@ -94,7 +94,7 @@ namespace VerifyIdentityProject.Helpers
             }
         }
 
-        // Hjälpmetod för att få data som Dictionary
+        // Helper method to convert MRZData to a dictionary
         public static Dictionary<string, string> ToDictionary(MRZData data)
         {
             return new Dictionary<string, string>
