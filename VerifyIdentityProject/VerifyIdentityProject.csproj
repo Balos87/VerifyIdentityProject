@@ -100,9 +100,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <MauiXaml Update="DG1Page.xaml">
-	    <Generator>MSBuild:Compile</Generator>
-	  </MauiXaml>
 	  <MauiXaml Update="DG2Page.xaml">
 	    <Generator>MSBuild:Compile</Generator>
 	  </MauiXaml>

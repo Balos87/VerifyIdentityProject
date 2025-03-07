@@ -25,7 +25,6 @@ public static class MauiProgram
         builder.Services.AddSingleton<AppShell>();
         builder.Services.AddTransient<MainPageViewModel>();
         builder.Services.AddTransient<MainPage>();
-        builder.Services.AddTransient<DG1Page>();
         builder.Services.AddSingleton<MrzReader>();
         builder.Services.AddSingleton<Jpeg2000Converter>();
 

@@ -8,7 +8,7 @@
         <VerticalStackLayout Padding="20,10" Spacing="25">
 
             <!-- App Title -->
-            <Label Text="Verify Your Identity"
+            <Label Text="Verify Identity"
                    FontSize="26"
                    FontAttributes="Bold"
                    TextColor="{DynamicResource PrimaryTextColor}"
@@ -21,6 +21,34 @@
                        TextColor="{DynamicResource SecondaryTextColor}"
                        HorizontalOptions="Center"
                        VerticalOptions="Center" />
+            </Frame>
+
+
+
+            <!-- Section: NFC Scanning -->
+            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                <VerticalStackLayout Spacing="12">
+
+
+                    <Label Text="Scan Your Passport"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="{DynamicResource SecondaryTextColor}" />
+
+
+                    <Button Text="Capture and Process MRZ"
+                            Command="{Binding ScanMrzCommand}"
+                            BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                            TextColor="White"
+                            CornerRadius="5"
+                            Padding="12,8" />
+
+                    <ActivityIndicator IsRunning="{Binding IsScanning}" 
+                                       IsVisible="{Binding IsScanning}"
+                                       Color="{DynamicResource PrimaryTextColor}"
+                                       HeightRequest="40" />
+
+                </VerticalStackLayout>
             </Frame>
 
             <!-- Section: Manual MRZ Entry -->
@@ -52,32 +80,6 @@
                            TextColor="Red"
                            FontSize="14"
                            IsVisible="{Binding MrzNotFound, Converter={StaticResource StringToVisibilityConverter}}" />
-
-                </VerticalStackLayout>
-            </Frame>
-
-            <!-- Section: NFC Scanning -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
-                <VerticalStackLayout Spacing="12">
-
-
-                    <Label Text="Scan Your Passport"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource SecondaryTextColor}" />
-
-
-                    <Button Text="Capture and Process MRZ"
-                            Command="{Binding ScanMrzCommand}"
-                            BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="White"
-                            CornerRadius="5"
-                            Padding="12,8" />
-
-                    <ActivityIndicator IsRunning="{Binding IsScanning}" 
-                                       IsVisible="{Binding IsScanning}"
-                                       Color="{DynamicResource PrimaryTextColor}"
-                                       HeightRequest="40" />
 
                 </VerticalStackLayout>
             </Frame>
