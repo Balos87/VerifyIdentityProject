@@ -77,7 +77,7 @@
             </Frame>
 
             <!-- Section: Developer Tools -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+            <!--<Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                 <VerticalStackLayout Spacing="12">
 
                     <Label Text="Developer Tools"
@@ -93,7 +93,7 @@
                             Padding="12,8" />
 
                 </VerticalStackLayout>
-            </Frame>
+            </Frame>-->
 
         </VerticalStackLayout>
     </ScrollView>
