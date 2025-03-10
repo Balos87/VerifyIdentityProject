@@ -185,14 +185,6 @@ namespace VerifyIdentityProject.ViewModels
             }
         }
 
-        private void UpdateCaptureSection(string mrzValue)
-        {
-            Console.WriteLine($"📜 MRZ FOR CAPTURE SECTION : {mrzValue}");
-            ExtractedMrz = $"📜 MRZ Found: {mrzValue}";
-            OnPropertyChanged(nameof(ExtractedMrz));  // ✅ Ensure UI updates
-        }
-
-
         private async void UpdatePassportData(string message)
         {
             if (message.StartsWith("MRZ:"))

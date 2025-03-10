@@ -47,9 +47,9 @@
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="Scan Your Passport"
-               FontSize="18"
-               FontAttributes="Bold"
-               TextColor="{DynamicResource SecondaryTextColor}" />
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource SecondaryTextColor}" />
 
                         <!-- ✅ Extracted MRZ is now permanently updated -->
                         <Label Text="{Binding ExtractedMrz}"
@@ -60,16 +60,16 @@
 
 
                         <Button Text="Capture and Process MRZ"
-                Command="{Binding ScanMrzCommand}"
-                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                TextColor="{DynamicResource ButtonTextColor}"
-                CornerRadius="5"
-                Padding="12,8" />
+                                Command="{Binding ScanMrzCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
 
                         <ActivityIndicator IsRunning="{Binding IsScanning}" 
-                           IsVisible="{Binding IsScanning}"
-                           Color="{DynamicResource PrimaryTextColor}"
-                           HeightRequest="40" />
+                                           IsVisible="{Binding IsScanning}"
+                                           Color="{DynamicResource PrimaryTextColor}"
+                                           HeightRequest="40" />
                     </VerticalStackLayout>
                 </Frame>
 
@@ -133,51 +133,52 @@
 
         <!-- ✅ MRZ Info Popup (Overlays Content) -->
         <ContentView x:Name="MrzInfoPopup"
-             IsVisible="{Binding IsMrzInfoVisible}"
-             BackgroundColor="#CC000000"
-            Padding="20"
-             Grid.RowSpan="2"
-             IsEnabled="{Binding IsMrzInfoVisible}">
+                     IsVisible="{Binding IsMrzInfoVisible}"
+                     BackgroundColor="#CC000000"
+                    Padding="20"
+                     Grid.RowSpan="2"
+                     IsEnabled="{Binding IsMrzInfoVisible}">
 
             <AbsoluteLayout HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}"
-               Padding="15"
-               CornerRadius="10"
-               WidthRequest="350"
-               HeightRequest="400"
-               AbsoluteLayout.LayoutBounds=".5,.5,AutoSize,AutoSize"
-               AbsoluteLayout.LayoutFlags="PositionProportional">
+                       Padding="15"
+                       CornerRadius="10"
+                       WidthRequest="350"
+                       HeightRequest="400"
+                       AbsoluteLayout.LayoutBounds=".5,.5,AutoSize,AutoSize"
+                       AbsoluteLayout.LayoutFlags="PositionProportional">
 
                     <VerticalStackLayout Spacing="15">
 
                         <!-- Popup Title -->
                         <Label Text="MRZ Information"
-                       FontSize="20"
-                       FontAttributes="Bold"
-                       HorizontalOptions="Center"
-                       TextColor="Grey"/>
+                                FontSize="20"
+                                FontAttributes="Bold"
+                                HorizontalOptions="Center"
+                                TextColor="Grey"/>
 
                         <!-- Passport Image with Border -->
                         <Frame BorderColor="Grey" 
-                           Padding="0" 
-                           HasShadow="True" 
-                           CornerRadius="4" 
-                           HorizontalOptions="Center">
-                           <Image Source="passport_mrz_example.png"
-                           Aspect="AspectFit"
-                           HeightRequest="250"
-                           HorizontalOptions="Center" />
+                               Padding="0" 
+                               HasShadow="True" 
+                               CornerRadius="4" 
+                               HorizontalOptions="Center">
+                               <Image Source="passport_mrz_example.png"
+                                       Aspect="AspectFit"
+                                       HeightRequest="250"
+                                       HorizontalOptions="Center" />
                         </Frame>
 
                         <!-- ✅ Close Button (Now Always Visible) -->
                         <Button Text="Close"
-                        Command="{Binding HideMrzInfoCommand}"
-                        BackgroundColor="Red"
-                        TextColor="White"
-                        CornerRadius="5"
-                        Padding="10,5"
-                        HorizontalOptions="Center"
-                        WidthRequest="150"/>
+                                Command="{Binding HideMrzInfoCommand}"
+                                BackgroundColor="Red"
+                                TextColor="White"
+                                CornerRadius="5"
+                                Padding="10,5"
+                                HorizontalOptions="Center"
+                                WidthRequest="150"/>
+                        
                     </VerticalStackLayout>
                 </Frame>
             </AbsoluteLayout>
