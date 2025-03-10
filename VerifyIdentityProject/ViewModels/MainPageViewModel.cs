@@ -200,8 +200,8 @@ namespace VerifyIdentityProject.ViewModels
                 // ✅ Extract MRZ value
                 string mrzValue = message.Replace("MRZ:", "").Trim();
 
-                // ✅ Ensure ExtractedMrz updates in UI
-                ExtractedMrz = mrzValue;
+                // ✅ Update ExtractedMrz with full message
+                ExtractedMrz = $"Captured MRZ from photo: {mrzValue}";
             }
             else
             {
@@ -209,6 +209,7 @@ namespace VerifyIdentityProject.ViewModels
                 PassportData = message;
             }
         }
+
 
         private async void SubmitManualMrz()
         {

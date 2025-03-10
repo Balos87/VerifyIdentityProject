@@ -89,7 +89,7 @@
                                          WidthRequest="12"
                                          HeightRequest="12"
                                          Aspect="AspectFit"
-                                         Scale="1.9"
+                                         Scale="0.5"
                                          Margin="5"
                                          HorizontalOptions="End"
                                          VerticalOptions="Center" />
