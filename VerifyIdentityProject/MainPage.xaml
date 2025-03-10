@@ -4,121 +4,168 @@
              x:Class="VerifyIdentityProject.MainPage"
              BackgroundColor="{DynamicResource PageBackgroundColor}">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="20,10" Spacing="25">
+    <!-- ✅ Wrap everything inside a Grid to avoid multiple Content properties -->
+    <Grid>
+        <!-- ✅ Main Scrollable Content -->
+        <ScrollView>
+            <VerticalStackLayout Padding="20,10" Spacing="25">
 
-            <!-- App Title -->
-            <Label Text="Verify Identity"
-                   FontSize="26"
-                   FontAttributes="Bold"
-                   TextColor="{DynamicResource PrimaryTextColor}"
-                   HorizontalOptions="Center" />
+                <!-- App Title -->
+                <Label Text="Verify Identity"
+                       FontSize="26"
+                       FontAttributes="Bold"
+                       TextColor="{DynamicResource PrimaryTextColor}"
+                       HorizontalOptions="Center" />
 
-            <!-- Status Window Section -->
-            <Border StrokeThickness="1"
-                    Stroke="{DynamicResource SecondaryTextColor}"
-                    Padding="10"
-                    Margin="0,5,0,5"
-                    BackgroundColor="{DynamicResource FrameBackgroundColor}"
-                    HorizontalOptions="Fill"
-                    VerticalOptions="Center">
-
-                <VerticalStackLayout Spacing="5">
-
-                    <!-- Status Window Label -->
-                    <Label Text="Status Window"
-                            FontSize="14"
-                            FontAttributes="Bold"
-                            TextColor="{DynamicResource SecondaryTextColor}"
-                            HorizontalOptions="Center"
-                            Opacity="0.8" />
-
-                    <!-- Status Message Frame -->
-                    <VerticalStackLayout Padding="15">
-                        <Label Text="{Binding PassportData}"
-                               FontSize="18"
+                <!-- Status Window Section -->
+                <Border StrokeThickness="1"
+                        Stroke="{DynamicResource SecondaryTextColor}"
+                        Padding="10"
+                        Margin="0,5,0,5"
+                        BackgroundColor="{DynamicResource FrameBackgroundColor}"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="Center">
+                    <VerticalStackLayout Spacing="5">
+                        <Label Text="Status Window"
+                               FontSize="14"
+                               FontAttributes="Bold"
                                TextColor="{DynamicResource SecondaryTextColor}"
                                HorizontalOptions="Center"
-                               VerticalOptions="Center"
-                               LineBreakMode="WordWrap" />
+                               Opacity="0.8" />
+                        <VerticalStackLayout Padding="15">
+                            <Label Text="{Binding PassportData}"
+                                   FontSize="18"
+                                   TextColor="{DynamicResource SecondaryTextColor}"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
                     </VerticalStackLayout>
+                </Border>
 
-                </VerticalStackLayout>
+                <!-- Section: NFC Scanning -->
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Scan Your Passport"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource SecondaryTextColor}" />
+                        <Button Text="Capture and Process MRZ"
+                                Command="{Binding ScanMrzCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
+                        <ActivityIndicator IsRunning="{Binding IsScanning}" 
+                                           IsVisible="{Binding IsScanning}"
+                                           Color="{DynamicResource PrimaryTextColor}"
+                                           HeightRequest="40" />
+                    </VerticalStackLayout>
+                </Frame>
 
-            </Border>
+                <!-- Section: Manual MRZ Entry -->
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid>
+                            <Label Text="Enter MRZ manually:"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource SecondaryTextColor}"
+                                   VerticalOptions="Center"
+                                   HorizontalOptions="Start" />
+                            <ImageButton Source="info_icon_2.png"
+                                         Command="{Binding ShowMrzInfoCommand}"
+                                         BackgroundColor="Transparent"
+                                         WidthRequest="12"
+                                         HeightRequest="12"
+                                         Aspect="AspectFit"
+                                         Margin="5"
+                                         HorizontalOptions="End"
+                                         VerticalOptions="Center" />
+                        </Grid>
 
-            <!-- Section: NFC Scanning -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
-                <VerticalStackLayout Spacing="12">
+                        <Frame BackgroundColor="{DynamicResource EntryBackgroundColor}" CornerRadius="5" Padding="8">
+                            <Entry Text="{Binding ManualMrz, Mode=TwoWay}" 
+                                   Placeholder="Enter MRZ manually"
+                                   MaxLength="88"
+                                   BackgroundColor="{DynamicResource EntryBackgroundColor}"
+                                   TextColor="{DynamicResource PrimaryTextColor}" />
+                        </Frame>
 
-                    <Label Text="Scan Your Passport"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource SecondaryTextColor}" />
+                        <Button Text="Submit MRZ"
+                                Command="{Binding SubmitManualMrzCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
+                    </VerticalStackLayout>
+                </Frame>
 
-                    <Button Text="Capture and Process MRZ"
-                            Command="{Binding ScanMrzCommand}"
-                            BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="{DynamicResource ButtonTextColor}"
-                            CornerRadius="5"
-                            Padding="12,8" />
+                <!-- Section: Developer Tools -->
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Developer Tools"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource SecondaryTextColor}" />
+                        <Button Text="Developer Pace Run"
+                                Command="{Binding StartNfcCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
+                    </VerticalStackLayout>
+                </Frame>
 
-                    <ActivityIndicator IsRunning="{Binding IsScanning}" 
-                                       IsVisible="{Binding IsScanning}"
-                                       Color="{DynamicResource PrimaryTextColor}"
-                                       HeightRequest="40" />
+            </VerticalStackLayout>
+        </ScrollView>
 
-                </VerticalStackLayout>
-            </Frame>
+        <!-- ✅ MRZ Info Popup (Overlays Content) -->
+        <ContentView x:Name="MrzInfoPopup"
+             IsVisible="{Binding IsMrzInfoVisible}"
+             BackgroundColor="#CC000000"
+            Padding="20"
+             Grid.RowSpan="2"
+             IsEnabled="{Binding IsMrzInfoVisible}">
 
-            <!-- Section: Manual MRZ Entry -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
-                <VerticalStackLayout Spacing="12">
+            <AbsoluteLayout HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
+                <Frame BackgroundColor="White"
+               Padding="15"
+               CornerRadius="10"
+               WidthRequest="350"
+               HeightRequest="400"
+               AbsoluteLayout.LayoutBounds=".5,.5,AutoSize,AutoSize"
+               AbsoluteLayout.LayoutFlags="PositionProportional">
 
-                    <Label Text="Enter MRZ manually:"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource SecondaryTextColor}" />
+                    <VerticalStackLayout Spacing="15">
 
-                    <!-- Entry wrapped inside Frame for padding -->
-                    <Frame BackgroundColor="{DynamicResource EntryBackgroundColor}" CornerRadius="5" Padding="8">
-                        <Entry Text="{Binding ManualMrz, Mode=TwoWay}" 
-                               Placeholder="Enter MRZ manually"
-                               MaxLength="88"
-                               BackgroundColor="{DynamicResource EntryBackgroundColor}"
-                               TextColor="{DynamicResource PrimaryTextColor}" />
-                    </Frame>
+                        <!-- Popup Title -->
+                        <Label Text="MRZ Information"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center"
+                       TextColor="Black"/>
 
-                    <Button Text="Submit MRZ"
-                            Command="{Binding SubmitManualMrzCommand}"
-                            BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="{DynamicResource ButtonTextColor}"
-                            CornerRadius="5"
-                            Padding="12,8" />
+                        <!-- Passport Image -->
+                        <Image Source="passport_mrz_example.png"
+                       Aspect="AspectFit"
+                       HeightRequest="250"
+                       HorizontalOptions="Center" />
 
-                </VerticalStackLayout>
-            </Frame>
+                        <!-- ✅ Close Button (Now Always Visible) -->
+                        <Button Text="Close"
+                        Command="{Binding HideMrzInfoCommand}"
+                        BackgroundColor="Red"
+                        TextColor="White"
+                        CornerRadius="5"
+                        Padding="10,5"
+                        HorizontalOptions="Center"
+                        WidthRequest="150"/>
+                    </VerticalStackLayout>
+                </Frame>
+            </AbsoluteLayout>
 
-            <!-- Section: Developer Tools -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
-                <VerticalStackLayout Spacing="12">
+        </ContentView>
 
-                    <Label Text="Developer Tools"
-                           FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="{DynamicResource SecondaryTextColor}" />
-
-                    <Button Text="Developer Pace Run"
-                            Command="{Binding StartNfcCommand}"
-                            BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                            TextColor="{DynamicResource ButtonTextColor}"
-                            CornerRadius="5"
-                            Padding="12,8" />
-
-                </VerticalStackLayout>
-            </Frame>
-
-        </VerticalStackLayout>
-    </ScrollView>
-
+    </Grid>
 </ContentPage>

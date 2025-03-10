@@ -24,6 +24,7 @@ namespace VerifyIdentityProject.ViewModels
         private string _passportData;
         private string _manualMrz;
         private bool _isScanning;
+        private bool _isMrzInfoVisible;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -31,6 +32,8 @@ namespace VerifyIdentityProject.ViewModels
         public ICommand StopNfcCommand { get; }
         public ICommand SubmitManualMrzCommand { get; }
         public ICommand ScanMrzCommand { get; set; }
+        public ICommand ShowMrzInfoCommand { get; }
+        public ICommand HideMrzInfoCommand { get; }
 
         public string ManualMrz
         {
@@ -54,7 +57,18 @@ namespace VerifyIdentityProject.ViewModels
                 }
             }
         }
-
+        public bool IsMrzInfoVisible
+        {
+            get => _isMrzInfoVisible;
+            set
+            {
+                if (_isMrzInfoVisible != value)
+                {
+                    _isMrzInfoVisible = value;
+                    OnPropertyChanged(nameof(IsMrzInfoVisible));
+                }
+            }
+        }
         public string PassportData
         {
             get => _passportData;
@@ -103,6 +117,9 @@ namespace VerifyIdentityProject.ViewModels
             StopNfcCommand = new Command(StopNfc);
             SubmitManualMrzCommand = new Command(SubmitManualMrz);
             ScanMrzCommand = new Command(async () => await ScanMrzAsync());
+
+            ShowMrzInfoCommand = new Command(() => IsMrzInfoVisible = true);
+            HideMrzInfoCommand = new Command(() => IsMrzInfoVisible = false);
         }
 
         private void HandleNfcChipDetected(string message)
