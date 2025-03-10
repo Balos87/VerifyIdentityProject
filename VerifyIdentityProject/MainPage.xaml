@@ -89,7 +89,7 @@
                                          WidthRequest="12"
                                          HeightRequest="12"
                                          Aspect="AspectFit"
-                                         Scale="0.5"
+                                         Scale="1.5"
                                          Margin="5"
                                          HorizontalOptions="End"
                                          VerticalOptions="Center" />
@@ -113,7 +113,7 @@
                 </Frame>
 
                 <!-- Section: Developer Tools -->
-                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                <!--<Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="Developer Tools"
                                FontSize="18"
@@ -126,7 +126,7 @@
                                 CornerRadius="5"
                                 Padding="12,8" />
                     </VerticalStackLayout>
-                </Frame>
+                </Frame>-->
 
             </VerticalStackLayout>
         </ScrollView>
