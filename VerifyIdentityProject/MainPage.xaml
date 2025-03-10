@@ -43,23 +43,33 @@
                     </VerticalStackLayout>
                 </Border>
 
-                <!-- Section: NFC Scanning -->
+                <!-- Section: Capture MRZ -->
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="Scan Your Passport"
-                               FontSize="18"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource SecondaryTextColor}" />
+               FontSize="18"
+               FontAttributes="Bold"
+               TextColor="{DynamicResource SecondaryTextColor}" />
+
+                        <!-- ✅ Extracted MRZ is now permanently updated -->
+                        <Label Text="{Binding ExtractedMrz}"
+                               FontSize="16"
+                               FontAttributes="Italic"
+                               TextColor="{DynamicResource SecondaryTextColor}"
+                               HorizontalOptions="Center" />
+
+
                         <Button Text="Capture and Process MRZ"
-                                Command="{Binding ScanMrzCommand}"
-                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                                TextColor="{DynamicResource ButtonTextColor}"
-                                CornerRadius="5"
-                                Padding="12,8" />
+                Command="{Binding ScanMrzCommand}"
+                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                TextColor="{DynamicResource ButtonTextColor}"
+                CornerRadius="5"
+                Padding="12,8" />
+
                         <ActivityIndicator IsRunning="{Binding IsScanning}" 
-                                           IsVisible="{Binding IsScanning}"
-                                           Color="{DynamicResource PrimaryTextColor}"
-                                           HeightRequest="40" />
+                           IsVisible="{Binding IsScanning}"
+                           Color="{DynamicResource PrimaryTextColor}"
+                           HeightRequest="40" />
                     </VerticalStackLayout>
                 </Frame>
 

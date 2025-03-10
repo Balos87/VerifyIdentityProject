@@ -25,6 +25,7 @@ namespace VerifyIdentityProject.ViewModels
         private string _manualMrz;
         private bool _isScanning;
         private bool _isMrzInfoVisible;
+        private string _extractedMrz;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -35,6 +36,18 @@ namespace VerifyIdentityProject.ViewModels
         public ICommand ShowMrzInfoCommand { get; }
         public ICommand HideMrzInfoCommand { get; }
 
+        public string ExtractedMrz
+        {
+            get => _extractedMrz;
+            set
+            {
+                if (_extractedMrz != value)
+                {
+                    _extractedMrz = value;
+                    OnPropertyChanged(nameof(ExtractedMrz));
+                }
+            }
+        }
         public string ManualMrz
         {
             get => _manualMrz;
@@ -112,6 +125,8 @@ namespace VerifyIdentityProject.ViewModels
             _nfcReaderManager.OnNfcProcessingCompleted -= HandleNfcProcessingCompleted;
             _nfcReaderManager.OnNfcProcessingCompleted += HandleNfcProcessingCompleted;
 
+            ExtractedMrz = "";
+
             _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
@@ -170,23 +185,27 @@ namespace VerifyIdentityProject.ViewModels
             }
         }
 
+        private void UpdateCaptureSection(string mrzValue)
+        {
+            Console.WriteLine($"📜 MRZ FOR CAPTURE SECTION : {mrzValue}");
+            ExtractedMrz = $"📜 MRZ Found: {mrzValue}";
+            OnPropertyChanged(nameof(ExtractedMrz));  // ✅ Ensure UI updates
+        }
+
+
         private async void UpdatePassportData(string message)
         {
-            if (message.StartsWith("✅ MRZ Extracted:"))
+            if (message.StartsWith("MRZ:"))
             {
-                string mrzValue = message.Replace("✅ MRZ Extracted: ", "").Trim();
+                // ✅ Extract MRZ value
+                string mrzValue = message.Replace("MRZ:", "").Trim();
 
-                // ✅ Show MRZ found message and log the MRZ value
-                PassportData = $"📜 MRZ Found: {mrzValue}";
-
-                await Task.Delay(5000); // ⏳ Wait for 5 seconds before proceeding
-
-                // ✅ Now proceed to NFC scanning
-                PassportData = "📡 NFC Reader started. Please place your device on your passport.";
-                _nfcReaderManager.StartListening();
+                // ✅ Ensure ExtractedMrz updates in UI
+                ExtractedMrz = mrzValue;
             }
             else
             {
+                // ✅ Use PassportData only for status messages
                 PassportData = message;
             }
         }
