@@ -14,15 +14,38 @@
                    TextColor="{DynamicResource PrimaryTextColor}"
                    HorizontalOptions="Center" />
 
-            <!-- ✅ Centralized Status Message Window -->
-            <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="15" CornerRadius="8">
-                <Label Text="{Binding PassportData}"
-                       FontSize="18"
-                       TextColor="{DynamicResource SecondaryTextColor}"
-                       HorizontalOptions="Center"
-                       VerticalOptions="Center"
-                       LineBreakMode="WordWrap" />
-            </Frame>
+            <!-- Status Window Section -->
+            <Border StrokeThickness="1"
+                    Stroke="{DynamicResource SecondaryTextColor}"
+                    Padding="10"
+                    Margin="0,5,0,5"
+                    BackgroundColor="{DynamicResource FrameBackgroundColor}"
+                    HorizontalOptions="Fill"
+                    VerticalOptions="Center">
+
+                <VerticalStackLayout Spacing="5">
+
+                    <!-- Status Window Label -->
+                    <Label Text="Status Window"
+                            FontSize="14"
+                            FontAttributes="Bold"
+                            TextColor="{DynamicResource SecondaryTextColor}"
+                            HorizontalOptions="Center"
+                            Opacity="0.8" />
+
+                    <!-- Status Message Frame -->
+                    <VerticalStackLayout Padding="15">
+                        <Label Text="{Binding PassportData}"
+                               FontSize="18"
+                               TextColor="{DynamicResource SecondaryTextColor}"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+
+                </VerticalStackLayout>
+
+            </Border>
 
             <!-- Section: NFC Scanning -->
             <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">

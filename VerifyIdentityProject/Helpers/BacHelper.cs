@@ -38,7 +38,6 @@ public static class BacHelper
         return (kencParitet, kmacParitet);
     }
 
-
     static byte[] DeriveKey(byte[] kseed, int counter)
     {
         // Convert counter to a 4-byte big-endian array
