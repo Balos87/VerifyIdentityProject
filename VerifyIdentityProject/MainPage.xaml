@@ -85,10 +85,11 @@
                                    HorizontalOptions="Start" />
                             <ImageButton Source="info_icon_2.png"
                                          Command="{Binding ShowMrzInfoCommand}"
-                                         BackgroundColor="Transparent"
+                                         BackgroundColor="{DynamicResource FrameBackgroundColor}"
                                          WidthRequest="12"
                                          HeightRequest="12"
                                          Aspect="AspectFit"
+                                         Scale="1.9"
                                          Margin="5"
                                          HorizontalOptions="End"
                                          VerticalOptions="Center" />
@@ -139,7 +140,7 @@
              IsEnabled="{Binding IsMrzInfoVisible}">
 
             <AbsoluteLayout HorizontalOptions="FillAndExpand" VerticalOptions="FillAndExpand">
-                <Frame BackgroundColor="White"
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}"
                Padding="15"
                CornerRadius="10"
                WidthRequest="350"
@@ -154,13 +155,19 @@
                        FontSize="20"
                        FontAttributes="Bold"
                        HorizontalOptions="Center"
-                       TextColor="Black"/>
+                       TextColor="Grey"/>
 
-                        <!-- Passport Image -->
-                        <Image Source="passport_mrz_example.png"
-                       Aspect="AspectFit"
-                       HeightRequest="250"
-                       HorizontalOptions="Center" />
+                        <!-- Passport Image with Border -->
+                        <Frame BorderColor="Grey" 
+                           Padding="0" 
+                           HasShadow="True" 
+                           CornerRadius="4" 
+                           HorizontalOptions="Center">
+                           <Image Source="passport_mrz_example.png"
+                           Aspect="AspectFit"
+                           HeightRequest="250"
+                           HorizontalOptions="Center" />
+                        </Frame>
 
                         <!-- ✅ Close Button (Now Always Visible) -->
                         <Button Text="Close"
