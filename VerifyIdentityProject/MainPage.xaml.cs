@@ -18,13 +18,10 @@ namespace VerifyIdentityProject
             copy.CopyAppSettingsFileToAppData();
 
             _viewModel = viewModel;
-            _mrzReader = new MrzReader(UpdatePassportData, nfcReaderManager);
+
             BindingContext = _viewModel;
         }
 
-        private void UpdatePassportData(string message)
-        {
-            _viewModel.PassportData = message;
-        }
+   
     }
 }
