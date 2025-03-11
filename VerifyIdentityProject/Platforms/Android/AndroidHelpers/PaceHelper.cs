@@ -122,7 +122,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                 // Console.WriteLine("Raw Card Access Data");
                 // Console.WriteLine(BitConverter.ToString(data));
                 // Console.WriteLine("<------>\n\n");
-                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
                 Console.WriteLine("➖➖➖➖➖➖➖Parsed Data➖➖➖➖➖➖");
 
                 int index = 0;
