@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.ViewModels;
 using System;
+using System.Diagnostics;
 
 namespace VerifyIdentityProject
 {
