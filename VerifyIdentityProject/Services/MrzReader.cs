@@ -37,6 +37,8 @@ namespace VerifyIdentityProject.Services
 
         public async Task ScanAndExtractMrzAsync()
         {
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖ScanAndExtractMrzAsync➖➖➖➖➖");
             try
             {
                 // Capture photo using the device's camera
@@ -47,6 +49,7 @@ namespace VerifyIdentityProject.Services
                     return;
                 }
                 _mrzNotFoundCallback?.Invoke("The image is being processed, please wait...");
+                Console.WriteLine("The image is being processed, please wait...");
                 // Save the photo locally
                 var filePath = Path.Combine(FileSystem.CacheDirectory, photo.FileName);
                 using (var stream = await photo.OpenReadAsync())
@@ -64,6 +67,8 @@ namespace VerifyIdentityProject.Services
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during MRZ scan: {ex.Message}");
+                _mrzNotFoundCallback?.Invoke($"Error during scanning picture for MRZ. Try again!");
+
             }
         }
 

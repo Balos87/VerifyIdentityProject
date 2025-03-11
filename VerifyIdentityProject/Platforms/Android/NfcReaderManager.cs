@@ -147,8 +147,8 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Error during NFC processing: {ex.Message}");
-                OnNfcChipDetected?.Invoke($"❌ Error processing NFC: {ex.Message}");
+                Console.WriteLine($"Error during NFC processing: ❌ {ex.Message}❌ ");
+                OnNfcChipDetected?.Invoke($"Error processing NFC: ❌ {ex.Message}❌ ");
             }
         }
     }

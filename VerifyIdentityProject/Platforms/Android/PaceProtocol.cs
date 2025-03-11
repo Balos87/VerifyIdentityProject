@@ -48,6 +48,7 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("PerformPaceProtocol");
+            Console.WriteLine("Select MseSET & General Authenticate");
 
             isoDep.Timeout = 400000;
             try
@@ -379,7 +380,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine($"Error: ❌{ex.Message}❌");
                 return false;
             }
         }

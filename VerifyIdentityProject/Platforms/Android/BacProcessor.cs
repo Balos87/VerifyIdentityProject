@@ -607,7 +607,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error parsing DG1 data: {ex.Message}");
+                    Console.WriteLine($"Error parsing DG1 data: ❌{ex.Message}❌");
                     Console.WriteLine("Raw data:");
                     Console.WriteLine(BitConverter.ToString(data));
                 }
@@ -734,7 +734,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading DG1: {ex.Message}");
+                Console.WriteLine($"Error reading DG1: ❌{ex.Message}❌");
                 return null;
             }
         }

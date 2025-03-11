@@ -210,7 +210,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
             }
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-            Console.WriteLine("DG1 process finished!");
+            Console.WriteLine("DG1 process finished!\n\n");
 
             return _dictionaryMrzData;
         }
