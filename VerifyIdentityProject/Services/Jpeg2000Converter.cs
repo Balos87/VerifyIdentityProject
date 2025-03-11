@@ -20,6 +20,8 @@ namespace VerifyIdentityProject.Services
 
         public async Task<byte[]> ConvertJpeg2000ToJpegAsync(byte[] imageBytes)
         {
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖ConvertJpeg2000ToJpeg➖➖➖➖➖");
             try
             {
                 Console.WriteLine($"Sending image to API for conversion, size: {imageBytes.Length} bytes");
@@ -28,7 +30,7 @@ namespace VerifyIdentityProject.Services
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 // Log headers before sending the request
-                Console.WriteLine("Request Headers:");
+                //Console.WriteLine("Request Headers:");
                 foreach (var header in content.Headers)
                 {
                     Console.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
@@ -53,7 +55,7 @@ namespace VerifyIdentityProject.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in JPEG2000 conversion: {ex.Message}");
+                Console.WriteLine($"Error in JPEG2000 conversion: ❌{ex.Message}❌");
                 throw;
             }
         }
@@ -64,11 +66,11 @@ namespace VerifyIdentityProject.Services
         {
             if (await IsApiAvailable(apiUrl))
             {
-                Console.WriteLine($"Using API URL: {apiUrl}");
+               // Console.WriteLine($"Using API URL: {apiUrl}");
                 return apiUrl;
             }
 
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
+            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: ❌{localUrl}❌");
             return localUrl ?? string.Empty;
         }
 
