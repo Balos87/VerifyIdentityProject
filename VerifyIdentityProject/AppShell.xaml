@@ -7,9 +7,18 @@
     Shell.FlyoutBehavior="Flyout"
     Title="VerifyIdentityProject">
 
-    <ShellContent
-        Title=""
-        ContentTemplate="{DataTemplate local:MainPage}"
-        Route="MainPage" />
-    
+    <FlyoutItem Title="Home">
+        <ShellContent 
+            Title="Home" 
+            ContentTemplate="{DataTemplate local:MainPage}" 
+            Route="MainPage"/>
+    </FlyoutItem>
+
+    <FlyoutItem Title="Developer Log">
+        <ShellContent 
+            Title="Log" 
+            ContentTemplate="{DataTemplate local:DeveloperLogPage}" 
+            Route="DeveloperLogPage"/>
+    </FlyoutItem>
+
 </Shell>

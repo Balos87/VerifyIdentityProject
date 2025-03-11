@@ -27,6 +27,7 @@ public static class MauiProgram
         builder.Services.AddTransient<MainPage>();
         builder.Services.AddSingleton<MrzReader>();
         builder.Services.AddSingleton<Jpeg2000Converter>();
+        builder.Services.AddSingleton<DebugLogViewModel>();
 
 #if ANDROID
         builder.Services.AddSingleton<INfcReaderManager, VerifyIdentityProject.Platforms.Android.NfcReaderManager>();

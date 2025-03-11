@@ -8,7 +8,6 @@ namespace VerifyIdentityProject
     public partial class MainPage : ContentPage
     {
         private MainPageViewModel _viewModel;
-        private MrzReader _mrzReader;
 
         public MainPage(MainPageViewModel viewModel, INfcReaderManager nfcReaderManager)
         {
@@ -18,13 +17,8 @@ namespace VerifyIdentityProject
             copy.CopyAppSettingsFileToAppData();
 
             _viewModel = viewModel;
-            _mrzReader = new MrzReader(UpdatePassportData, nfcReaderManager);
             BindingContext = _viewModel;
         }
 
-        private void UpdatePassportData(string message)
-        {
-            _viewModel.PassportData = message;
-        }
     }
 }

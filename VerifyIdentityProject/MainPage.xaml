@@ -135,7 +135,7 @@
         <ContentView x:Name="MrzInfoPopup"
                      IsVisible="{Binding IsMrzInfoVisible}"
                      BackgroundColor="#CC000000"
-                    Padding="20"
+                     Padding="20"
                      Grid.RowSpan="2"
                      IsEnabled="{Binding IsMrzInfoVisible}">
 
