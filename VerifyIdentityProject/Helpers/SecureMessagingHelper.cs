@@ -34,7 +34,7 @@ namespace VerifyIdentityProject.Helpers
 
         public byte[] DecryptDataPace(byte[] paddedData, byte[] ssc)
         {
-            Console.WriteLine("SSC value before EncryptData: " + BitConverter.ToString(ssc).Replace("-", " "));
+            //  Console.WriteLine("SSC value before EncryptData: " + BitConverter.ToString(ssc).Replace("-", " "));
             using (Aes aes = Aes.Create())
             {
                 aes.Key = _ksEnc;
@@ -42,7 +42,7 @@ namespace VerifyIdentityProject.Helpers
                 aes.Padding = PaddingMode.None;
 
                 byte[] iv = CalculateIVPace(ssc);
-                Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
+                //     Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
                 aes.IV = iv;
 
                 var decryptedData = aes.CreateDecryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
@@ -53,7 +53,7 @@ namespace VerifyIdentityProject.Helpers
 
         public byte[] EncryptDataPace(byte[] paddedData, byte[] ssc)
         {
-            Console.WriteLine("SSC value before EncryptData: " + BitConverter.ToString(ssc).Replace("-", " "));
+            //  Console.WriteLine("SSC value before EncryptData: " + BitConverter.ToString(ssc).Replace("-", " "));
             using (Aes aes = Aes.Create())
             {
                 aes.Key = _ksEnc;
@@ -61,7 +61,7 @@ namespace VerifyIdentityProject.Helpers
                 aes.Padding = PaddingMode.None;
 
                 byte[] iv = CalculateIVPace(ssc);
-                Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
+                //     Console.WriteLine("Calculated IV: " + BitConverter.ToString(iv).Replace("-", " "));
                 aes.IV = iv;
 
                 using (var encryptor = aes.CreateEncryptor())
@@ -73,7 +73,7 @@ namespace VerifyIdentityProject.Helpers
 
         public byte[] CalculateIVPace(byte[] _ssc)
         {
-            Console.WriteLine("SSC value before CalculateIV: " + BitConverter.ToString(_ssc).Replace("-", " "));
+            //  Console.WriteLine("SSC value before CalculateIV: " + BitConverter.ToString(_ssc).Replace("-", " "));
             using (Aes aes = Aes.Create())
             {
                 aes.Key = _ksEnc;
@@ -89,10 +89,10 @@ namespace VerifyIdentityProject.Helpers
 
         public byte[] CalculateMACPace(byte[] data, byte[] ssc)
         {
-            Console.WriteLine("SSC value before CalculateMAC: " + BitConverter.ToString(ssc).Replace("-", " "));
+            //  Console.WriteLine("SSC value before CalculateMAC: " + BitConverter.ToString(ssc).Replace("-", " "));
 
             byte[] macInput = ConcatenateArraysPace(ssc, data);
-            Console.WriteLine("Full MAC input with SSC: " + BitConverter.ToString(macInput).Replace("-", " "));
+            //  Console.WriteLine("Full MAC input with SSC: " + BitConverter.ToString(macInput).Replace("-", " "));
 
             var cipher = new AesEngine();
             var mac = new CMac(cipher, 128);
@@ -177,21 +177,21 @@ namespace VerifyIdentityProject.Helpers
                     index++;
                 }
             }
-            Console.WriteLine("extracted DO99: " + BitConverter.ToString(DO99).Replace("-", " "));
-            Console.WriteLine("extracted responseMac: " + BitConverter.ToString(responseMac).Replace("-", " "));
+            //  Console.WriteLine("extracted DO99: " + BitConverter.ToString(DO99).Replace("-", " "));
+            //   Console.WriteLine("extracted responseMac: " + BitConverter.ToString(responseMac).Replace("-", " "));
 
             if (DO99 == null || responseMac == null)
                 throw new Exception("Invalid response format");
 
             byte[] macInput = DO99;
-            Console.WriteLine("macInput (DO99): " + BitConverter.ToString(macInput).Replace("-", " "));
+            //  Console.WriteLine("macInput (DO99): " + BitConverter.ToString(macInput).Replace("-", " "));
 
             byte[] paddedMacInput = PadDataPace(macInput);
-            Console.WriteLine("paddedMacInput: " + BitConverter.ToString(paddedMacInput).Replace("-", " "));
+            //  Console.WriteLine("paddedMacInput: " + BitConverter.ToString(paddedMacInput).Replace("-", " "));
 
             //Calculate MAC for verification 
             byte[] calculatedMac = CalculateMACPace(paddedMacInput, SSC);
-            Console.WriteLine("calculatedMac: " + BitConverter.ToString(calculatedMac).Replace("-", " "));
+            // Console.WriteLine("calculatedMac: " + BitConverter.ToString(calculatedMac).Replace("-", " "));
 
             bool isEqual = calculatedMac.SequenceEqual(responseMac);
             if (isEqual)
@@ -200,7 +200,7 @@ namespace VerifyIdentityProject.Helpers
 
         public static bool IsSuccessfulResponsePace(byte[] response)
         {
-            Console.WriteLine("<-IsSuccessfulResponse->");
+            //  Console.WriteLine("<-IsSuccessfulResponse->");
             if (response == null || response.Length < 2)
                 return false;
 

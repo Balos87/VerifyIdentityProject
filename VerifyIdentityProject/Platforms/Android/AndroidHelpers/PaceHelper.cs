@@ -21,12 +21,12 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
         // Select passport application
         public static void SelectApplicationPace(IsoDep isoDep)
         {
-            Console.WriteLine("<-SelectApplication->");
+            //Console.WriteLine("<-SelectApplication->");
             try
             {
                 isoDep.Connect();
-                // isoDep.Timeout = 20000;
-                Console.WriteLine("Starting SelectApplication!");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("👉🏽Starting SelectApplication!");
                 Console.WriteLine($"IsoDep connected: {isoDep.IsConnected}");
                 Console.WriteLine($"IsoDep timeout: {isoDep.Timeout}");
 
@@ -36,7 +36,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                     .Concat(new byte[] { 0x00 })
                     .ToArray();
 
-                Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
+                //Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
                 var response = SendCommandPace(selectApdu, isoDep);
 
                 if (response == null)
@@ -53,7 +53,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
 
                 Console.WriteLine("SelectApplication succeeded");
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
             }
             catch (Exception ex)
@@ -65,38 +65,38 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
         // Reading CardAccess
         public static byte[] ReadCardAccessPace(IsoDep isoDep)
         {
-            Console.WriteLine("<-ReadCardAccess->");
+            //Console.WriteLine("<-ReadCardAccess->");
             try
             {
-                Console.WriteLine("Selecting Master file...");
+                Console.WriteLine("👉🏽Selecting Master file...");
                 byte[] command = new byte[] { 0x00, 0xA4, 0x00, 0x0C, 0x00, 0x3F, 0x00 };
                 var response = SendCommandPace(command, isoDep);
 
                 if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
+                    //Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
-                Console.WriteLine("Selecting CardAccess...");
+                Console.WriteLine("👉🏽Selecting CardAccess...");
                 command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1C };
                 response = SendCommandPace(command, isoDep);
 
                 if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
+                    //Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
-                Console.WriteLine("Reading CardAccess...");
+                Console.WriteLine("👉🏽Reading CardAccess...");
                 command = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
                 response = SendCommandPace(command, isoDep);
 
                 if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"CardAccess data::{BitConverter.ToString(response)}");
+                    //Console.WriteLine($"CardAccess data::{BitConverter.ToString(response)}");
                     ParseCardAccessDataPace(response);
                 }
                 return response;
@@ -111,38 +111,35 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
         // Method to parse Card Access Data
         public static void ParseCardAccessDataPace(byte[] data)
         {
-            Console.WriteLine("");
-            Console.WriteLine("<---------------------------------------->");
-            Console.WriteLine("");
-            Console.WriteLine("<-ParseCardAccessData->");
+            //Console.WriteLine("\n<---------------------------------------->\n");
+            // Console.WriteLine("<-ParseCardAccessData->");
             try
             {
                 if (data.Length >= 2 && data[data.Length - 2] == 0x90 && data[data.Length - 1] == 0x00)
                 {
                     data = data.Take(data.Length - 2).ToArray();
                 }
-                Console.WriteLine("______Raw Card Access Data");
-                Console.WriteLine(BitConverter.ToString(data));
-                Console.WriteLine("<------>");
-                Console.WriteLine("");
-                Console.WriteLine("");
-                Console.WriteLine("______         Parsed Data         ______");
+                // Console.WriteLine("Raw Card Access Data");
+                // Console.WriteLine(BitConverter.ToString(data));
+                // Console.WriteLine("<------>\n\n");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖Parsed Data➖➖➖➖➖➖");
 
                 int index = 0;
                 // Outer sequence
                 if (data[index++] == 0x31) // Sequence tag
                 {
                     int outerLength = data[index++];
-                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
-                    Console.WriteLine("<------>");
+                    // Console.WriteLine($"Outer Sequence Length: {outerLength}");
+                    // Console.WriteLine("<------>");
                     while (index < data.Length)
                     {
                         // PACEInfo sequence
                         if (data[index++] == 0x30) // Sequence tag
                         {
                             int sequenceLength = data[index++];
-                            Console.WriteLine("______PACEInfo from EF.CardAccess");
-                            Console.WriteLine($"Sequence Length: {sequenceLength}");
+                            Console.WriteLine("PaceInfo from EF.CardAccess");
+                            //Console.WriteLine($"Sequence Length: {sequenceLength}");
 
                             // OID
                             if (data[index++] == 0x06) // OID tag
@@ -168,14 +165,13 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                                 byte paramId = data[index++];
                                 Console.WriteLine($"Parameter ID: 0x{paramId:X2}");
                             }
-                            Console.WriteLine("<------>");
+                            Console.WriteLine("\n");
                         }
                     }
                 }
-                Console.WriteLine("______         End Parsed Data         ______");
-                Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
-                Console.WriteLine("");
+                Console.WriteLine("➖➖➖➖➖➖End Parsed Data➖➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+
             }
             catch (Exception ex)
             {
@@ -186,7 +182,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
         // Helper method for sending commands
         public static byte[] SendCommandPace(byte[] command, IsoDep isoDep)
         {
-            Console.WriteLine("<-SendCommand->");
+            //Console.WriteLine("<-SendCommand->");
             try
             {
                 Console.WriteLine($"Sending Command: {BitConverter.ToString(command)}");
@@ -210,7 +206,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
 
         public static List<byte[]> ValidateAndListPACEInfoWithDescriptionsPace(byte[] cardAccessData)
         {
-            Console.WriteLine("<-ValidateAndListPACEInfoWithDescriptions->");
+           // Console.WriteLine("<-ValidateAndListPACEInfoWithDescriptions->");
 
             // Dictionary of valid OIDs and their descriptions
             var oidDescriptions = new Dictionary<string, string>
@@ -247,9 +243,9 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                 if (cardAccessData[index++] == 0x31) // Sequence tag
                 {
                     int outerLength = cardAccessData[index++];
-                    Console.WriteLine($"______DoubleChecking length for this method");
-                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
-                    Console.WriteLine($"");
+                    // Console.WriteLine($"______DoubleChecking length for this method");
+                    // Console.WriteLine($"Outer Sequence Length: {outerLength}");
+                    // Console.WriteLine($"");
                     while (index < cardAccessData.Length)
                     {
                         // Parse PACEInfo

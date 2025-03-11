@@ -58,14 +58,14 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             try
             {
-                Console.WriteLine($"Starting JPEG2000 extraction from DG2, total DG2 length: {dg2Bytes.Length}");
+                //  Console.WriteLine($"Starting JPEG2000 extraction from DG2, total DG2 length: {dg2Bytes.Length}");
 
                 int offset = 0;
                 while (offset < dg2Bytes.Length - 2)
                 {
                     if (dg2Bytes[offset] == 0x7F && dg2Bytes[offset + 1] == 0x61)
                     {
-                        Console.WriteLine($"Found 7F61 tag at offset: {offset}");
+                        //  Console.WriteLine($"Found 7F61 tag at offset: {offset}");
                         break;
                     }
                     offset++;
@@ -82,7 +82,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 {
                     if (dg2Bytes[offset] == 0x5F && dg2Bytes[offset + 1] == 0x2E)
                     {
-                        Console.WriteLine($"Found image tag 5F2E at offset: {offset}");
+                        //  Console.WriteLine($"Found image tag 5F2E at offset: {offset}");
                         break;
                     }
                     offset++;
@@ -95,7 +95,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 var imageLength = DecodeASN1Length(dg2Bytes, offset);
                 offset += imageLength.BytesUsed;
 
-                Console.WriteLine($"Image data length: {imageLength.Length}");
+                //  Console.WriteLine($"Image data length: {imageLength.Length}");
 
                 int jpegStart = -1;
                 string detectedFormat = "None";
@@ -142,7 +142,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     if (dg2Bytes[i] == 0xFF && dg2Bytes[i + 1] == 0xD9)
                     {
                         jpegEnd = i + 2;
-                        Console.WriteLine($"JPEG end found at:{jpegEnd}");
+                        //  Console.WriteLine($"JPEG end found at:{jpegEnd}");
                         break;
                     }
                 }
@@ -192,12 +192,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 // Convert only if it’s still a JPEG2000, we doublecheck to make sure we use the correct format
                 if (finalDetectedFormat == "JPEG2000" || finalDetectedFormat == "JPEG2000 Code Stream")
                 {
-                    Console.WriteLine("Sending image to API for JPEG conversion...");
+                    //  Console.WriteLine("Sending image to API for JPEG conversion...");
 
                     var converter = new Jpeg2000Converter();
                     byte[] convertedImage = await converter.ConvertJpeg2000ToJpegAsync(pureImgData);
 
-                    Console.WriteLine($"Received converted JPEG data length: {convertedImage.Length} bytes");
+                    //  Console.WriteLine($"Received converted JPEG data length: {convertedImage.Length} bytes");
 
                     finalImageData = convertedImage;
                 }

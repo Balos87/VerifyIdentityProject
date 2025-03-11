@@ -51,8 +51,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
                 null
             );
-
-            Console.WriteLine("📡 NFC Reader started. Please place the device on the passport.");
+            Console.WriteLine("\n🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰");
+            Console.WriteLine("📡 NFC Reader started. \nPlease place the device on the passport.");
             OnNfcChipDetected?.Invoke("📡 NFC Reader started. Please place the device on the passport.");
         }
 
@@ -70,14 +70,15 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         /// <summary>
+        /// 
         /// Identifies the detected NFC chip's technology.
         /// </summary>
         public void IdentifyTagTechnologies(Tag tag)
         {
-            Console.WriteLine("<- IdentifyTagTechnologies ->");
+            //Console.WriteLine("<- IdentifyTagTechnologies ->");
             string[] techList = tag.GetTechList();
 
-            Console.WriteLine("______ Detected NFC Chip Technologies:");
+            // Console.WriteLine("Detected NFC Chip Technologies:");
             foreach (string tech in techList)
             {
                 Console.WriteLine(tech);
@@ -87,7 +88,7 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 Console.WriteLine("No technology detected.");
             }
-            Console.WriteLine("<---------------------------------------->");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
         }
 
         /// <summary>
@@ -95,6 +96,7 @@ namespace VerifyIdentityProject.Platforms.Android
         /// </summary>
         public async void HandleTagDiscovered(Tag tag)
         {
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("🔍 NFC Tag Detected!");
             OnNfcTagDetected?.Invoke("✅ NFC Tag Detected!");
 

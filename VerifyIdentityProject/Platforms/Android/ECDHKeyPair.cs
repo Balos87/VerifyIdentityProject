@@ -160,8 +160,8 @@ public class ECDHKeyGenerator
             var s = new Org.BouncyCastle.Math.BigInteger(1, decryptedNonce);
             s = s.Mod(curveParams.N);
 
-            Console.WriteLine($"Nonce (s): {s.ToString(16)}");
-            Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
+            //  Console.WriteLine($"Nonce (s): {s.ToString(16)}");
+            //  Console.WriteLine($"Curve order (N): {curveParams.N.ToString(16)}");
 
             // Validate that s is within the valid range: 1 ≤ s ≤ n-1
             if (s.SignValue <= 0 || s.CompareTo(curveParams.N.Subtract(Org.BouncyCastle.Math.BigInteger.One)) >= 0)
@@ -277,8 +277,8 @@ public class ECDHKeyGenerator
         // We only need x-coordinate from K
         var normalizedK = K.Normalize();
         byte[] kBytes = normalizedK.AffineXCoord.GetEncoded();
-        Console.WriteLine($"x kBytes: {BitConverter.ToString(kBytes)}");
-        Console.WriteLine($"x kBytes.Length: {kBytes.Length}");
+        // Console.WriteLine($"x kBytes: {BitConverter.ToString(kBytes)}");
+        //  Console.WriteLine($"x kBytes.Length: {kBytes.Length}");
 
         // Create counter as 32-bit big-endian
         byte[] counterBytes = BitConverter.GetBytes(counter);

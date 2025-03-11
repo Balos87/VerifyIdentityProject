@@ -9,7 +9,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public Dictionary<string, string> PerformPaceDG1()
         {
-            Console.WriteLine("<-PerformPace DG1->");
+            Console.WriteLine("👉🏽PerformPace DG1\n");
 
             try
             {
@@ -19,7 +19,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 var mrz = secureMessage.SelectDG1();
                 _isoDep.Close();
 
-                Console.WriteLine("\n<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
                 return mrz;
             }

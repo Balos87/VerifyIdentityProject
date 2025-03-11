@@ -12,7 +12,7 @@ namespace VerifyIdentityProject.Helpers
         public void VerifyRapduCCPace(byte[] rapdu, ref byte[] SSC, byte[] ksMac, byte[] ksEnc)
         {
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(ksEnc, ksMac);
-            Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
+            // Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
 
 
             //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
@@ -22,40 +22,40 @@ namespace VerifyIdentityProject.Helpers
             byte[] do87 = ExtractDO87Pace(rapdu);
             byte[] do99 = ExtractDO99Pace(rapdu);
 
-            Console.WriteLine($"ksMac: {BitConverter.ToString(ksMac)}");
-            Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
-            Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
-            Console.WriteLine($"SSC: {BitConverter.ToString(SSC)}");
+            //  Console.WriteLine($"ksMac: {BitConverter.ToString(ksMac)}");
+            //  Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
+            //  Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
+            //  Console.WriteLine($"SSC: {BitConverter.ToString(SSC)}");
 
 
             // 2. build K SSC, DO‘87’ and DO‘99’ and add padding
             byte[] concatenatedData = do87.Concat(do99).ToArray();
             byte[] k = secureMessagingHelper.PadDataPace(concatenatedData);
 
-            Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
-            Console.WriteLine($"K (DO87+DO99+pad): {BitConverter.ToString(k)}");
+            //  Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
+            //  Console.WriteLine($"K (DO87+DO99+pad): {BitConverter.ToString(k)}");
 
             //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’ - C8-B2-78-7E-AE-A0-7D-74 - ✅
             byte[] calculatedMacCC = secureMessagingHelper.CalculateMACPace(k, SSC);
-            Console.WriteLine($"Calculated MAC -(CC)-: {BitConverter.ToString(calculatedMacCC)}");
+            //  Console.WriteLine($"Calculated MAC -(CC)-: {BitConverter.ToString(calculatedMacCC)}");
 
             //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8-B2-78-7E-AE-A0-7D-74’ ? YES. - ✅
             // 1. Extract DO8E from RAPDU
             byte[] do8e = ExtractDO8E2Pace(rapdu);
-            Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
+            //  Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
 
             // 2. Extract CC from DO8E in RAPDU
             byte[] ccFromRapdu = do8e.Skip(2).Take(8).ToArray();
-            Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
+            //  Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
 
             // 3. Compare CC’ with data of DO‘8E’
             if (calculatedMacCC.SequenceEqual(ccFromRapdu))
             {
-                Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
+                // Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
             }
             else
             {
-                Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
+                //  Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
             }
         }
 

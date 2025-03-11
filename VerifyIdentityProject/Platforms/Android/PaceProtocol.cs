@@ -46,6 +46,9 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public bool PerformPaceProtocol()
         {
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("PerformPaceProtocol");
+
             isoDep.Timeout = 400000;
             try
             {
@@ -115,17 +118,17 @@ namespace VerifyIdentityProject.Platforms.Android
             command[4] = (byte)(command.Count - 5);
 
             byte[] finalCommand = command.ToArray();
-            Console.WriteLine($"mseSetAtCommand: {BitConverter.ToString(finalCommand)}");
+            // Console.WriteLine($"mseSetAtCommand: {BitConverter.ToString(finalCommand)}");
 
             var response = isoDep.Transceive(finalCommand);
-            Console.WriteLine($"response: {BitConverter.ToString(response)}");
+            // Console.WriteLine($"response: {BitConverter.ToString(response)}");
 
             return IsSuccessful(response);
         }
 
         private byte[] GetEncryptedNonce()
         {
-            Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
+            // Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
             var getNonceCommand = new byte[]
             {
                 0x10,    // CLA (command chaining)
@@ -137,10 +140,10 @@ namespace VerifyIdentityProject.Platforms.Android
                 0x00,    // Empty data
                 0x00     // Le (expected response, set to 0x00 to get length indication)
             };
-            Console.WriteLine($"Sending getNonceCommand: {BitConverter.ToString(getNonceCommand)}");
+            // Console.WriteLine($"Sending getNonceCommand: {BitConverter.ToString(getNonceCommand)}");
 
             var response = isoDep.Transceive(getNonceCommand);
-            Console.WriteLine($"GetEncryptedNonce response: {BitConverter.ToString(response)}");
+            // Console.WriteLine($"GetEncryptedNonce response: {BitConverter.ToString(response)}");
 
             if (!IsSuccessful(response))
                 return null;
@@ -151,7 +154,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] ParseEncryptedNonce(byte[] response)
         {
-            Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
+            //  Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
             try
             {
                 // Remove status bytes (90 00)
@@ -173,8 +176,8 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] nonce = new byte[nonceLength];
                 Array.Copy(data, index + 2, nonce, 0, nonceLength);
 
-                Console.WriteLine($"Extracted nonce length: {nonceLength}");
-                Console.WriteLine($"Extracted nonce: {BitConverter.ToString(nonce)}");
+                //  Console.WriteLine($"Extracted nonce length: {nonceLength}");
+                //  Console.WriteLine($"Extracted nonce: {BitConverter.ToString(nonce)}");
 
                 return nonce;
             }
@@ -187,7 +190,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] DecryptNonce(byte[] encryptedNonce)
         {
-            Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
+            // Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
 
             using (var sha1 = SHA1.Create())
             {
@@ -203,7 +206,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     using (var decryptor = aes.CreateDecryptor())
                     {
                         var decryptedNonce = decryptor.TransformFinalBlock(encryptedNonce, 0, encryptedNonce.Length);
-                        Console.WriteLine($"DecryptNonce: {BitConverter.ToString(decryptedNonce)}");
+                        //  Console.WriteLine($"DecryptNonce: {BitConverter.ToString(decryptedNonce)}");
                         return decryptedNonce;
                     }
                 }
@@ -212,18 +215,18 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] CalculateKPiFromMrz(string mrzData)
         {
-            Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
+            //   Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
 
             //Calculate K from MRZ
             using (SHA1 sha1 = SHA1.Create())
             {
                 byte[] inputBytes = Encoding.UTF8.GetBytes(mrzData);
                 byte[] k = sha1.ComputeHash(inputBytes);
-                Console.WriteLine($"Output k as hex: {BitConverter.ToString(k)}");
+               // Console.WriteLine($"Output k as hex: {BitConverter.ToString(k)}");
 
                 // Calculate KPi from K
                 var KPi = CalculateKPi(k);
-                Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz finished...");
+                //  Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz finished...");
                 return KPi;
             }
         }
@@ -237,33 +240,33 @@ namespace VerifyIdentityProject.Platforms.Android
                 Array.Reverse(counter);
             }
 
-            Console.WriteLine($"Counter bytes: {BitConverter.ToString(counter)}");
+            //  Console.WriteLine($"Counter bytes: {BitConverter.ToString(counter)}");
 
             // Concatenate K with counter
             byte[] combined = new byte[k.Length + counter.Length];
             k.CopyTo(combined, 0);
             counter.CopyTo(combined, k.Length);
 
-            Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
+            //  Console.WriteLine($"Combined input for KDF: {BitConverter.ToString(combined)}");
 
             // Calculate SHA-256 hash
             using (var sha256 = SHA256.Create())
             {
                 byte[] fullHash = sha256.ComputeHash(combined);
-                Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
+                //    Console.WriteLine($"Full SHA-256 hash output: {BitConverter.ToString(fullHash)}");
 
                 // 256-bit AES key = Take first 32 bytes.
                 byte[] kPi = new byte[32];
                 Array.Copy(fullHash, kPi, 32);
 
-                Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
+                //    Console.WriteLine($"Final Kπ (32 bytes): {BitConverter.ToString(kPi)}");
                 return kPi;
             }
         }
 
         private bool GenerateAndSendMappedParameters(byte[] decryptedNonce)
         {
-            Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
+            //  Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
                 var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
@@ -276,29 +279,29 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Converting public key to byte array (prepare for sending to chip)
                 byte[] publicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(keyPair.PublicKey);
-                Console.WriteLine($"publicKeyBytes: {BitConverter.ToString(publicKeyBytes)}");
+                //  Console.WriteLine($"publicKeyBytes: {BitConverter.ToString(publicKeyBytes)}");
 
                 // Create APDU for sending public key
                 var ourPublicKeyApdu = ECDHKeyGenerator.BuildMapNonceCommand(publicKeyBytes);
-                Console.WriteLine($"Sending ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
+                //  Console.WriteLine($"Sending ourPublicKey: {BitConverter.ToString(ourPublicKeyApdu)}");
 
                 // Sending our public key and recieving chip public key
                 var chipPublicKey = isoDep.Transceive(ourPublicKeyApdu);
-                Console.WriteLine($"Recieved chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
+                // Console.WriteLine($"Recieved chipPublicKey: {BitConverter.ToString(chipPublicKey)}");
 
                 // Extract chip public key from response
                 var exractedChipPublicKey = ECDHKeyGenerator.ExtractPublicKeyFromResponse(chipPublicKey);
-                Console.WriteLine($"exractedChipPublicKey: {BitConverter.ToString(exractedChipPublicKey)}");
+                //  Console.WriteLine($"exractedChipPublicKey: {BitConverter.ToString(exractedChipPublicKey)}");
 
                 // Calculates H with help our private key, chip public key and curveParams.
                 var H = ECDHKeyGenerator.CalculateH(curveParams, keyPair.PrivateKey, exractedChipPublicKey);
-                Console.WriteLine($"Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
+                //  Console.WriteLine($"Calculated H: {BitConverter.ToString(H.GetEncoded(false))}");
                 if (!H.IsValid())
                     throw new Exception("Error: H is not a valid point on the curve!");
 
                 // Create BigInteger from decryptedNonce
                 var bigIntegerS = ECDHKeyGenerator.SToBigInteger(decryptedNonce, curveParams);
-                Console.WriteLine($"bigInteger(s): {bigIntegerS.ToString(16)}");
+                //  Console.WriteLine($"bigInteger(s): {bigIntegerS.ToString(16)}");
 
                 // Create gTilde with curvparams.G and s and H
                 var gTilde = curveParams.G.Multiply(bigIntegerS).Add(H).Normalize();
@@ -308,29 +311,29 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 //Create keypair from our gTilde
                 var gTildeKeys = keyGenerator.GenerateKeyPairWithGTilde(gTilde);
-                Console.WriteLine($"gTildeKeys.PrivatKEy: {gTildeKeys.PrivateKey}");
+                //  Console.WriteLine($"gTildeKeys.PrivatKEy: {gTildeKeys.PrivateKey}");
 
 
                 // convert our gTilde-public key to byte array
                 byte[] gTildePublicKeyBytes = ECDHKeyGenerator.PublicKeyToBytes(gTildeKeys.PublicKey);
-                Console.WriteLine($"gTildePublicKeyBytes: {gTildePublicKeyBytes}");
+                //  Console.WriteLine($"gTildePublicKeyBytes: {gTildePublicKeyBytes}");
 
 
                 // Create APDU for sending gTilde-public key
                 var gTildePublicKeyAPdu = ECDHKeyGenerator.BuildKeyAgreementCommandGTilde(gTildePublicKeyBytes);
-                Console.WriteLine($"Sending gTildePublicKeyAPdu: {BitConverter.ToString(gTildePublicKeyAPdu)}");
+                //  Console.WriteLine($"Sending gTildePublicKeyAPdu: {BitConverter.ToString(gTildePublicKeyAPdu)}");
 
                 // sending our gTilde-public key and recieving chip-gTilde-public key
                 var chipGTildePublicKey = isoDep.Transceive(gTildePublicKeyAPdu);
-                Console.WriteLine($"Recieved chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
+                //  Console.WriteLine($"Recieved chipGTildePublicKey: {BitConverter.ToString(chipGTildePublicKey)}");
 
                 // Extract chip-gTilde-public key from response
                 var extractedChipGTildePublicKey = ECDHKeyGenerator.ExtractGTildePublicKeyFromResponse(chipGTildePublicKey);
-                Console.WriteLine($"extractedChipGTildePublicKey: {BitConverter.ToString(extractedChipGTildePublicKey)}");
+                //  Console.WriteLine($"extractedChipGTildePublicKey: {BitConverter.ToString(extractedChipGTildePublicKey)}");
 
                 // convert Extract chip-gTilde-public to ECPoint
                 Org.BouncyCastle.Math.EC.ECPoint chipGTildePublicKeyDecoded = curveParams.Curve.DecodePoint(extractedChipGTildePublicKey);
-                Console.WriteLine($"chipGTildePublicKeyDecoded: X:{chipGTildePublicKeyDecoded.XCoord} Y:{chipGTildePublicKeyDecoded.YCoord}");
+                //  Console.WriteLine($"chipGTildePublicKeyDecoded: X:{chipGTildePublicKeyDecoded.XCoord} Y:{chipGTildePublicKeyDecoded.YCoord}");
 
 
                 // Comparing our gTilde-public key with chip-gTilde-public key. They should not be the same
@@ -342,34 +345,34 @@ namespace VerifyIdentityProject.Platforms.Android
                 Org.BouncyCastle.Math.EC.ECPoint K = chipGTildePublicKeyDecoded.Multiply(gTildeKeys.PrivateKey).Normalize();
                 if (!K.IsValid())
                     throw new Exception("Error: K is not a valid point on the curve");
-                Console.WriteLine($"Calculated K: {BitConverter.ToString(K.GetEncoded(false))}");
+                //  Console.WriteLine($"Calculated K: {BitConverter.ToString(K.GetEncoded(false))}");
 
 
                 // We use K to create KSMac and KSEnc
                 KSEnc = ECDHKeyGenerator.DeriveKeyFromK(K, 1);  // EncryptionKey
                 KSMAC = ECDHKeyGenerator.DeriveKeyFromK(K, 2);  // AutehnticationKey
 
-                Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
-                Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
+                //  Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEnc)}");
+                //  Console.WriteLine($"KSMAC: {BitConverter.ToString(KSMAC)}");
 
                 //Creating a MSE:SET AT command including our public key and OID
                 var inputDataForTPCD = ECDHKeyGenerator.BuildAuthenticationTokenInput(extractedChipGTildePublicKey, oid);
                 var inputDataForTIC = ECDHKeyGenerator.BuildAuthenticationTokenInput(gTildePublicKeyBytes, oid);
-                Console.WriteLine($"inputDataForTPCD: {BitConverter.ToString(inputDataForTPCD)}");
-                Console.WriteLine($"inputDataForTIC: {BitConverter.ToString(inputDataForTIC)}");
+                //  Console.WriteLine($"inputDataForTPCD: {BitConverter.ToString(inputDataForTPCD)}");
+                //  Console.WriteLine($"inputDataForTIC: {BitConverter.ToString(inputDataForTIC)}");
 
                 // Calculating aut-token TPCD och TIC. By using KSMAC and "inputData" from the last step
                 var TPCD = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTPCD);
                 var TIC = ECDHKeyGenerator.CalculateAuthenticationToken(KSMAC, inputDataForTIC);
-                Console.WriteLine($"TPCD: {BitConverter.ToString(TPCD)}");
-                Console.WriteLine($"TIC: {BitConverter.ToString(TIC)}");
+                // Console.WriteLine($"TPCD: {BitConverter.ToString(TPCD)}");
+                // Console.WriteLine($"TIC: {BitConverter.ToString(TIC)}");
 
                 //Building command for sending TPCD token to chip.
                 var comand = ECDHKeyGenerator.BuildTokenCommand(TPCD);
-                Console.WriteLine($"sending TPCD command: {BitConverter.ToString(comand)}");
+                // Console.WriteLine($"sending TPCD command: {BitConverter.ToString(comand)}");
 
                 var responseTic = isoDep.Transceive(comand);
-                Console.WriteLine($"Chip response (TIC): {BitConverter.ToString(responseTic)}");
+                // Console.WriteLine($"Chip response (TIC): {BitConverter.ToString(responseTic)}");
 
 
                 return true;
@@ -427,13 +430,13 @@ namespace VerifyIdentityProject.Platforms.Android
                     index += length;
                 }
 
-                Console.WriteLine($"Full data: {BitConverter.ToString(data)}");
+                // Console.WriteLine($"Full data: {BitConverter.ToString(data)}");
                 throw new Exception($"Tag {expectedTag:X2} not found in response");
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error in ParseTLV: {ex.Message}");
-                Console.WriteLine($"Data: {BitConverter.ToString(data)}");
+                //  Console.WriteLine($"Data: {BitConverter.ToString(data)}");
                 throw;
             }
         }

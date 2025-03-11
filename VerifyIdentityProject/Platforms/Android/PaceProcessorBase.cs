@@ -17,7 +17,7 @@ namespace VerifyIdentityProject.Platforms.Android
         // Common PACE Authentication Logic
         protected SecureMessage PerformCommonPace(IsoDep isoDep)
         {
-            Console.WriteLine("<-Performing Common PACE->");
+           // Console.WriteLine("<-Performing Common PACE->");
 
             // Step 1: Select the passport application
             PaceHelper.SelectApplicationPace(isoDep);
@@ -26,18 +26,18 @@ namespace VerifyIdentityProject.Platforms.Android
             var cardAccess = PaceHelper.ReadCardAccessPace(isoDep);
             var validOids = PaceHelper.ValidateAndListPACEInfoWithDescriptionsPace(cardAccess);
 
-            Console.WriteLine("\n______Valid PACE Protocols:");
+            //Console.WriteLine("\nValid PACE Protocols:");
 
             // Fetch MRZ data from secrets
             var secrets = GetSecrets.FetchSecrets();
             var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
-            Console.WriteLine($"mrzData: {mrzData}");
+            //Console.WriteLine($"mrzData: {mrzData}");
 
             foreach (var oid in validOids)
             {
                 if (OidHelper.OidEndsWith(oid, "4.2.4"))
                 {
-                    Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
+                    //Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
 
                     // Step 3: Perform PACE protocol
                     var pace = new PaceProtocol(isoDep, mrzData, oid);

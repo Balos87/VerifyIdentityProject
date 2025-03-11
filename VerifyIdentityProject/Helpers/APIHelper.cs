@@ -12,7 +12,7 @@ namespace VerifyIdentityProject.Helpers
         {
             if (await IsApiAvailable(apiUrl))
             {
-                Console.WriteLine($"Using API URL: {apiUrl}");
+               // Console.WriteLine($"Using API URL: {apiUrl}");
                 return apiUrl;
             }
 
