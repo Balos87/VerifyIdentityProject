@@ -29,6 +29,21 @@ namespace VerifyIdentityProject.ViewModels
         public void AppendLog(string text)
         {
             LogText += text + Environment.NewLine;
+
+            #if ANDROID
+                string documentsPath = Path.Combine(Android.OS.Environment.ExternalStorageDirectory.AbsolutePath, "Documents");
+            #else
+                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            #endif
+
+            var filePath = Path.Combine(documentsPath, "log.txt");
+
+            if (!Directory.Exists(documentsPath))
+            {
+                Directory.CreateDirectory(documentsPath);
+            }
+
+            File.WriteAllText(filePath, LogText);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
