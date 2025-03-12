@@ -3,13 +3,36 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="VerifyIdentityProject.DeveloperLogPage"
              Title="Developer Log">
+
     <ContentPage.Content>
-        <ScrollView>
-            <Label Text="{Binding LogText}"
-                   FontFamily="Courier"
-                   FontSize="12"
+        <StackLayout Padding="15" Spacing="10" VerticalOptions="FillAndExpand">
+
+            <Button Text="📋 Copy To Clipboard"
+                    Command="{Binding CopyLogCommand}"
+                    HorizontalOptions="Fill"
+                    Padding="10"
+                    FontSize="16"
+                    CornerRadius="10"
+                    Margin="0,0,0,10"/>
+
+            <Frame BorderColor="{DynamicResource FrameBorderColor}"
+                   BackgroundColor="{DynamicResource FrameBackgroundColor}"
+                   CornerRadius="10"
                    Padding="10"
-                   VerticalOptions="Start" />
-        </ScrollView>
+                   HasShadow="True"
+                   VerticalOptions="FillAndExpand">
+
+                <ScrollView VerticalOptions="FillAndExpand">
+                    <Label Text="{Binding LogText}"
+                           FontFamily="Courier"
+                           FontSize="14"
+                           Padding="5"
+                           VerticalOptions="FillAndExpand"
+                           LineBreakMode="WordWrap"/>
+                </ScrollView>
+
+            </Frame>
+
+        </StackLayout>
     </ContentPage.Content>
 </ContentPage>

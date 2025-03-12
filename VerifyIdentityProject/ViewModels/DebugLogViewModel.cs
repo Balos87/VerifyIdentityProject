@@ -5,11 +5,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System;
 using System.ComponentModel;
+using System.Windows.Input;
+using Microsoft.Maui.ApplicationModel;
 
 namespace VerifyIdentityProject.ViewModels
 {
     public class DebugLogViewModel : INotifyPropertyChanged
     {
+        public ICommand CopyLogCommand { get; }
         public static DebugLogViewModel Instance { get; } = new DebugLogViewModel();
 
         private string _logText = string.Empty;
@@ -24,6 +27,16 @@ namespace VerifyIdentityProject.ViewModels
                     OnPropertyChanged(nameof(LogText));
                 }
             }
+        }
+
+        public DebugLogViewModel()
+        {
+            CopyLogCommand = new Command(() => {
+                if (!string.IsNullOrEmpty(LogText))
+                {
+                    Clipboard.SetTextAsync(LogText);
+                }
+            });
         }
 
         public void AppendLog(string text)
