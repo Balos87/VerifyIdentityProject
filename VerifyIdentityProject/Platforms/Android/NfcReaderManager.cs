@@ -44,16 +44,16 @@ namespace VerifyIdentityProject.Platforms.Android
                 return;
             }
 
-            // Enable NFC reader mode
             _nfcAdapter.EnableReaderMode(
                 _activity,
-                new BacProcessor(this), // NFC tag discovery callback
+                new BacProcessor(this),
                 NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
                 null
             );
+
             Console.WriteLine("\n🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰");
             Console.WriteLine("📡 NFC Reader started. \nPlease place the device on the passport.");
-            OnNfcChipDetected?.Invoke("📡 NFC Reader started. Please place the device on the passport.");
+            OnNfcChipDetected?.Invoke(MauiStatusMessageHelper.NfcReaderStartedMessage);
         }
 
         /// <summary>
@@ -65,20 +65,16 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 _nfcAdapter.DisableReaderMode(_activity);
                 Console.WriteLine("⏹ NFC Reader stopped.");
-                OnNfcChipDetected?.Invoke("⏹ NFC Reader stopped.");
+                OnNfcChipDetected?.Invoke(MauiStatusMessageHelper.NfcReaderStoppedMessage);
             }
         }
 
         /// <summary>
-        /// 
         /// Identifies the detected NFC chip's technology.
         /// </summary>
         public void IdentifyTagTechnologies(Tag tag)
         {
-            //Console.WriteLine("<- IdentifyTagTechnologies ->");
             string[] techList = tag.GetTechList();
-
-            // Console.WriteLine("Detected NFC Chip Technologies:");
             foreach (string tech in techList)
             {
                 Console.WriteLine(tech);
@@ -98,9 +94,9 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("🔍 NFC Tag Detected!");
-            OnNfcTagDetected?.Invoke("✅ NFC Tag Detected!");
+            OnNfcTagDetected?.Invoke(MauiStatusMessageHelper.NfcChipDetectedMessage);
 
-            await Task.Delay(1000); // Short delay before processing starts
+            await Task.Delay(1000);
 
             try
             {
@@ -110,26 +106,22 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (isoDep != null)
                 {
                     Console.WriteLine("⚡ ISO-DEP Tag detected. Starting PACE...");
-                    OnNfcProcessingStarted?.Invoke("🔄 Performing PACE, please wait...");
+                    OnNfcProcessingStarted?.Invoke(MauiStatusMessageHelper.NfcProcessingStartedMessage);
 
-                    // Fetch API URL the same way as MrzReader
                     var appsettings = GetSecrets.FetchAppSettings();
                     string apiUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
 
-                    // Perform PACE and retrieve MRZ data
                     var paceProcessorDG1 = new PaceProcessorDG1(isoDep);
                     Dictionary<string, string> mrz = paceProcessorDG1.PerformPaceDG1();
 
-                    // Perform PACE and retrieve image data
                     var paceProcessorDG2 = new PaceProcessorDG2(isoDep);
                     var imgData = await paceProcessorDG2.PerformPaceDG2Async(apiUrl);
 
                     Console.WriteLine("🎉 PACE Successful!");
-                    OnNfcProcessingCompleted?.Invoke("🎉 PACE Successful! Continuing...");
+                    OnNfcProcessingCompleted?.Invoke(MauiStatusMessageHelper.NfcProcessingCompletedMessage);
 
-                    await Task.Delay(2000); // Pause before moving to next step
+                    await Task.Delay(2000);
 
-                    // Navigate to the PassportDataPage with the MRZ and image data
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
                         await Shell.Current.GoToAsync(nameof(PassportDataPage), true, new Dictionary<string, object>
@@ -142,13 +134,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 else
                 {
                     Console.WriteLine("❌ Not an ISO-DEP (NFC-A/B) tag.");
-                    OnNfcChipDetected?.Invoke("⚠️ NFC Chip detected but not supported.");
+                    OnNfcChipDetected?.Invoke(MauiStatusMessageHelper.NfcUnsupportedChipMessage);
                 }
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during NFC processing: ❌ {ex.Message}❌ ");
-                OnNfcChipDetected?.Invoke($"Error processing NFC: ❌ {ex.Message}❌ ");
+                OnNfcChipDetected?.Invoke(string.Format(MauiStatusMessageHelper.NfcErrorMessage, ex.Message));
             }
         }
     }

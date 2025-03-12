@@ -39,136 +39,80 @@ namespace VerifyIdentityProject.ViewModels
         public string ExtractedMrz
         {
             get => _extractedMrz;
-            set
-            {
-                if (_extractedMrz != value)
-                {
-                    _extractedMrz = value;
-                    OnPropertyChanged(nameof(ExtractedMrz));
-                }
-            }
+            set => SetProperty(ref _extractedMrz, value);
         }
+
         public string ManualMrz
         {
             get => _manualMrz;
             set
             {
-                if (_manualMrz != value)
+                if (SetProperty(ref _manualMrz, value))
                 {
-                    _manualMrz = value;
-                    OnPropertyChanged(nameof(ManualMrz));
-
-                    // ✅ Show status update in PassportData (Status Message Window)
-                    if (IsValidMrz(_manualMrz))
-                    {
-                        PassportData = $"✅ Manual MRZ submitted: {_manualMrz}";
-                    }
-                    else
-                    {
-                        PassportData = "❌ Invalid MRZ format. Please check the input.";
-                    }
+                    PassportData = IsValidMrz(_manualMrz)
+                        ? string.Format(MauiStatusMessageHelper.MrzFoundMessage, _manualMrz)
+                        : MauiStatusMessageHelper.MrzInvalidMessage;
                 }
             }
         }
+
         public bool IsMrzInfoVisible
         {
             get => _isMrzInfoVisible;
-            set
-            {
-                if (_isMrzInfoVisible != value)
-                {
-                    _isMrzInfoVisible = value;
-                    OnPropertyChanged(nameof(IsMrzInfoVisible));
-                }
-            }
+            set => SetProperty(ref _isMrzInfoVisible, value);
         }
+
         public string PassportData
         {
             get => _passportData;
-            set
-            {
-                if (_passportData != value)
-                {
-                    _passportData = value;
-                    OnPropertyChanged(nameof(PassportData));
-                }
-            }
+            set => SetProperty(ref _passportData, value);
         }
 
         public bool IsScanning
         {
             get => _isScanning;
-            set
-            {
-                if (_isScanning != value)
-                {
-                    _isScanning = value;
-                    OnPropertyChanged(nameof(IsScanning));
-                }
-            }
+            set => SetProperty(ref _isScanning, value);
         }
 
         public MainPageViewModel(INfcReaderManager nfcReaderManager)
         {
             _nfcReaderManager = nfcReaderManager ?? throw new ArgumentNullException(nameof(nfcReaderManager));
 
-            // Prevent multiple event subscriptions
-            _nfcReaderManager.OnNfcChipDetected -= HandleNfcChipDetected;
-            _nfcReaderManager.OnNfcChipDetected += HandleNfcChipDetected;
-
-            _nfcReaderManager.OnNfcTagDetected -= HandleNfcTagDetected;
-            _nfcReaderManager.OnNfcTagDetected += HandleNfcTagDetected;
-
-            _nfcReaderManager.OnNfcProcessingStarted -= HandleNfcProcessingStarted;
-            _nfcReaderManager.OnNfcProcessingStarted += HandleNfcProcessingStarted;
-
-            _nfcReaderManager.OnNfcProcessingCompleted -= HandleNfcProcessingCompleted;
-            _nfcReaderManager.OnNfcProcessingCompleted += HandleNfcProcessingCompleted;
+            _nfcReaderManager.OnNfcChipDetected += message => SetPassportStatusMessage(message);
+            _nfcReaderManager.OnNfcTagDetected += message => SetPassportStatusMessage(message);
+            _nfcReaderManager.OnNfcProcessingStarted += message => {
+                SetPassportStatusMessage(message);
+                IsScanning = true;
+            };
+            _nfcReaderManager.OnNfcProcessingCompleted += async message => {
+                SetPassportStatusMessage(message);
+                await Task.Delay(2000);
+                IsScanning = false;
+            };
 
             ExtractedMrz = "";
-
             _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
             SubmitManualMrzCommand = new Command(SubmitManualMrz);
             ScanMrzCommand = new Command(async () => await ScanMrzAsync());
-
             ShowMrzInfoCommand = new Command(() => IsMrzInfoVisible = true);
             HideMrzInfoCommand = new Command(() => IsMrzInfoVisible = false);
         }
 
-        private void HandleNfcChipDetected(string message)
+        private void SetPassportStatusMessage(string message)
         {
             MainThread.BeginInvokeOnMainThread(() =>
             {
-                PassportData = message;
-            });
-        }
-
-        private void HandleNfcTagDetected(string message)
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                PassportData = message;
-            });
-        }
-
-        private void HandleNfcProcessingStarted(string message)
-        {
-            MainThread.BeginInvokeOnMainThread(() =>
-            {
-                PassportData = message;
-                IsScanning = true;
-            });
-        }
-
-        private void HandleNfcProcessingCompleted(string message)
-        {
-            MainThread.BeginInvokeOnMainThread(async () =>
-            {
-                PassportData = message;
-                await Task.Delay(2000); // Delay before showing final data
-                IsScanning = false;
+                if (message.StartsWith("MRZ:"))
+                {
+                    string mrzValue = message.Replace("MRZ:", "").Trim();
+                    ExtractedMrz = $"Captured MRZ from photo: {mrzValue}"; // ✅ Ensure MRZ is displayed
+                }
+                else
+                {
+                    PassportData = message;
+                }
             });
         }
 
@@ -176,54 +120,29 @@ namespace VerifyIdentityProject.ViewModels
         {
             try
             {
-                var mrzReader = new MrzReader(UpdatePassportData, _nfcReaderManager);
+                var mrzReader = new MrzReader(SetPassportStatusMessage, _nfcReaderManager);
                 await mrzReader.ScanAndExtractMrzAsync();
             }
             catch (Exception ex)
             {
-                PassportData = $"⚠️ Error capturing MRZ: {ex.Message}";
+                SetPassportStatusMessage(string.Format(MauiStatusMessageHelper.MrzScanningErrorMessage, ex.Message));
             }
         }
-
-        private async void UpdatePassportData(string message)
-        {
-            if (message.StartsWith("MRZ:"))
-            {
-                // ✅ Extract MRZ value
-                string mrzValue = message.Replace("MRZ:", "").Trim();
-
-                // ✅ Update ExtractedMrz with full message
-                ExtractedMrz = $"Captured MRZ from photo: {mrzValue}";
-            }
-            else
-            {
-                // ✅ Use PassportData only for status messages
-                PassportData = message;
-            }
-        }
-
 
         private async void SubmitManualMrz()
         {
             if (IsValidMrz(ManualMrz))
             {
-                // ✅ Show MRZ found message before proceeding
-                PassportData = $"📜 MRZ Found: {ManualMrz}";
-
+                SetPassportStatusMessage(string.Format(MauiStatusMessageHelper.MrzFoundMessage, ManualMrz));
                 _secretsManager.SetMrzNumbers(ManualMrz);
-
-                await Task.Delay(5000); // ⏳ Wait for 5 seconds
-
-                // ✅ Now start NFC after delay
-                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
-                StartNfcCommand.Execute(null);
+                await Task.Delay(5000);
+                StartNfc();
             }
             else
             {
-                PassportData = "❌ Invalid MRZ format. Please check the input.";
+                SetPassportStatusMessage(MauiStatusMessageHelper.MrzInvalidMessage);
             }
         }
-
 
         private static bool IsValidMrz(string mrz) => !string.IsNullOrWhiteSpace(mrz) && mrz.Length == 24;
 
@@ -232,11 +151,11 @@ namespace VerifyIdentityProject.ViewModels
             try
             {
                 _nfcReaderManager.StartListening();
-                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
+                SetPassportStatusMessage(MauiStatusMessageHelper.NfcReaderStartedMessage);
             }
             catch (Exception ex)
             {
-                PassportData = $"⚠️ Error starting NFC: {ex.Message}";
+                SetPassportStatusMessage(string.Format(MauiStatusMessageHelper.NfcErrorMessage, ex.Message));
             }
         }
 
@@ -245,12 +164,20 @@ namespace VerifyIdentityProject.ViewModels
             try
             {
                 _nfcReaderManager.StopListening();
-                PassportData = "⏹ NFC Reader stopped.";
+                SetPassportStatusMessage(MauiStatusMessageHelper.NfcReaderStoppedMessage);
             }
             catch (Exception ex)
             {
-                PassportData = $"⚠️ Error stopping NFC: {ex.Message}";
+                SetPassportStatusMessage(string.Format(MauiStatusMessageHelper.NfcErrorMessage, ex.Message));
             }
+        }
+
+        private bool SetProperty<T>(ref T storage, T value, [System.Runtime.CompilerServices.CallerMemberName] string propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(storage, value)) return false;
+            storage = value;
+            OnPropertyChanged(propertyName);
+            return true;
         }
 
         private void OnPropertyChanged(string propertyName)
