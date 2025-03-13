@@ -357,10 +357,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
                 }
 
-                if (results.Count == 0)
-                {
-                    throw new PaceException("No valid PACE OID found in CardAccess data.");
-                }
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
                 return oidByteList; // Return all valid OIDs with descriptions
             }

@@ -48,9 +48,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 NfcReaderFlags.NfcA | NfcReaderFlags.NfcB | NfcReaderFlags.SkipNdefCheck,
                 null
             );
-
-            Console.WriteLine("NFC Reader started. Waiting for a tag...");
-            OnNfcChipDetected?.Invoke("NFC Reader started. Waiting for a tag...");
+            Console.WriteLine("\n🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰🟰");
+            Console.WriteLine("📡 NFC Reader started. \nPlease place the device on the passport.");
+            OnNfcChipDetected?.Invoke("📡 NFC Reader started. Please place the device on the passport.");
         }
 
         /// <summary>
@@ -85,16 +85,14 @@ namespace VerifyIdentityProject.Platforms.Android
             {
                 Console.WriteLine("No technology detected.");
             }
-
-            Console.WriteLine("<---------------------------------------->");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
         }
 
         public async void HandleTagDiscovered(Tag tag)
         {
-            Console.WriteLine("<- HandleTagDiscovered ->");
-            Console.WriteLine("-----------------------------------------------------------");
-            Console.WriteLine("<<<-------           Verify Identity             ------->>>");
-            Console.WriteLine("-----------------------------------------------------------");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("🔍 NFC Tag Detected!");
+            OnNfcTagDetected?.Invoke("✅ NFC Tag Detected!");
 
             try
             {

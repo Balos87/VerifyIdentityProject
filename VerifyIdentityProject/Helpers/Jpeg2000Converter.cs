@@ -19,6 +19,8 @@ namespace VerifyIdentityProject.Helpers
 
         public async Task<byte[]> ConvertJpeg2000ToJpegAsync(byte[] imageBytes)
         {
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖ConvertJpeg2000ToJpeg➖➖➖➖➖");
             try
             {
                 Console.WriteLine($"Sending image to API for conversion, size: {imageBytes.Length} bytes");

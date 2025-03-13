@@ -34,11 +34,62 @@
             <Label Text="{Binding MrzNotFound}"
                    HorizontalOptions="Fill"/>
 
-            <Label
-                Text="{Binding PassportData}"
-                Style="{StaticResource SubHeadline}"
-                HorizontalOptions="Fill" />
-        </VerticalStackLayout>
-    </ScrollView>
+                <!-- Section: Manual MRZ Entry -->
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid>
+                            <Label Text="Enter MRZ manually:"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="{DynamicResource SecondaryTextColor}"
+                                   VerticalOptions="Center"
+                                   HorizontalOptions="Start" />
+                            <ImageButton Source="info_icon_2.png"
+                                         Command="{Binding ShowMrzInfoCommand}"
+                                         BackgroundColor="{DynamicResource FrameBackgroundColor}"
+                                         WidthRequest="12"
+                                         HeightRequest="12"
+                                         Aspect="AspectFit"
+                                         Scale="0.5"
+                                         Margin="5"
+                                         HorizontalOptions="End"
+                                         VerticalOptions="Center" />
+                        </Grid>
+
+                        <Frame BackgroundColor="{DynamicResource EntryBackgroundColor}" CornerRadius="5" Padding="8">
+                            <Entry Text="{Binding ManualMrz, Mode=TwoWay}" 
+                                   Placeholder="Enter MRZ manually"
+                                   MaxLength="88"
+                                   BackgroundColor="{DynamicResource EntryBackgroundColor}"
+                                   TextColor="{DynamicResource PrimaryTextColor}" />
+                        </Frame>
+
+                        <Button Text="Submit MRZ"
+                                Command="{Binding SubmitManualMrzCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Section: Developer Tools -->
+                <!--<Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="Developer Tools"
+                               FontSize="18"
+                               FontAttributes="Bold"
+                               TextColor="{DynamicResource SecondaryTextColor}" />
+                        <Button Text="Developer Pace Run"
+                                Command="{Binding StartNfcCommand}"
+                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                                TextColor="{DynamicResource ButtonTextColor}"
+                                CornerRadius="5"
+                                Padding="12,8" />
+                    </VerticalStackLayout>
+                </Frame>-->
+
+            </VerticalStackLayout>
+        </ScrollView>
 
 </ContentPage>

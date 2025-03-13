@@ -1,88 +1,32 @@
 ﻿using Android.Nfc.Tech;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using VerifyIdentityProject.Helpers;
 
-namespace VerifyIdentityProject.Platforms.Android
+namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
 {
-    public class PaceProcessorDG1
+    public class PaceHelper
     {
         private readonly IsoDep _isoDep;
         private static byte[] AID_MRTD = new byte[] { 0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01 };
         private static Dictionary<string, string> _mrz;
-        public PaceProcessorDG1(IsoDep isoDep)
+        public PaceHelper(IsoDep isoDep)
         {
             _isoDep = isoDep;
         }
 
-        // Main method to perform PACE
-        public static Dictionary<string,string> PerformPaceDG1(IsoDep isoDep)
-        {
-            Console.WriteLine("<-PerformPace DG1->");
-            try
-            {
-                // Step 0: Select the passport application
-                SelectApplication(isoDep);
-
-                // Step 1: Read CardAccess to get PACE parameters
-                var cardAccess = ReadCardAccess(isoDep);
-                var validOids = ValidateAndListPACEInfoWithDescriptions(cardAccess);
-                Console.WriteLine($"");
-                Console.WriteLine("______Valid PACE Protocols:");
-                //Fetch mrz data from secrets
-                var secrets = GetSecrets.FetchSecrets();
-                var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
-                Console.WriteLine($"mrzData: {mrzData}");
-
-                foreach (var oid in validOids)
-                {
-                    if (OidEndsWith(oid, "4.2.4"))
-                    {
-                        Console.WriteLine($"OID: {BitConverter.ToString(oid)}");
-
-                        // Step 2: Perform PACE protocol
-                        var pace = new PaceProtocol(isoDep, mrzData, oid);
-                        bool success = pace.PerformPaceProtocol();
-                        var (KSEnc, KSMac) = pace.GetKsEncAndKsMac();
-                        Console.WriteLine(success ? "PACE-authentication succeeded!" : "PACE-authentication failed");
-
-
-                        // Step 3: Perform Secure Messaging
-                        var secureMessage = new SecureMessage(KSEnc, KSMac, isoDep);
-
-                        // Step 4: Select eMRTD application with secure messaging
-                        var selectApplication = secureMessage.SelectApplication();
-
-                        // Step 5: Select and read EF.DG1 with secure messaging
-                        _mrz = secureMessage.SelectDG1();
-                        isoDep.Close();
-                    }
-                }
-                Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
-
-
-                return _mrz;
-            }
-            catch (Exception ex)
-            {
-                throw new PaceException("The PACE process failed", ex);
-            }
-        }
-
-        private static bool OidEndsWith(byte[] oidBytes, string suffix)
-        {
-            string oidString = ConvertOidToString(oidBytes);
-            return oidString.EndsWith(suffix);
-        }
-
         // Select passport application
-        private static void SelectApplication(IsoDep isoDep)
+        public static void SelectApplicationPace(IsoDep isoDep)
         {
-            Console.WriteLine("<-SelectApplication->");
+            //Console.WriteLine("<-SelectApplication->");
             try
             {
                 isoDep.Connect();
-                // isoDep.Timeout = 20000;
-                Console.WriteLine("Starting SelectApplication!");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("👉🏽Starting SelectApplication!");
                 Console.WriteLine($"IsoDep connected: {isoDep.IsConnected}");
                 Console.WriteLine($"IsoDep timeout: {isoDep.Timeout}");
 
@@ -92,8 +36,8 @@ namespace VerifyIdentityProject.Platforms.Android
                     .Concat(new byte[] { 0x00 })
                     .ToArray();
 
-                Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
-                var response = SendCommand(selectApdu, isoDep);
+                //Console.WriteLine($"Prepared SELECT APDU: {BitConverter.ToString(selectApdu)}");
+                var response = SendCommandPace(selectApdu, isoDep);
 
                 if (response == null)
                 {
@@ -101,7 +45,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     return;
                 }
 
-                if (!IsSuccessfulResponse(response))
+                if (!SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
                     Console.WriteLine($"Invalid response: {BitConverter.ToString(response)}");
                     return;
@@ -109,7 +53,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine("SelectApplication succeeded");
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
             }
             catch (Exception ex)
@@ -118,52 +62,42 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        private static bool IsSuccessfulResponse(byte[] response)
-        {
-            Console.WriteLine("<-IsSuccessfulResponse->");
-            if (response == null || response.Length < 2)
-                return false;
-
-            // Check the last two bytes for the status code
-            return response[response.Length - 2] == 0x90 && response[response.Length - 1] == 0x00;
-        }
-
         // Reading CardAccess
-        private static byte[] ReadCardAccess(IsoDep isoDep)
+        public static byte[] ReadCardAccessPace(IsoDep isoDep)
         {
-            Console.WriteLine("<-ReadCardAccess->");
+            //Console.WriteLine("<-ReadCardAccess->");
             try
             {
-                Console.WriteLine("Selecting Master file...");
+                Console.WriteLine("👉🏽Selecting Master file...");
                 byte[] command = new byte[] { 0x00, 0xA4, 0x00, 0x0C, 0x00, 0x3F, 0x00 };
-                var response = SendCommand(command, isoDep);
+                var response = SendCommandPace(command, isoDep);
 
-                if (IsSuccessfulResponse(response))
+                if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
+                    //Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
-                Console.WriteLine("Selecting CardAccess...");
+                Console.WriteLine("👉🏽Selecting CardAccess...");
                 command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1C };
-                response = SendCommand(command, isoDep);
+                response = SendCommandPace(command, isoDep);
 
-                if (IsSuccessfulResponse(response))
+                if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
+                    //Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
-                Console.WriteLine("Reading CardAccess...");
+                Console.WriteLine("👉🏽Reading CardAccess...");
                 command = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
-                response = SendCommand(command, isoDep);
+                response = SendCommandPace(command, isoDep);
 
-                if (IsSuccessfulResponse(response))
+                if (SecureMessagingHelper.IsSuccessfulResponsePace(response))
                 {
-                    Console.WriteLine($"CardAccess data::{BitConverter.ToString(response)}");
-                    ParseCardAccessData(response);
+                    //Console.WriteLine($"CardAccess data::{BitConverter.ToString(response)}");
+                    ParseCardAccessDataPace(response);
                 }
                 return response;
             }
@@ -175,40 +109,37 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Method to parse Card Access Data
-        public static void ParseCardAccessData(byte[] data)
+        public static void ParseCardAccessDataPace(byte[] data)
         {
-            Console.WriteLine("");
-            Console.WriteLine("<---------------------------------------->");
-            Console.WriteLine("");
-            Console.WriteLine("<-ParseCardAccessData->");
+            //Console.WriteLine("\n<---------------------------------------->\n");
+            // Console.WriteLine("<-ParseCardAccessData->");
             try
             {
                 if (data.Length >= 2 && data[data.Length - 2] == 0x90 && data[data.Length - 1] == 0x00)
                 {
                     data = data.Take(data.Length - 2).ToArray();
                 }
-                Console.WriteLine("______Raw Card Access Data");
-                Console.WriteLine(BitConverter.ToString(data));
-                Console.WriteLine("<------>");
-                Console.WriteLine("");
-                Console.WriteLine("");
-                Console.WriteLine("______         Parsed Data         ______");
+                // Console.WriteLine("Raw Card Access Data");
+                // Console.WriteLine(BitConverter.ToString(data));
+                // Console.WriteLine("<------>\n\n");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+                Console.WriteLine("➖➖➖➖➖➖Parsed Data➖➖➖➖➖");
 
                 int index = 0;
                 // Outer sequence
                 if (data[index++] == 0x31) // Sequence tag
                 {
                     int outerLength = data[index++];
-                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
-                    Console.WriteLine("<------>");
+                    // Console.WriteLine($"Outer Sequence Length: {outerLength}");
+                    // Console.WriteLine("<------>");
                     while (index < data.Length)
                     {
                         // PACEInfo sequence
                         if (data[index++] == 0x30) // Sequence tag
                         {
                             int sequenceLength = data[index++];
-                            Console.WriteLine("______PACEInfo from EF.CardAccess");
-                            Console.WriteLine($"Sequence Length: {sequenceLength}");
+                            Console.WriteLine("PaceInfo from EF.CardAccess");
+                            //Console.WriteLine($"Sequence Length: {sequenceLength}");
 
                             // OID
                             if (data[index++] == 0x06) // OID tag
@@ -234,14 +165,13 @@ namespace VerifyIdentityProject.Platforms.Android
                                 byte paramId = data[index++];
                                 Console.WriteLine($"Parameter ID: 0x{paramId:X2}");
                             }
-                            Console.WriteLine("<------>");
+                            Console.WriteLine("\n");
                         }
                     }
                 }
-                Console.WriteLine("______         End Parsed Data         ______");
-                Console.WriteLine("");
-                Console.WriteLine("<---------------------------------------->");
-                Console.WriteLine("");
+                Console.WriteLine("➖➖➖➖➖End Parsed Data➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+
             }
             catch (Exception ex)
             {
@@ -250,9 +180,9 @@ namespace VerifyIdentityProject.Platforms.Android
         }
 
         // Helper method for sending commands
-        public static byte[] SendCommand(byte[] command, IsoDep isoDep)
+        public static byte[] SendCommandPace(byte[] command, IsoDep isoDep)
         {
-            Console.WriteLine("<-SendCommand->");
+            //Console.WriteLine("<-SendCommand->");
             try
             {
                 Console.WriteLine($"Sending Command: {BitConverter.ToString(command)}");
@@ -274,9 +204,9 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        public static List<byte[]> ValidateAndListPACEInfoWithDescriptions(byte[] cardAccessData)
+        public static List<byte[]> ValidateAndListPACEInfoWithDescriptionsPace(byte[] cardAccessData)
         {
-            Console.WriteLine("<-ValidateAndListPACEInfoWithDescriptions->");
+           // Console.WriteLine("<-ValidateAndListPACEInfoWithDescriptions->");
 
             // Dictionary of valid OIDs and their descriptions
             var oidDescriptions = new Dictionary<string, string>
@@ -313,9 +243,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 if (cardAccessData[index++] == 0x31) // Sequence tag
                 {
                     int outerLength = cardAccessData[index++];
-                    Console.WriteLine($"______DoubleChecking length for this method");
-                    Console.WriteLine($"Outer Sequence Length: {outerLength}");
-                    Console.WriteLine($"");
+                    // Console.WriteLine($"______DoubleChecking length for this method");
+                    // Console.WriteLine($"Outer Sequence Length: {outerLength}");
+                    // Console.WriteLine($"");
                     while (index < cardAccessData.Length)
                     {
                         // Parse PACEInfo
@@ -332,7 +262,7 @@ namespace VerifyIdentityProject.Platforms.Android
                                 index += oidLength;
 
                                 // Convert OID to string
-                                string oid = ConvertOidToString(oidBytes);
+                                string oid = OidHelper.ConvertOidToString(oidBytes);
                                 Console.WriteLine($"Found OID: {oid}");
 
                                 // Check if the OID is valid and print description
@@ -355,7 +285,10 @@ namespace VerifyIdentityProject.Platforms.Android
                     }
                 }
 
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                if (results.Count == 0)
+                {
+                    throw new PaceException("No valid PACE OID found in CardAccess data.");
+                }
 
                 return oidByteList; // Return all valid OIDs with descriptions
             }
@@ -366,60 +299,5 @@ namespace VerifyIdentityProject.Platforms.Android
             }
         }
 
-        // ------------------- Fel, måste fixas, kolla headern och Le, sida 91 ICAO p11.
-        private static async Task<byte[]> ReadEfComFile(IsoDep isoDep, SecureMessaging secureMessaging)
-        {
-            Console.WriteLine("Reading EF.COM file...");
-
-            // Construct a READ BINARY command for EF.COM.
-            // Adjust the header based on your file selection – EF.COM’s file identifier is typically known.
-            // Here we assume a header similar to: [CLA, INS, P1, P2] = {0x0C, 0xB0, 0x00, 0x00}
-            byte[] readEfComHeader = new byte[] { 0x0C, 0xB0, 0x00, 0x00 };
-
-            // Use an Le of 0x00, indicating extended length or that the length is embedded in the TLV structure.
-            byte[] le = new byte[] { 0x00 };
-
-            // Protect the APDU using your secure messaging instance.
-            byte[] secureApdu = secureMessaging.ProtectCommand(readEfComHeader, null, le);
-            Console.WriteLine($"Sending protected EF.COM APDU: {BitConverter.ToString(secureApdu)}");
-
-            // Transceive the APDU.
-            byte[] response = await isoDep.TransceiveAsync(secureApdu);
-            Console.WriteLine($"Received EF.COM response: {BitConverter.ToString(response)}");
-
-            // Unprotect the response to obtain the clear EF.COM data.
-            byte[] efComData = secureMessaging.UnprotectResponse(response);
-            Console.WriteLine($"Decrypted EF.COM Data: {BitConverter.ToString(efComData)}");
-
-            return efComData;
-        }
-
-        // Helper to convert OID bytes to string
-        private static string ConvertOidToString(byte[] oidBytes)
-        {
-            var oid = new List<string>();
-            oid.Add((oidBytes[0] / 40).ToString());
-            oid.Add((oidBytes[0] % 40).ToString());
-            long value = 0;
-
-            for (int i = 1; i < oidBytes.Length; i++)
-            {
-                value = (value << 7) | (oidBytes[i] & 0x7F);
-                if ((oidBytes[i] & 0x80) == 0)
-                {
-                    oid.Add(value.ToString());
-                    value = 0;
-                }
-            }
-            return string.Join(".", oid);
-        }
-
-    }
-
-    // Custom exceptions for pace
-    public class PaceException : Exception
-    {
-        public PaceException(string message) : base(message) { }
-        public PaceException(string message, Exception inner) : base(message, inner) { }
     }
 }

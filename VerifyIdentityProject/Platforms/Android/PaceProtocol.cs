@@ -46,6 +46,10 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public bool PerformPaceProtocol()
         {
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("PerformPaceProtocol");
+            Console.WriteLine("Select MseSET & General Authenticate");
+
             isoDep.Timeout = 400000;
             try
             {

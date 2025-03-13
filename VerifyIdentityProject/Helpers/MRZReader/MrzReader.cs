@@ -69,8 +69,21 @@ namespace VerifyIdentityProject.Helpers.MRZReader
 
         public async Task ScanAndExtractMrzAsync()
         {
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖ScanAndExtractMrzAsync➖➖➖➖");
             try
             {
+                bool hasPermission = await CheckAndRequestCameraPermission();
+
+                if (!hasPermission)
+                {
+                    Console.WriteLine("permission status: Has no permission.");
+                    // Använd Page.DisplayAlert i MAUI
+                    await Application.Current.MainPage.DisplayAlert("Permission missing", "App needs access to camera. Please enable this in settings.", "OK"); 
+                    return;
+                }
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+                Console.WriteLine("Trying to open the camera...");
                 // Capture photo using the device's camera
                 var photo = await MediaPicker.CapturePhotoAsync();
                 if (photo == null)
@@ -162,6 +175,25 @@ namespace VerifyIdentityProject.Helpers.MRZReader
                 Console.WriteLine($"HTTP Request error: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        // Checks and requests camera permission
+        async Task<bool> CheckAndRequestCameraPermission()
+        {
+            Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖Check&RequestCameraPermission➖➖");
+            var status = await Permissions.CheckStatusAsync<Permissions.Camera>();
+
+            Console.WriteLine($"Camera permission status: {status}");
+
+            if (status != PermissionStatus.Granted)
+            {
+                Console.WriteLine("Asking for Camera permission...");
+                status = await Permissions.RequestAsync<Permissions.Camera>();
+                Console.WriteLine($"New Camera permission status: {status}");
+            }
+
+            return status == PermissionStatus.Granted;
         }
     }
 }

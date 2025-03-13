@@ -31,11 +31,12 @@ namespace VerifyIdentityProject.Platforms.Android
         }
         public byte[] SelectApplication()
         {
-            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
-            Console.WriteLine("------------------------------------------------------------Select application with secure message started...");
-            Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
+            SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
+            Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("👉🏽Select application with secure message started...\n");
+            // Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
+            // Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
+            // Console.WriteLine("KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
 
             // Öka SSC före varje kommando
             IncrementSSC(ref _ssc);
@@ -99,11 +100,9 @@ namespace VerifyIdentityProject.Platforms.Android
         }
         public Dictionary<string, string> SelectDG1()
         {
-            Console.WriteLine("------------------------------------------------------------Select DG1 with secure message started...");
-            //var ssc = new byte[16]; // PACE: 16 bytes av nollor
-            Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
+            SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("👉🏽Select DG1 with secure message started...\n");
 
             // Öka SSC före varje kommando
             IncrementSSC(ref _ssc);
@@ -163,8 +162,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Response verification failed: {ex.Message}");
             }
 
-            //----------------------------------------------------------------------- 1 Read Binary of first four bytes
-            Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
+            //---------------------------------------------------------------------------- Read Binary DG1
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("👉🏽Reading Binary of DG1");
             List<byte[]> dg1Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
 
             if (dg1Segments.Count > 0)
@@ -205,17 +205,21 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine($"{field.Key}: {field.Value}");
                 }
             }
-            Console.WriteLine("/----------------------------------------------------------------------- DG1 process finished!");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("DG1 process finished!\n\n");
 
             return _dictionaryMrzData;
         }
 
         public async Task<byte[]> SelectDG2Async(string apiUrl)
         {
-            Console.WriteLine("------------------------------------------------------------Select DG2 with secure message started...");
-            Console.WriteLine("[DOTNET] Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
-            Console.WriteLine("[DOTNET] KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
+            SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
+            ReadBinaryHelper readBinaryHelper = new ReadBinaryHelper();
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("👉🏽Select DG2 with secure message started...\n");
+            //   Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
+            //   Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
+            //  Console.WriteLine("KsMac: " + BitConverter.ToString(_ksMac).Replace("-", " "));
 
             // Increase SSC before each command
             IncrementSSC(ref _ssc);
@@ -275,9 +279,9 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Response verification failed: {ex.Message}");
             }
 
-            // -----------------------------------------------------------------------
-            // Read Binary of DG (DG2 segments)
-            Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
+            // -----------------------------------------------------------------------Read Binary of DG (DG2 segments)
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("👉🏽Read Binary of DG2");
             List<byte[]> dg2Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
             Console.WriteLine($"Amount returned segment data: {dg2Segments.Count}");
 
@@ -292,7 +296,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
             byte[] imgDataInBytes = faceInfo.ImageData;
 
-            Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("DG2-data process finished!");
 
             return imgDataInBytes;
         }
