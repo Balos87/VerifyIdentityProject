@@ -1,12 +1,12 @@
 ﻿using Android.Nfc;
 using Android.Nfc.Tech;
 using Android.App;
-using Android.Util;
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Maui.Controls;
 using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.Helpers;
-using System;
-using System.Text;
-using Microsoft.Maui.Controls;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -15,8 +15,11 @@ namespace VerifyIdentityProject.Platforms.Android
         private readonly NfcAdapter _nfcAdapter;
         private readonly Activity _activity;
 
-        // Event to notify when an NFC chip is detected
+        // Events to notify about NFC interactions
         public event Action<string> OnNfcChipDetected;
+        public event Action<string> OnNfcTagDetected;
+        public event Action<string> OnNfcProcessingStarted;
+        public event Action<string> OnNfcProcessingCompleted;
 
         public NfcReaderManager()
         {
@@ -31,13 +34,13 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             if (_nfcAdapter == null)
             {
-                Console.WriteLine("NFC is not supported on this device.");
+                Console.WriteLine("❌ NFC is not supported on this device.");
                 return;
             }
 
             if (!_nfcAdapter.IsEnabled)
             {
-                Console.WriteLine("NFC is disabled. Please enable it in settings.");
+                Console.WriteLine("⚠️ NFC is disabled. Please enable it in settings.");
                 return;
             }
 
@@ -61,21 +64,21 @@ namespace VerifyIdentityProject.Platforms.Android
             if (_nfcAdapter != null)
             {
                 _nfcAdapter.DisableReaderMode(_activity);
-                Console.WriteLine("NFC Reader stopped.");
-                OnNfcChipDetected?.Invoke("NFC Reader stopped.");
+                Console.WriteLine("⏹ NFC Reader stopped.");
+                OnNfcChipDetected?.Invoke("⏹ NFC Reader stopped.");
             }
         }
 
         /// <summary>
-        /// Identifies the technologies of the detected NFC chip.
+        /// 
+        /// Identifies the detected NFC chip's technology.
         /// </summary>
-        /// <param name="tag">Detected NFC tag</param>
         public void IdentifyTagTechnologies(Tag tag)
         {
-            Console.WriteLine("<- IdentifyTagTechnologies ->");
+            //Console.WriteLine("<- IdentifyTagTechnologies ->");
             string[] techList = tag.GetTechList();
 
-            Console.WriteLine("______ Detected NFC Chip Technologies:");
+            // Console.WriteLine("Detected NFC Chip Technologies:");
             foreach (string tech in techList)
             {
                 Console.WriteLine(tech);
@@ -88,93 +91,65 @@ namespace VerifyIdentityProject.Platforms.Android
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
         }
 
+        /// <summary>
+        /// Handles NFC tag discovery.
+        /// </summary>
         public async void HandleTagDiscovered(Tag tag)
         {
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("🔍 NFC Tag Detected!");
             OnNfcTagDetected?.Invoke("✅ NFC Tag Detected!");
 
+            await Task.Delay(1000); // Short delay before processing starts
+
             try
             {
                 IdentifyTagTechnologies(tag);
-
                 IsoDep isoDep = IsoDep.Get(tag);
+
                 if (isoDep != null)
                 {
-                    Console.WriteLine("ISO-DEP Tag detected. Starting PACE...");
+                    Console.WriteLine("⚡ ISO-DEP Tag detected. Starting PACE...");
+                    OnNfcProcessingStarted?.Invoke("🔄 Performing PACE, please wait...");
 
                     // Fetch API URL the same way as MrzReader
                     var appsettings = GetSecrets.FetchAppSettings();
-                    string apiUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+                    string apiUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
 
-                    Dictionary<string, string> mrz = PaceProcessorDG1.PerformPaceDG1(isoDep);
+                    // Perform PACE and retrieve MRZ data
+                    var paceProcessorDG1 = new PaceProcessorDG1(isoDep);
+                    Dictionary<string, string> mrz = paceProcessorDG1.PerformPaceDG1();
 
-                    // Await async call so imgData gets the actual bytes
-                    byte[] imgData = await PaceProcessorDG2.PerformPaceDG2Async(isoDep, apiUrl);
+                    // Perform PACE and retrieve image data
+                    var paceProcessorDG2 = new PaceProcessorDG2(isoDep);
+                    var imgData = await paceProcessorDG2.PerformPaceDG2Async(apiUrl);
 
-                    // Use `await` inside MainThread.BeginInvokeOnMainThread to ensure async behavior
+                    Console.WriteLine("🎉 PACE Successful!");
+                    OnNfcProcessingCompleted?.Invoke("🎉 PACE Successful! Continuing...");
+
+                    await Task.Delay(2000); // Pause before moving to next step
+
+                    // Navigate to the PassportDataPage with the MRZ and image data
                     MainThread.BeginInvokeOnMainThread(async () =>
                     {
                         await Shell.Current.GoToAsync(nameof(PassportDataPage), true, new Dictionary<string, object>
-                    {
-                        { "DG1Data", mrz },
-                        { "ImageData", imgData }
-                    });
+                        {
+                            { "DG1Data", mrz },
+                            { "ImageData", imgData }
                         });
-
-                    foreach (var field in mrz)
-                    {
-                        Console.WriteLine($"{field.Key}: {field.Value}");
-                    }
-
-                    // Trigger event to notify that an NFC chip was detected
-                    OnNfcChipDetected?.Invoke("RFID Chip detected! Processing data...");
+                    });
                 }
                 else
                 {
-                    Console.WriteLine("Not an ISO-DEP (NFC-A/B) tag.");
-                    OnNfcChipDetected?.Invoke("NFC Chip detected but not supported.");
+                    Console.WriteLine("❌ Not an ISO-DEP (NFC-A/B) tag.");
+                    OnNfcChipDetected?.Invoke("⚠️ NFC Chip detected but not supported.");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during NFC processing: {ex.Message}");
-                OnNfcChipDetected?.Invoke($"Error processing NFC: {ex.Message}");
+                Console.WriteLine($"Error during NFC processing: ❌ {ex.Message}❌ ");
+                OnNfcChipDetected?.Invoke($"Error processing NFC: ❌ {ex.Message}❌ ");
             }
         }
-
-        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
-        {
-            if (await IsApiAvailable(apiUrl))
-            {
-                Console.WriteLine($"Using API URL: {apiUrl}");
-                return apiUrl;
-            }
-
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
-            return localUrl ?? string.Empty;
-        }
-
-        private static async Task<bool> IsApiAvailable(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-            {
-                return false;
-            }
-
-            string healthCheckUrl = $"{url}api/health";
-
-            try
-            {
-                using var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(healthCheckUrl);
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
     }
 }

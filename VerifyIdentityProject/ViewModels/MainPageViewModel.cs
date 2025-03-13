@@ -1,105 +1,242 @@
-﻿using System.ComponentModel;
+﻿using System;
+using System.ComponentModel;
+using System.IO;
+using System.Threading.Tasks;
 using System.Windows.Input;
-using VerifyIdentityProject.Helpers.MRZReader;
-using VerifyIdentityProject.Resources.Interfaces;
-using Microsoft.Maui.Controls;
 using Microsoft.Maui.ApplicationModel;
-using Microsoft.Maui.Controls.Platform;
+using Microsoft.Maui.Controls;
+using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Resources.Interfaces;
+using VerifyIdentityProject.Services;
+
 #if ANDROID
 using Android.Widget;
-using Android.App;
 #endif
 
-namespace VerifyIdentityProject
+namespace VerifyIdentityProject.ViewModels
 {
     public class MainPageViewModel : INotifyPropertyChanged
     {
-        private readonly INfcReaderManager _nfcReaderManager; // ✅ Declared here
-        private string _mrzNotFound;
-        private ICommand _scanMrzCommand;
+        private readonly INfcReaderManager _nfcReaderManager;
+        private readonly SecretsManager _secretsManager;
+        private readonly string _secretsFilePath = Path.Combine(FileSystem.AppDataDirectory, "secrets.json");
 
-        public ICommand ScanMrzCommand
+        private string _passportData;
+        private string _manualMrz;
+        private bool _isScanning;
+        private bool _isMrzInfoVisible;
+        private string _extractedMrz;
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public ICommand StartNfcCommand { get; }
+        public ICommand StopNfcCommand { get; }
+        public ICommand SubmitManualMrzCommand { get; }
+        public ICommand ScanMrzCommand { get; set; }
+        public ICommand ShowMrzInfoCommand { get; }
+        public ICommand HideMrzInfoCommand { get; }
+
+        public string ExtractedMrz
         {
-            get => _scanMrzCommand;
+            get => _extractedMrz;
             set
             {
-                _scanMrzCommand = value;
-                OnPropertyChanged(nameof(ScanMrzCommand)); // Notify UI
-            }
-        }
-
-        public string MrzNotFound
-        {
-            get => _mrzNotFound;
-            set
-            {
-                if (_mrzNotFound != value)
+                if (_extractedMrz != value)
                 {
-                    _mrzNotFound = value;
-                    OnPropertyChanged(nameof(MrzNotFound));
+                    _extractedMrz = value;
+                    OnPropertyChanged(nameof(ExtractedMrz));
                 }
             }
         }
+        public string ManualMrz
+        {
+            get => _manualMrz;
+            set
+            {
+                if (_manualMrz != value)
+                {
+                    _manualMrz = value;
+                    OnPropertyChanged(nameof(ManualMrz));
 
-        private string _passportData;
-
-#if ANDROID
-        private AlertDialog _nfcDialog; // ✅ Persistent Dialog (Only for Android)
-#endif
-
+                    // ✅ Show status update in PassportData (Status Message Window)
+                    if (IsValidMrz(_manualMrz))
+                    {
+                        PassportData = $"✅ Manual MRZ submitted: {_manualMrz}";
+                    }
+                    else
+                    {
+                        PassportData = "❌ Invalid MRZ format. Please check the input.";
+                    }
+                }
+            }
+        }
+        public bool IsMrzInfoVisible
+        {
+            get => _isMrzInfoVisible;
+            set
+            {
+                if (_isMrzInfoVisible != value)
+                {
+                    _isMrzInfoVisible = value;
+                    OnPropertyChanged(nameof(IsMrzInfoVisible));
+                }
+            }
+        }
         public string PassportData
         {
             get => _passportData;
             set
             {
-                _passportData = value;
-                OnPropertyChanged(nameof(PassportData));
+                if (_passportData != value)
+                {
+                    _passportData = value;
+                    OnPropertyChanged(nameof(PassportData));
+                }
             }
         }
 
-        public ICommand StartNfcCommand { get; }
-        public ICommand StopNfcCommand { get; }
+        public bool IsScanning
+        {
+            get => _isScanning;
+            set
+            {
+                if (_isScanning != value)
+                {
+                    _isScanning = value;
+                    OnPropertyChanged(nameof(IsScanning));
+                }
+            }
+        }
 
         public MainPageViewModel(INfcReaderManager nfcReaderManager)
         {
-            _nfcReaderManager = nfcReaderManager; // ✅ Now it's assigned properly
+            _nfcReaderManager = nfcReaderManager ?? throw new ArgumentNullException(nameof(nfcReaderManager));
 
-            _nfcReaderManager.OnNfcChipDetected += (data) =>
-            {
-                Console.WriteLine($"NFC Detection Event Triggered: {data}"); // Debug Log
-                if (string.IsNullOrEmpty(data) || data == "NFC Reader started. Waiting for a tag...")
-                {
-                    Console.WriteLine("Ignored empty or initial NFC message.");
-                    return; // Ignore false detections
-                }
+            // Prevent multiple event subscriptions
+            _nfcReaderManager.OnNfcChipDetected -= HandleNfcChipDetected;
+            _nfcReaderManager.OnNfcChipDetected += HandleNfcChipDetected;
 
-                PassportData = data;
-#if ANDROID
-                DismissNfcDialog(); // Close the "Place your device" dialog
-                ShowToast("RFID Chip detected! Processing...");
-#endif
-            };
+            _nfcReaderManager.OnNfcTagDetected -= HandleNfcTagDetected;
+            _nfcReaderManager.OnNfcTagDetected += HandleNfcTagDetected;
 
+            _nfcReaderManager.OnNfcProcessingStarted -= HandleNfcProcessingStarted;
+            _nfcReaderManager.OnNfcProcessingStarted += HandleNfcProcessingStarted;
+
+            _nfcReaderManager.OnNfcProcessingCompleted -= HandleNfcProcessingCompleted;
+            _nfcReaderManager.OnNfcProcessingCompleted += HandleNfcProcessingCompleted;
+
+            ExtractedMrz = "";
+
+            _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
+            SubmitManualMrzCommand = new Command(SubmitManualMrz);
+            ScanMrzCommand = new Command(async () => await ScanMrzAsync());
+
+            ShowMrzInfoCommand = new Command(() => IsMrzInfoVisible = true);
+            HideMrzInfoCommand = new Command(() => IsMrzInfoVisible = false);
         }
+
+        private void HandleNfcChipDetected(string message)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                PassportData = message;
+            });
+        }
+
+        private void HandleNfcTagDetected(string message)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                PassportData = message;
+            });
+        }
+
+        private void HandleNfcProcessingStarted(string message)
+        {
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                PassportData = message;
+                IsScanning = true;
+            });
+        }
+
+        private void HandleNfcProcessingCompleted(string message)
+        {
+            MainThread.BeginInvokeOnMainThread(async () =>
+            {
+                PassportData = message;
+                await Task.Delay(2000); // Delay before showing final data
+                IsScanning = false;
+            });
+        }
+
+        private async Task ScanMrzAsync()
+        {
+            try
+            {
+                var mrzReader = new MrzReader(UpdatePassportData, _nfcReaderManager);
+                await mrzReader.ScanAndExtractMrzAsync();
+            }
+            catch (Exception ex)
+            {
+                PassportData = $"⚠️ Error capturing MRZ: {ex.Message}";
+            }
+        }
+
+        private async void UpdatePassportData(string message)
+        {
+            if (message.StartsWith("MRZ:"))
+            {
+                // ✅ Extract MRZ value
+                string mrzValue = message.Replace("MRZ:", "").Trim();
+
+                // ✅ Update ExtractedMrz with full message
+                ExtractedMrz = $"Captured MRZ from photo: {mrzValue}";
+            }
+            else
+            {
+                // ✅ Use PassportData only for status messages
+                PassportData = message;
+            }
+        }
+
+
+        private async void SubmitManualMrz()
+        {
+            if (IsValidMrz(ManualMrz))
+            {
+                // ✅ Show MRZ found message before proceeding
+                PassportData = $"📜 MRZ Found: {ManualMrz}";
+
+                _secretsManager.SetMrzNumbers(ManualMrz);
+
+                await Task.Delay(5000); // ⏳ Wait for 5 seconds
+
+                // ✅ Now start NFC after delay
+                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
+                StartNfcCommand.Execute(null);
+            }
+            else
+            {
+                PassportData = "❌ Invalid MRZ format. Please check the input.";
+            }
+        }
+
+
+        private static bool IsValidMrz(string mrz) => !string.IsNullOrWhiteSpace(mrz) && mrz.Length == 24;
 
         private void StartNfc()
         {
             try
             {
                 _nfcReaderManager.StartListening();
-                PassportData = "NFC Reader started. Waiting for a tag...";
-#if ANDROID
-                ShowNfcDialog(); // ✅ Show Persistent NFC Dialog (Only on Android)
-#endif
+                PassportData = "📡 NFC Reader started. Please place the device on the passport.";
             }
             catch (Exception ex)
             {
-                PassportData = $"Error starting NFC: {ex.Message}";
-#if ANDROID
-                ShowToast($"Error: {ex.Message}");
-#endif
+                PassportData = $"⚠️ Error starting NFC: {ex.Message}";
             }
         }
 
@@ -108,72 +245,15 @@ namespace VerifyIdentityProject
             try
             {
                 _nfcReaderManager.StopListening();
-                PassportData = "NFC Reader stopped.";
-#if ANDROID
-                DismissNfcDialog();
-                ShowToast("NFC Scanner stopped.");
-#endif
+                PassportData = "⏹ NFC Reader stopped.";
             }
             catch (Exception ex)
             {
-                PassportData = $"Error stopping NFC: {ex.Message}";
-#if ANDROID
-                ShowToast($"Error: {ex.Message}");
-#endif
+                PassportData = $"⚠️ Error stopping NFC: {ex.Message}";
             }
         }
 
-#if ANDROID
-        // ✅ Persistent Alert Dialog: "Place your device on ePassport"
-        private void ShowNfcDialog()
-        {
-            var context = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (context == null) return;
-
-            context.RunOnUiThread(() =>
-            {
-                AlertDialog.Builder builder = new AlertDialog.Builder(context);
-                builder.SetTitle("Waiting for NFC...");
-                builder.SetMessage("Place your device on ePassport");
-                builder.SetCancelable(false); // Prevent user from dismissing manually
-
-                _nfcDialog = builder.Create();
-                _nfcDialog.Show();
-            });
-        }
-
-        // ✅ Dismiss the dialog when NFC is detected
-        private void DismissNfcDialog()
-        {
-            var context = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (context == null || _nfcDialog == null) return;
-
-            context.RunOnUiThread(() =>
-            {
-                if (_nfcDialog.IsShowing)
-                {
-                    _nfcDialog.Dismiss();
-                    _nfcDialog = null;
-                }
-            });
-        }
-
-        // ✅ Method to Show Toast Messages
-        private void ShowToast(string message)
-        {
-            var context = Microsoft.Maui.ApplicationModel.Platform.CurrentActivity;
-            if (context != null)
-            {
-                context.RunOnUiThread(() =>
-                {
-                    Toast.MakeText(context, message, ToastLength.Short).Show();
-                });
-            }
-        }
-#endif
-
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected void OnPropertyChanged(string propertyName)
+        private void OnPropertyChanged(string propertyName)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }

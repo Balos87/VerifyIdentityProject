@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Microsoft.Maui.Controls;
+using VerifyIdentityProject.Helpers;
 
 namespace VerifyIdentityProject
 {
@@ -41,13 +42,13 @@ namespace VerifyIdentityProject
                         {
                             MainThread.BeginInvokeOnMainThread(() => {
                                 PassportImage = ImageSource.FromStream(() => new MemoryStream(processedImage));
-                                Console.WriteLine("Bild bearbetad och inställd i UI");
+                                Console.WriteLine("Image processed and set in UI"); 
                             });
                         }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Fel vid bildinställning: {ex.Message}");
+                        Console.WriteLine($"Error setting image: {ex.Message}");
                     }
                 }
             }

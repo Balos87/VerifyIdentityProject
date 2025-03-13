@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using System;
+using VerifyIdentityProject; // Import DeveloperLogPage
 
 namespace VerifyIdentityProject
 {
@@ -13,13 +14,12 @@ namespace VerifyIdentityProject
             InitializeComponent();
             _serviceProvider = serviceProvider;
 
-            // Register DG1Page for navigation
+            // Register routes for navigation
             Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
+            Routing.RegisterRoute(nameof(DeveloperLogPage), typeof(DeveloperLogPage));
 
-            Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>() });
-            Routing.RegisterRoute(nameof(DgInformationFetchedPage), typeof(DgInformationFetchedPage));
-
-
+            // Add MainPage to Shell items
+            Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>(), Route = nameof(MainPage) });
         }
     }
 }

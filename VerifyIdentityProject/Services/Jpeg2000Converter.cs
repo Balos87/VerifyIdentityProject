@@ -2,8 +2,9 @@
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using VerifyIdentityProject.Helpers;
 
-namespace VerifyIdentityProject.Helpers
+namespace VerifyIdentityProject.Services
 {
     public class Jpeg2000Converter
     {
@@ -29,7 +30,7 @@ namespace VerifyIdentityProject.Helpers
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
                 // Log headers before sending the request
-                Console.WriteLine("Request Headers:");
+                //Console.WriteLine("Request Headers:");
                 foreach (var header in content.Headers)
                 {
                     Console.WriteLine($"{header.Key}: {string.Join(", ", header.Value)}");
@@ -54,7 +55,7 @@ namespace VerifyIdentityProject.Helpers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in JPEG2000 conversion: {ex.Message}");
+                Console.WriteLine($"Error in JPEG2000 conversion: ❌{ex.Message}❌");
                 throw;
             }
         }
@@ -65,11 +66,11 @@ namespace VerifyIdentityProject.Helpers
         {
             if (await IsApiAvailable(apiUrl))
             {
-                Console.WriteLine($"Using API URL: {apiUrl}");
+               // Console.WriteLine($"Using API URL: {apiUrl}");
                 return apiUrl;
             }
 
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
+            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: ❌{localUrl}❌");
             return localUrl ?? string.Empty;
         }
 

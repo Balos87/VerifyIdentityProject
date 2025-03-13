@@ -3,7 +3,7 @@ using System.IO;
 using SkiaSharp;
 using Microsoft.Maui.Controls;
 
-namespace VerifyIdentityProject
+namespace VerifyIdentityProject.Helpers
 {
     public static class SkiaImageHelper
     {
@@ -11,58 +11,58 @@ namespace VerifyIdentityProject
         {
             if (imageData == null || imageData.Length == 0)
             {
-                Console.WriteLine("Ingen bilddata tillgänglig");
+                Console.WriteLine("No image data available");
                 return null;
             }
 
             try
             {
-                // Använd SkiaSharp för att dekoda bilden (stöder JPEG2000)
+                // Use SkiaSharp to decode the image (supports JPEG2000)
                 using (var inputStream = new SKMemoryStream(imageData))
                 {
-                    // Försök dekoda bilden med SkiaSharp
+                    // Try decoding the image with SkiaSharp
                     using (var codec = SKCodec.Create(inputStream))
                     {
                         if (codec != null)
                         {
-                            // Få information om bilden
+                            // Get image information
                             var info = codec.Info;
-                            Console.WriteLine($"Dekodad bild: {info.Width}x{info.Height}");
+                            Console.WriteLine($"Decoded image: {info.Width}x{info.Height}");
 
-                            // Skapa en bitmap för att hålla bilden
+                            // Create a bitmap to hold the image
                             using (var bitmap = new SKBitmap(info.Width, info.Height, info.ColorType, info.AlphaType))
                             {
-                                // Dekoda bilden till bitmap
+                                // Decode the image into the bitmap
                                 var result = codec.GetPixels(bitmap.Info, bitmap.GetPixels());
                                 if (result == SKCodecResult.Success || result == SKCodecResult.IncompleteInput)
                                 {
-                                    // Konvertera till JPEG
+                                    // Convert to JPEG
                                     using (var image = SKImage.FromBitmap(bitmap))
                                     using (var data = image.Encode(SKEncodedImageFormat.Jpeg, 90))
                                     {
-                                        // Konvertera till byte-array
+                                        // Convert to byte array
                                         return data.ToArray();
                                     }
                                 }
                                 else
                                 {
-                                    Console.WriteLine($"Kunde inte dekoda bilden, resultat: {result}");
+                                    Console.WriteLine($"Could not decode the image, result: {result}");
                                 }
                             }
                         }
                         else
                         {
-                            Console.WriteLine("Kunde inte skapa codec för bilden");
+                            Console.WriteLine("Could not create codec for the image");
                         }
                     }
                 }
 
-                // Om dekodningen misslyckades, skapa en platshållarbild
+                // If decoding fails, create a placeholder image
                 return CreatePlaceholderImage();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid bildbehandling: {ex.Message}");
+                Console.WriteLine($"Error processing image: {ex.Message}");
                 return CreatePlaceholderImage();
             }
         }
@@ -71,7 +71,7 @@ namespace VerifyIdentityProject
         {
             try
             {
-                // Skapa en enkel platshållarbild
+                // Create a simple placeholder image
                 int width = 100;
                 int height = 130;
 
@@ -79,10 +79,10 @@ namespace VerifyIdentityProject
                 {
                     var canvas = surface.Canvas;
 
-                    // Bakgrundsfärg
+                    // Background color
                     canvas.Clear(SKColors.LightGray);
 
-                    // Ram
+                    // Border
                     using (var paint = new SKPaint
                     {
                         Color = SKColors.Gray,
@@ -101,10 +101,10 @@ namespace VerifyIdentityProject
                         TextAlign = SKTextAlign.Center
                     })
                     {
-                        canvas.DrawText("Passbild", width / 2, height / 2, paint);
+                        canvas.DrawText("Passport Photo", width / 2, height / 2, paint);
                     }
 
-                    // Exportera som PNG
+                    // Export as PNG
                     using (var image = surface.Snapshot())
                     using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
                     {
@@ -114,9 +114,9 @@ namespace VerifyIdentityProject
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fel vid skapande av platshållarbild: {ex.Message}");
+                Console.WriteLine($"Error creating placeholder image: {ex.Message}");
 
-                // Returnera en minimal PNG som sista utväg
+                // Return a minimal PNG as a last resort
                 return new byte[] {
                     0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
                     0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,

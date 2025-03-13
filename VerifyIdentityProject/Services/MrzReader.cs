@@ -10,8 +10,9 @@ using System.Threading.Tasks;
 using Microsoft.Maui.Media;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
+using VerifyIdentityProject.ViewModels;
 
-namespace VerifyIdentityProject.Helpers.MRZReader
+namespace VerifyIdentityProject.Services
 {
     public class MrzReader
     {
@@ -28,49 +29,16 @@ namespace VerifyIdentityProject.Helpers.MRZReader
 
             Task.Run(async () =>
             {
-                var selectedUrl = await GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
+                var selectedUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
                 _httpClient.BaseAddress = new Uri(selectedUrl);
             }).Wait(); // Ensures BaseAddress is set before proceeding
 
         }
 
-        private static async Task<string> GetAvailableUrl(string apiUrl, string localUrl)
-        {
-            if (await IsApiAvailable(apiUrl))
-            {
-                Console.WriteLine($"Using API URL: {apiUrl}");
-                return apiUrl;
-            }
-
-            Console.WriteLine($"API unavailable, falling back to LOCAL_SERVER: {localUrl}");
-            return localUrl ?? string.Empty;
-        }
-
-        private static async Task<bool> IsApiAvailable(string url)
-        {
-            if (string.IsNullOrEmpty(url))
-            {
-                return false;
-            }
-
-            string healthCheckUrl = $"{url}api/health";
-
-            try
-            {
-                using var httpClient = new HttpClient();
-                var response = await httpClient.GetAsync(healthCheckUrl);
-                return response.IsSuccessStatusCode;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         public async Task ScanAndExtractMrzAsync()
         {
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-            Console.WriteLine("➖➖➖ScanAndExtractMrzAsync➖➖➖➖");
+            Console.WriteLine("➖➖➖ScanAndExtractMrzAsync➖➖➖");
             try
             {
                 bool hasPermission = await CheckAndRequestCameraPermission();
@@ -79,11 +47,12 @@ namespace VerifyIdentityProject.Helpers.MRZReader
                 {
                     Console.WriteLine("permission status: Has no permission.");
                     // Använd Page.DisplayAlert i MAUI
-                    await Application.Current.MainPage.DisplayAlert("Permission missing", "App needs access to camera. Please enable this in settings.", "OK"); 
+                    await Application.Current.MainPage.DisplayAlert("Permission missing", "App needs access to camera. Please enable this in settings.", "OK");
                     return;
                 }
                 Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
                 Console.WriteLine("Trying to open the camera...");
+
                 // Capture photo using the device's camera
                 var photo = await MediaPicker.CapturePhotoAsync();
                 if (photo == null)
@@ -92,6 +61,7 @@ namespace VerifyIdentityProject.Helpers.MRZReader
                     return;
                 }
                 _mrzNotFoundCallback?.Invoke("The image is being processed, please wait...");
+                Console.WriteLine("The image is being processed, please wait...");
                 // Save the photo locally
                 var filePath = Path.Combine(FileSystem.CacheDirectory, photo.FileName);
                 using (var stream = await photo.OpenReadAsync())
@@ -109,32 +79,40 @@ namespace VerifyIdentityProject.Helpers.MRZReader
             catch (Exception ex)
             {
                 Console.WriteLine($"Error during MRZ scan: {ex.Message}");
+                _mrzNotFoundCallback?.Invoke($"Error during scanning picture for MRZ. Try again!");
+
             }
         }
 
         // The method that checks MRZ and triggers the callback
-        private void CheckForMrzAndNotify(string mrzText)
+        private async void CheckForMrzAndNotify(string mrzText)
         {
             if (string.IsNullOrEmpty(mrzText))
             {
-                Console.WriteLine("No MRZ detected in the image.");
-                _mrzNotFoundCallback?.Invoke("No MRZ detected in the image.");
+                Console.WriteLine("❌ No MRZ detected in the image.");
+                _mrzNotFoundCallback?.Invoke("❌ No MRZ detected in the image.");
             }
             else
             {
-                // Define the path to your secrets.json file.
+                Console.WriteLine($"✅ MRZ Extracted: {mrzText}");
+
+                // ✅ Send Extracted MRZ with "MRZ:" prefix
+                _mrzNotFoundCallback?.Invoke($"MRZ:{mrzText}");
+
+                // ✅ Store the MRZ in secrets.json
                 string secretsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secrets.json");
-
-                // Create an instance of the SecretsManager.
                 SecretsManager manager = new SecretsManager(secretsFilePath);
-
-                // Update the MRZ_NUMBERS value.
                 manager.SetMrzNumbers(mrzText);
-                // Clear message if MRZ is found
-                _mrzNotFoundCallback?.Invoke("Place your phone on passport."); // Clear message
+
+                // ✅ Wait for 5 seconds before proceeding to NFC
+                await Task.Delay(5000);
+
+                // ✅ Start NFC, but do NOT clear MRZ
+                _mrzNotFoundCallback?.Invoke("📡 NFC Reader started. Please place the device on the passport");
                 _nfcReaderManager.StartListening();
             }
         }
+
 
         private async Task<string> ExtractMrzFromApiAsync(string imagePath)
         {
