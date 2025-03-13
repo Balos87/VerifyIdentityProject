@@ -19,7 +19,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 // Step 6: Select and read EF.DG2 with secure messaging
                 var imgBytes = await secureMessage.SelectDG2Async(apiUrl);
 
-                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
                 return imgBytes ?? throw new Exception("No image data retrieved.");
             }

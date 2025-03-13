@@ -43,20 +43,20 @@ namespace VerifyIdentityProject.ViewModels
         {
             LogText += text + Environment.NewLine;
 
-            #if ANDROID
-                string documentsPath = Path.Combine(Android.OS.Environment.ExternalStorageDirectory.AbsolutePath, "Documents");
-            #else
-                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-            #endif
+            //#if ANDROID
+            //    string documentsPath = Path.Combine(Android.OS.Environment.ExternalStorageDirectory.AbsolutePath, "Documents");
+            //#else
+            //    string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+            //#endif
 
-            var filePath = Path.Combine(documentsPath, "log.txt");
+            //var filePath = Path.Combine(documentsPath, "log.txt");
 
-            if (!Directory.Exists(documentsPath))
-            {
-                Directory.CreateDirectory(documentsPath);
-            }
+            //if (!Directory.Exists(documentsPath))
+            //{
+            //    Directory.CreateDirectory(documentsPath);
+            //}
 
-            File.WriteAllText(filePath, LogText);
+            //File.WriteAllText(filePath, LogText);
         }
 
         public event PropertyChangedEventHandler PropertyChanged;

@@ -35,7 +35,7 @@ namespace VerifyIdentityProject.Platforms.Android
         public byte[] SelectApplication()
         {
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
-            Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("👉🏽Select application with secure message started...\n");
             // Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
             // Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
@@ -104,7 +104,7 @@ namespace VerifyIdentityProject.Platforms.Android
         public Dictionary<string, string> SelectDG1()
         {
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("👉🏽Select DG1 with secure message started...\n");
 
             //  Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
@@ -169,7 +169,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             //---------------------------------------------------------------------------- Read Binary DG1
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("👉🏽Reading Binary of DG1");
             List<byte[]> dg1Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
 
@@ -209,7 +209,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     Console.WriteLine($"{field.Key}: {field.Value}");
                 }
             }
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("DG1 process finished!\n\n");
 
             return _dictionaryMrzData;
@@ -219,7 +219,7 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             SecureMessagingHelper secureMessagingHelper = new SecureMessagingHelper(_ksEnc, _ksMac);
             ReadBinaryHelper readBinaryHelper = new ReadBinaryHelper();
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("👉🏽Select DG2 with secure message started...\n");
             //   Console.WriteLine("Initial SSC: " + BitConverter.ToString(_ssc).Replace("-", " "));
             //   Console.WriteLine("KsEnc: " + BitConverter.ToString(_ksEnc).Replace("-", " "));
@@ -284,7 +284,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
 
             // -----------------------------------------------------------------------Read Binary of DG (DG2 segments)
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("👉🏽Read Binary of DG2");
             List<byte[]> dg2Segments = ReadCompleteDG(_isoDep, _ksEnc, _ksMac, ref _ssc);
             //  Console.WriteLine($"Amount returned segment data: {dg2Segments.Count}");
@@ -300,7 +300,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
             byte[] imgDataInBytes = faceInfo.ImageData;
 
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("DG2-data process finished!");
 
             return imgDataInBytes;

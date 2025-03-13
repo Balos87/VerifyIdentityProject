@@ -25,7 +25,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
             try
             {
                 isoDep.Connect();
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("👉🏽Starting SelectApplication!");
                 Console.WriteLine($"IsoDep connected: {isoDep.IsConnected}");
                 Console.WriteLine($"IsoDep timeout: {isoDep.Timeout}");
@@ -53,7 +53,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
 
                 Console.WriteLine("SelectApplication succeeded");
                 Console.WriteLine("");
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
             }
             catch (Exception ex)
@@ -77,7 +77,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                     //Console.WriteLine($"Master file answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
                 Console.WriteLine("👉🏽Selecting CardAccess...");
                 command = new byte[] { 0x00, 0xA4, 0x02, 0x0C, 0x02, 0x01, 0x1C };
@@ -88,7 +88,7 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                     //Console.WriteLine($"CardAccess answer:{BitConverter.ToString(response)}");
                 }
                 Console.WriteLine("");
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
                 Console.WriteLine("");
                 Console.WriteLine("👉🏽Reading CardAccess...");
                 command = new byte[] { 0x00, 0xB0, 0x00, 0x00, 0x00 };
@@ -122,8 +122,8 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                 // Console.WriteLine("Raw Card Access Data");
                 // Console.WriteLine(BitConverter.ToString(data));
                 // Console.WriteLine("<------>\n\n");
-                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
-                Console.WriteLine("➖➖➖➖➖➖➖Parsed Data➖➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+                Console.WriteLine("➖➖➖➖➖➖Parsed Data➖➖➖➖➖");
 
                 int index = 0;
                 // Outer sequence
@@ -169,8 +169,8 @@ namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
                         }
                     }
                 }
-                Console.WriteLine("➖➖➖➖➖➖End Parsed Data➖➖➖➖➖➖");
-                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
+                Console.WriteLine("➖➖➖➖➖End Parsed Data➖➖➖➖➖");
+                Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖\n");
 
             }
             catch (Exception ex)

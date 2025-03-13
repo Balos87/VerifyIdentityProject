@@ -19,7 +19,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 var mrz = secureMessage.SelectDG1();
                 _isoDep.Close();
 
-                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
+                Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
                 return mrz;
             }
