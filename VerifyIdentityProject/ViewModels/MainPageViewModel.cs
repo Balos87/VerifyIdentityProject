@@ -80,6 +80,7 @@ namespace VerifyIdentityProject.ViewModels
 
             _nfcReaderManager.OnNfcChipDetected += message => SetPassportStatusMessage(message);
             _nfcReaderManager.OnNfcTagDetected += message => SetPassportStatusMessage(message);
+            _nfcReaderManager.OnNfcTagLost += message => SetPassportStatusMessage(message);
             _nfcReaderManager.OnNfcProcessingStarted += message => {
                 SetPassportStatusMessage(message);
                 IsScanning = true;
@@ -107,7 +108,11 @@ namespace VerifyIdentityProject.ViewModels
                 if (message.StartsWith("MRZ:"))
                 {
                     string mrzValue = message.Replace("MRZ:", "").Trim();
-                    ExtractedMrz = $"Captured MRZ from photo: {mrzValue}"; // ✅ Ensure MRZ is displayed
+                    ExtractedMrz = $"Captured MRZ from photo: {mrzValue}";
+                }
+                else if (message.Contains("NFC connection was lost"))
+                {
+                    PassportData = MauiStatusMessageHelper.NfcTagLostMessage;
                 }
                 else
                 {

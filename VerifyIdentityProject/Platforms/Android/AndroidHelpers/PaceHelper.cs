@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Helpers.Exceptions;
 
 namespace VerifyIdentityProject.Platforms.Android.AndroidHelpers
 {

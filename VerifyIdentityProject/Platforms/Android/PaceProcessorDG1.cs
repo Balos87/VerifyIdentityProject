@@ -1,5 +1,6 @@
 ﻿using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Helpers.Exceptions;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -25,8 +26,17 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                throw new PaceException("The PACE process for DG1 failed", ex);
+                if (!_isoDep.IsConnected)
+                {
+                    Console.WriteLine(NfcTagLostException.MessageText);
+                    throw new NfcTagLostException(ex);
+                }
+
+                Console.WriteLine(PaceException.MessageText);
+                throw new PaceException(ex.Message);
             }
+
+
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Android.Nfc.Tech;
+using Android.Service.Voice;
 using Org.BouncyCastle.Crypto.Engines;
 using Org.BouncyCastle.Crypto.Macs;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -309,6 +310,7 @@ namespace VerifyIdentityProject.Platforms.Android
         //--------------------------------------------------------------------------------------------------- Readbinary
         public List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
+
             try
             {
                 ReadBinaryHelper readBinaryHelper = new ReadBinaryHelper();
@@ -354,7 +356,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     bool success = SecureMessagingHelper.IsSuccessfulResponsePace(RAPDU);
                     if(!success)
                     {
-                        Console.WriteLine($"Response failed. SW-{BitConverter.ToString(RAPDU)} ");
+                        Console.WriteLine($"Response failed. SW-{BitConverter.ToString(RAPDU)}");
                         break;
                     }
 
@@ -390,7 +392,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading DG1: {ex.Message}");
+                Console.WriteLine($"Error reading DG: {ex.Message}");
                 return null;
             }
         }

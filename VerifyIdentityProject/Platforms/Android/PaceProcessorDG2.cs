@@ -1,6 +1,7 @@
 ﻿using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Platforms.Android.AndroidHelpers;
+using VerifyIdentityProject.Helpers.Exceptions;
 
 namespace VerifyIdentityProject.Platforms.Android
 {
@@ -10,7 +11,8 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public async Task<byte[]> PerformPaceDG2Async(string apiUrl)
         {
-            Console.WriteLine("👉🏽PerformPace DG2");
+            Console.WriteLine("👉🏽 PerformPace DG2");
+            Console.WriteLine("Debug101 PerformPaceDG2Async");
 
             try
             {
@@ -21,11 +23,18 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
-                return imgBytes ?? throw new Exception("No image data retrieved.");
+                return imgBytes ?? throw new PaceException(PaceException.MessageText);
             }
             catch (Exception ex)
             {
-                throw new PaceException("The PACE process for DG2 failed", ex);
+                if (!_isoDep.IsConnected)
+                {
+                    Console.WriteLine(NfcTagLostException.MessageText);
+                    throw new NfcTagLostException(ex);
+                }
+
+                Console.WriteLine(PaceException.MessageText);
+                throw new PaceException(ex);
             }
         }
     }

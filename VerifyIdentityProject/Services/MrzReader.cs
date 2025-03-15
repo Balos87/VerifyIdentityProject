@@ -1,16 +1,15 @@
 ﻿using System;
-using System.Buffers.Text;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Maui.Media;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.ViewModels;
+using VerifyIdentityProject.Helpers.Exceptions;
 
 namespace VerifyIdentityProject.Services
 {
@@ -19,25 +18,31 @@ namespace VerifyIdentityProject.Services
         private readonly Action<string> _mrzNotFoundCallback;
         private readonly HttpClient _httpClient;
         private readonly INfcReaderManager _nfcReaderManager;
+        private bool _nfcTagLost;
+
         public MrzReader(Action<string> mrzNotFoundCallback, INfcReaderManager nfcReaderManager)
         {
             var appsettings = GetSecrets.FetchAppSettings();
 
             _nfcReaderManager = nfcReaderManager;
-            _mrzNotFoundCallback = mrzNotFoundCallback; // Store the callback
+            _mrzNotFoundCallback = mrzNotFoundCallback;
             _httpClient = new HttpClient();
+
+            // Subscribe to NFC tag lost event
+            _nfcReaderManager.OnNfcTagLost += HandleNfcTagLost;
 
             Task.Run(async () =>
             {
                 var selectedUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
                 _httpClient.BaseAddress = new Uri(selectedUrl);
-            }).Wait(); // Ensures BaseAddress is set before proceeding
+            }).Wait();
         }
 
         public async Task ScanAndExtractMrzAsync()
         {
-            Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
-            Console.WriteLine("➖➖➖➖➖ScanAndExtractMrzAsync➖➖➖➖➖");
+            Console.WriteLine("➖➖➖➖➖ ScanAndExtractMrzAsync Started ➖➖➖➖➖");
+            _nfcTagLost = false;
+
             try
             {
                 var photo = await MediaPicker.CapturePhotoAsync();
@@ -46,6 +51,7 @@ namespace VerifyIdentityProject.Services
                     Console.WriteLine("No photo captured.");
                     return;
                 }
+
                 _mrzNotFoundCallback?.Invoke(MauiStatusMessageHelper.MrzProcessingMessage);
                 Console.WriteLine(MauiStatusMessageHelper.MrzProcessingMessage);
 
@@ -68,6 +74,12 @@ namespace VerifyIdentityProject.Services
 
         private async void CheckForMrzAndNotify(string mrzText)
         {
+            if (_nfcTagLost)
+            {
+                Console.WriteLine(NfcTagLostException.MessageText);
+                throw new NfcTagLostException();
+            }
+
             if (string.IsNullOrEmpty(mrzText))
             {
                 Console.WriteLine(MauiStatusMessageHelper.MrzNotDetectedMessage);
@@ -77,7 +89,6 @@ namespace VerifyIdentityProject.Services
             {
                 Console.WriteLine(string.Format(MauiStatusMessageHelper.MrzExtractedMessage, mrzText));
 
-                // ✅ Ensure Extracted MRZ is updated
                 _mrzNotFoundCallback?.Invoke($"MRZ:{mrzText}");
 
                 string secretsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "secrets.json");
@@ -85,11 +96,17 @@ namespace VerifyIdentityProject.Services
                 manager.SetMrzNumbers(mrzText);
 
                 await Task.Delay(5000);
+
+                if (_nfcTagLost)
+                {
+                    Console.WriteLine(NfcTagLostException.MessageText);
+                    throw new NfcTagLostException();
+                }
+
                 _mrzNotFoundCallback?.Invoke(MauiStatusMessageHelper.NfcReaderStartedMessage);
                 _nfcReaderManager.StartListening();
             }
         }
-
 
         private async Task<string> ExtractMrzFromApiAsync(string imagePath)
         {
@@ -106,8 +123,29 @@ namespace VerifyIdentityProject.Services
                 };
 
                 content.Add(fileContent, "file", Path.GetFileName(imagePath));
-                var response = await _httpClient.PostAsync("api/mrz/extract", content);
+
+                var responseTask = _httpClient.PostAsync("api/mrz/extract", content);
+
+                // Check for NFC tag loss while waiting for the response
+                while (!responseTask.IsCompleted)
+                {
+                    if (_nfcTagLost)
+                    {
+                        Console.WriteLine(NfcTagLostException.MessageText);
+                        throw new NfcTagLostException();
+                    }
+
+                    await Task.Delay(500); // Small delay to avoid performance issues
+                }
+
+                var response = await responseTask;
                 var responseString = await response.Content.ReadFromJsonAsync<string>();
+
+                if (_nfcTagLost)
+                {
+                    Console.WriteLine(NfcTagLostException.MessageText);
+                    throw new NfcTagLostException();
+                }
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -125,6 +163,16 @@ namespace VerifyIdentityProject.Services
                 Console.WriteLine($"HTTP Request error: {ex.Message}");
                 return string.Empty;
             }
+        }
+
+        /// <summary>
+        /// Handles NFC tag lost event.
+        /// </summary>
+        private void HandleNfcTagLost(string message)
+        {
+            _nfcTagLost = true;
+            Console.WriteLine(message);
+            _mrzNotFoundCallback?.Invoke(message);
         }
     }
 }

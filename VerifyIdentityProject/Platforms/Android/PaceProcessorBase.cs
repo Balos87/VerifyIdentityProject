@@ -1,5 +1,6 @@
 ﻿using Android.Nfc.Tech;
 using VerifyIdentityProject.Helpers;
+using VerifyIdentityProject.Helpers.Exceptions;
 using VerifyIdentityProject.Platforms.Android.AndroidHelpers;
 
 namespace VerifyIdentityProject.Platforms.Android

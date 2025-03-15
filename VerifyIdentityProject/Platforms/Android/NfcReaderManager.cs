@@ -18,6 +18,7 @@ namespace VerifyIdentityProject.Platforms.Android
         // Events to notify about NFC interactions
         public event Action<string> OnNfcChipDetected;
         public event Action<string> OnNfcTagDetected;
+        public event Action<string> OnNfcTagLost;
         public event Action<string> OnNfcProcessingStarted;
         public event Action<string> OnNfcProcessingCompleted;
 
@@ -142,6 +143,15 @@ namespace VerifyIdentityProject.Platforms.Android
                 Console.WriteLine($"Error during NFC processing: ❌ {ex.Message}❌ ");
                 OnNfcChipDetected?.Invoke(string.Format(MauiStatusMessageHelper.NfcErrorMessage, ex.Message));
             }
+        }
+
+        /// <summary>
+        /// Handles NFC tag loss.
+        /// </summary>
+        public void HandleTagLost()
+        {
+            Console.WriteLine("⚠️ NFC Tag Lost! Please place the device back on the passport.");
+            OnNfcTagLost?.Invoke(MauiStatusMessageHelper.NfcTagLostMessage);
         }
     }
 }

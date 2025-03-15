@@ -12,7 +12,9 @@ namespace VerifyIdentityProject.Resources.Interfaces
         event Action<string> OnNfcChipDetected;
         event Action<string> OnNfcTagDetected; 
         event Action<string> OnNfcProcessingStarted; 
-        event Action<string> OnNfcProcessingCompleted; 
+        event Action<string> OnNfcProcessingCompleted;
+        public event Action<string> OnNfcTagLost;
+
 
         void StartListening();
         void StopListening();
