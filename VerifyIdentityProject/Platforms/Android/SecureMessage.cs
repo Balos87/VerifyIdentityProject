@@ -310,6 +310,7 @@ namespace VerifyIdentityProject.Platforms.Android
         //--------------------------------------------------------------------------------------------------- Readbinary
         public List<byte[]> ReadCompleteDG(IsoDep isoDep, byte[] KSEnc, byte[] KSMac, ref byte[] SSC)
         {
+            Console.WriteLine("ReadCompleteDG");
 
             try
             {

@@ -74,12 +74,6 @@ namespace VerifyIdentityProject.Services
 
         private async void CheckForMrzAndNotify(string mrzText)
         {
-            if (_nfcTagLost)
-            {
-                Console.WriteLine(NfcTagLostException.MessageText);
-                throw new NfcTagLostException();
-            }
-
             if (string.IsNullOrEmpty(mrzText))
             {
                 Console.WriteLine(MauiStatusMessageHelper.MrzNotDetectedMessage);
@@ -96,12 +90,6 @@ namespace VerifyIdentityProject.Services
                 manager.SetMrzNumbers(mrzText);
 
                 await Task.Delay(5000);
-
-                if (_nfcTagLost)
-                {
-                    Console.WriteLine(NfcTagLostException.MessageText);
-                    throw new NfcTagLostException();
-                }
 
                 _mrzNotFoundCallback?.Invoke(MauiStatusMessageHelper.NfcReaderStartedMessage);
                 _nfcReaderManager.StartListening();
@@ -126,26 +114,8 @@ namespace VerifyIdentityProject.Services
 
                 var responseTask = _httpClient.PostAsync("api/mrz/extract", content);
 
-                // Check for NFC tag loss while waiting for the response
-                while (!responseTask.IsCompleted)
-                {
-                    if (_nfcTagLost)
-                    {
-                        Console.WriteLine(NfcTagLostException.MessageText);
-                        throw new NfcTagLostException();
-                    }
-
-                    await Task.Delay(500); // Small delay to avoid performance issues
-                }
-
                 var response = await responseTask;
                 var responseString = await response.Content.ReadFromJsonAsync<string>();
-
-                if (_nfcTagLost)
-                {
-                    Console.WriteLine(NfcTagLostException.MessageText);
-                    throw new NfcTagLostException();
-                }
 
                 if (response.IsSuccessStatusCode)
                 {

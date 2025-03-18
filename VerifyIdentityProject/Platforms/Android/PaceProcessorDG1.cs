@@ -26,14 +26,8 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                if (!_isoDep.IsConnected)
-                {
-                    Console.WriteLine(NfcTagLostException.MessageText);
-                    throw new NfcTagLostException(ex);
-                }
-
-                Console.WriteLine(PaceException.MessageText);
-                throw new PaceException(ex.Message);
+                Console.WriteLine(ex.Message);
+                throw new Exception(ex.Message);
             }
 
 

@@ -23,18 +23,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 Console.WriteLine("\n➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
 
-                return imgBytes ?? throw new PaceException(PaceException.MessageText);
+                return imgBytes ?? throw new Exception();
             }
             catch (Exception ex)
             {
-                if (!_isoDep.IsConnected)
-                {
-                    Console.WriteLine(NfcTagLostException.MessageText);
-                    throw new NfcTagLostException(ex);
-                }
-
-                Console.WriteLine(PaceException.MessageText);
-                throw new PaceException(ex);
+                Console.WriteLine(ex.Message);
+                throw new Exception(ex.Message);
             }
         }
     }

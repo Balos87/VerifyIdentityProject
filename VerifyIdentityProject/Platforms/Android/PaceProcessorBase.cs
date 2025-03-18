@@ -18,7 +18,7 @@ namespace VerifyIdentityProject.Platforms.Android
         // Common PACE Authentication Logic
         protected SecureMessage PerformCommonPace(IsoDep isoDep)
         {
-           // Console.WriteLine("<-Performing Common PACE->");
+            Console.WriteLine("<-Performing Common PACE->");
 
             // Step 1: Select the passport application
             PaceHelper.SelectApplicationPace(isoDep);
@@ -56,7 +56,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 }
             }
 
-            throw new PaceException("No valid OID found for PACE protocol.");
+            throw new Exception("No valid OID found for PACE protocol.");
         }
     }
 }

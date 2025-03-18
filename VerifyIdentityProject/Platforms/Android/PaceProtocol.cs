@@ -48,7 +48,7 @@ namespace VerifyIdentityProject.Platforms.Android
         {
             Console.WriteLine("➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖➖");
             Console.WriteLine("PerformPaceProtocol");
-            Console.WriteLine("Select MseSET & General Authenticate");
+            Console.WriteLine("Select MSE:SET & General Authenticate");
 
             isoDep.Timeout = 400000;
             try
@@ -82,6 +82,7 @@ namespace VerifyIdentityProject.Platforms.Android
        
         private bool MseSetAtSelectPaceProtocol()
         {
+            Console.WriteLine($"MseSetAtSelectPaceProtocol");
             byte[] protocolOID = oid;
 
             // Build MSE:SET AT command
@@ -129,7 +130,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] GetEncryptedNonce()
         {
-            // Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
+            Console.WriteLine("-------------------------------------------------------- GetEncryptedNonce started...");
             var getNonceCommand = new byte[]
             {
                 0x10,    // CLA (command chaining)
@@ -155,7 +156,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] ParseEncryptedNonce(byte[] response)
         {
-            //  Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
+            Console.WriteLine("-------------------------------------------------------- ParseEncryptedNonce started...");
             try
             {
                 // Remove status bytes (90 00)
@@ -191,7 +192,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] DecryptNonce(byte[] encryptedNonce)
         {
-            // Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
+            Console.WriteLine("-------------------------------------------------------- DecryptNonce started...");
 
             using (var sha1 = SHA1.Create())
             {
@@ -216,7 +217,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private byte[] CalculateKPiFromMrz(string mrzData)
         {
-            //   Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
+            Console.WriteLine("-------------------------------------------------------- Calculate KPi From Mrz started...");
 
             //Calculate K from MRZ
             using (SHA1 sha1 = SHA1.Create())
@@ -234,6 +235,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         public static byte[] CalculateKPi(byte[] k)
         {
+            Console.WriteLine("-------------------------------------------------------- Calculate KPi started...");
             // Counter value 3 as big-endian bytes
             byte[] counter = BitConverter.GetBytes(3);
             if (BitConverter.IsLittleEndian)
@@ -267,7 +269,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private bool GenerateAndSendMappedParameters(byte[] decryptedNonce)
         {
-            //  Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
+            Console.WriteLine("-------------------------------------------------------- GenerateAndSendMappedParameters started...");
             try
             {
                 var curve = TeleTrusTNamedCurves.GetByName("brainpoolP384r1");
@@ -392,6 +394,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
         private static byte[] ParseTLV(byte[] data, byte expectedTag)
         {
+            Console.WriteLine("-------------------------------------------------------- ParseTLV started...");
             try
             {
                 int index = 0;
