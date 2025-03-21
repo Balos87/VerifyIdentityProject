@@ -32,30 +32,30 @@ namespace VerifyIdentityProject.Platforms.Android
                     0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00
                 };
 
-                Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
+                // Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
                 byte[] response = isoDep.Transceive(selectApdu);
 
                 if (!IsSuccessfulResponse(response))
                 {
-                    Console.WriteLine("Failed to select passport application.");
+                    // Console.WriteLine("Failed to select passport application.");
                     return;
                 }
 
-                Console.WriteLine("Application selected.");
+                // Console.WriteLine("Application selected.");
 
                 var secrets = GetSecrets.FetchSecrets();
                 var mrzData = secrets?.MRZ_NUMBERS ?? string.Empty;
                 var (KEnc, KMac) = BacHelper.GenerateBacKeys(mrzData);
 
                 var (KSEncParitet, KSMacParitet, SSC) = PerformBacAuthentication(isoDep, KEnc, KMac);
-                Console.WriteLine("BAC authentication succeeded!");
+                // Console.WriteLine("BAC authentication succeeded!");
 
                 //--------------------------------------------------------------------  D.4 SECURE MESSAGING
 
-                Console.WriteLine("-------------------------------------------------Starting DG2");
+                 Console.WriteLine("-------------------------------------------------Starting DG2");
                 //DG2 method
                 CallDG2.Call(isoDep, KSEncParitet, KSMacParitet, SSC);
-                Console.WriteLine("-------------------------------------------------Starting DG1");
+                 Console.WriteLine("-------------------------------------------------Starting DG1");
                 //DG1 method
                 CallDG1.Call(isoDep, KSEncParitet, KSMacParitet, SSC);
 
@@ -73,23 +73,23 @@ namespace VerifyIdentityProject.Platforms.Android
                 //--------------------------------------------------------------------1. Request an 8 byte random number from the eMRTD’s contactless IC
                 byte[] challengeCommand = new byte[] { 0x00, 0x84, 0x00, 0x00, 0x08 };
                 byte[] challengeResponse = isoDep.Transceive(challengeCommand);
-                Console.WriteLine($"challengeCommand: {BitConverter.ToString(challengeCommand)}");
+                // Console.WriteLine($"challengeCommand: {BitConverter.ToString(challengeCommand)}");
 
                 if (!IsSuccessfulResponse(challengeResponse))
                 {
-                    Console.WriteLine("Failed to get challenge response.");
+                    // Console.WriteLine("Failed to get challenge response.");
                     throw new Exception("Failed to get challenge response.");
                 }
-                Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
-                Console.WriteLine($"Challenge response: {BitConverter.ToString(challengeResponse)}");
+                // Console.WriteLine($"Challenge response length: {challengeResponse.Length}");
+                // Console.WriteLine($"Challenge response: {BitConverter.ToString(challengeResponse)}");
 
                 byte[] rndIc = challengeResponse.Take(challengeResponse.Length - 2).ToArray();
-                Console.WriteLine($"rndIc response length: {rndIc.Length}");
-                Console.WriteLine($"rndIc response: {BitConverter.ToString(rndIc)}");
+                // Console.WriteLine($"rndIc response length: {rndIc.Length}");
+                // Console.WriteLine($"rndIc response: {BitConverter.ToString(rndIc)}");
 
                 if (rndIc.Length != 8)
                 {
-                    Console.WriteLine("Invalid challenge response length.");
+                    // Console.WriteLine("Invalid challenge response length.");
                     throw new Exception("Invalid challenge response length.");
 
                 }
@@ -100,33 +100,33 @@ namespace VerifyIdentityProject.Platforms.Android
                 // Generera RND.IFD (8 bytes)
                 byte[] rndIfd = new byte[8];
                 rng.GetBytes(rndIfd);
-                Console.WriteLine($"RND.IFD: {BitConverter.ToString(rndIfd)}");
+                // Console.WriteLine($"RND.IFD: {BitConverter.ToString(rndIfd)}");
 
                 // Generera KIFD (16 bytes)
                 byte[] kIfd = new byte[16];
                 rng.GetBytes(kIfd);
-                Console.WriteLine($"KIFD: {BitConverter.ToString(kIfd)}");
+                // Console.WriteLine($"KIFD: {BitConverter.ToString(kIfd)}");
 
 
                 //--------------------------------------------------------------------3.Concatenate RND.IFD, RND.IC and KIFD
                 byte[] s = rndIfd.Concat(rndIc).Concat(kIfd).ToArray();
-                Console.WriteLine($"S: {BitConverter.ToString(s)}");
+                // Console.WriteLine($"S: {BitConverter.ToString(s)}");
 
                 //byte[] ss = { 0x78, 0x17, 0x23, 0x86, 0x0C, 0x06, 0xC2, 0x26, 0x46, 0x08, 0xF9, 0x19, 0x88, 0x70, 0x22, 0x12, 0x0B, 0x79, 0x52, 0x40, 0xCB, 0x70, 0x49, 0xB0, 0x1C, 0x19, 0xB3, 0x3E, 0x32, 0x80, 0x4F, 0x0B };
 
                 //--------------------------------------------------------------------4.Encrypt S with 3DES key KEnc:
                 byte[] Eifd = EncryptWithKEnc3DES(s, KEnc);
-                Console.WriteLine($"(Eifd) Encrypted S: {BitConverter.ToString(Eifd)}");
+                // Console.WriteLine($"(Eifd) Encrypted S: {BitConverter.ToString(Eifd)}");
 
 
                 //--------------------------------------------------------------------5. Compute MAC over EIFD with 3DES key KMAC: MIFD = ‘5F1448EEA8AD90A7’
                 byte[] MIFD = ComputeMac3DES(Eifd, KMac);
-                Console.WriteLine($"(MAC) Generated MIFD: {BitConverter.ToString(MIFD)}");
+                // Console.WriteLine($"(MAC) Generated MIFD: {BitConverter.ToString(MIFD)}");
 
 
                 //-------------------------------------------------------------------- 6.Construct command data for EXTERNAL AUTHENTICATE and send command APDU to the eMRTD’s contactless IC
                 byte[] cmd_data = Eifd.Concat(MIFD).ToArray();
-                Console.WriteLine($"cmd_data: {BitConverter.ToString(cmd_data)}");
+                // Console.WriteLine($"cmd_data: {BitConverter.ToString(cmd_data)}");
 
                 //new byte[6 + cmd_data.Length] betyder: new byte[46]
                 byte[] apduCommand = new byte[6 + cmd_data.Length];
@@ -140,19 +140,19 @@ namespace VerifyIdentityProject.Platforms.Android
 
 
                 //-------------------------------------------------------------------- 6.Send command APDU to the eMRTD’s contactless IC
-                Console.WriteLine($"apduCommand: {BitConverter.ToString(apduCommand)}");
+                // Console.WriteLine($"apduCommand: {BitConverter.ToString(apduCommand)}");
                 byte[] apduResponse = isoDep.Transceive(apduCommand);
 
 
                 //-------------------------------------------------------------------- 7. cmd_resp if successfull or not
-                Console.WriteLine($"APDU Response: {BitConverter.ToString(apduResponse)}");
+                // Console.WriteLine($"APDU Response: {BitConverter.ToString(apduResponse)}");
                 if (!IsSuccessfulResponse(apduResponse))
                 {
-                    Console.WriteLine($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
+                    // Console.WriteLine($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
                     throw new Exception($"apduResponse failed.{BitConverter.ToString(apduResponse)}");
 
                 }
-                Console.WriteLine("apduResponse succeeded.");
+                // Console.WriteLine("apduResponse succeeded.");
 
 
                 //-------------------------------------------------------------------- 1.Decrypt and verify received data and compare received RND.IFD with generated RND.IFD
@@ -161,12 +161,12 @@ namespace VerifyIdentityProject.Platforms.Android
                 byte[] eIc = apduResponse.Take(32).ToArray();
                 byte[] mIc = apduResponse.Skip(32).Take(8).ToArray();
 
-                Console.WriteLine($"Eifd: {BitConverter.ToString(eIc)}");
-                Console.WriteLine($"MIC: {BitConverter.ToString(mIc)}");
+                // Console.WriteLine($"Eifd: {BitConverter.ToString(eIc)}");
+                // Console.WriteLine($"MIC: {BitConverter.ToString(mIc)}");
 
                 //-------------------------------------------------------------------- 1.2 Get (r) by Decrypt eIc with help of kEnc.
                 byte[] r = DecryptWithKEnc3DES(eIc, KEnc);
-                Console.WriteLine($"(R) Response Data: {BitConverter.ToString(r)}");
+                // Console.WriteLine($"(R) Response Data: {BitConverter.ToString(r)}");
 
 
                 //-------------------------------------------------------------------- 1.3 seperate (r) and take out Recieved-rndIfd to compare to rndIfd. If success fetch/store kIc.
@@ -182,12 +182,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 byte[] KSEncParitet = AdjustAndSplitKey(kSEnc);
                 byte[] KSMacParitet = AdjustAndSplitKey(kSMac);
-                Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEncParitet)}");
-                Console.WriteLine($"KSMac: {BitConverter.ToString(KSMacParitet)}");
+                // Console.WriteLine($"KSEnc: {BitConverter.ToString(KSEncParitet)}");
+                // Console.WriteLine($"KSMac: {BitConverter.ToString(KSMacParitet)}");
 
                 //-------------------------------------------------------------------- 4. Calculate send sequence counter (SSC) = ‘88-70-22-12-0C-06-C2-26’ -  88-70-22-12-0C-06-C2-26  -- RÄTT
                 byte[] SSC = ComputeSSC(rndIc, rndIfd);
-                Console.WriteLine($"SSC: {BitConverter.ToString(SSC)}");
+                // Console.WriteLine($"SSC: {BitConverter.ToString(SSC)}");
 
 
                 return (KSEncParitet, KSMacParitet, SSC);
@@ -195,7 +195,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"BAC authentication error: {ex.Message}");
+                // Console.WriteLine($"BAC authentication error: {ex.Message}");
                 throw new Exception($"BAC authentication error: {ex.Message}");
 
             }
@@ -227,7 +227,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error during ASN.1 parsing: {ex.Message}");
+                // Console.WriteLine($"Error during ASN.1 parsing: {ex.Message}");
                 throw;
             }
         }
@@ -252,7 +252,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     0x0C, 0xA4, 0x02, 0x0C, // CLA, INS, P1, P2
                     0x80, 0x00, 0x00, 0x00  // Padding (Mask)
                 };
-                Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
+                // Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
 
 
                 //--------------------------------------------------------------------  1.1 Pad data: Data = ‘01-1E-80-00-00-00-00-00’ - 01-1E-80-00-00-00-00-00 - RÄTT
@@ -261,96 +261,97 @@ namespace VerifyIdentityProject.Platforms.Android
                     0x01, 0x01,  // File ID för EF.COM:1E?/DG1:01?/DG2:02?
                 };
                 byte[] paddedData = PadIso9797Method2(data);
-                Console.WriteLine($"-Data-: {BitConverter.ToString(paddedData)}");
+                // Console.WriteLine($"-Data-: {BitConverter.ToString(paddedData)}");
 
 
                 //--------------------------------------------------------------------  1.2 Encrypt data with KSEnc:EncryptedData = ‘63-75-43-29-08-C0-44-F6’ - Recieved: 63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] encryptedData = EncryptWithKEnc3DES(paddedData, KSEncParitet);
-                Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
+                // Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
 
                 //--------------------------------------------------------------------  1.3 Build DO‘87’: DO87 = ‘87-09-01-63-75-43-29-08-C0-44-F6’ - Recieved: 87-09-01-63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] DO87 = BuildDO87(encryptedData);
-                Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
+                // Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
                     
                 //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO‘87’: M = ‘0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6’ -- RÄTT
                 //                                                                                                       Recieved: 0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6
                 byte[] M = cmdHeader.Concat(DO87).ToArray();
-                Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
+                // Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
 
                 //--------------------------------------------------------------------  2. Compute MAC of M:
 
 
                 //--------------------------------------------------------------------  2.1 Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-27’ -- Rätt
                 IncrementSSC(ref SSC);
-                Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
+                // Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
 
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
-                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
+                // Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
                 byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
-                Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
+                // Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
                 //--------------------------------------------------------------------  3. Build DO‘8E’ - 8E-08-BF-8B-92-D6-35-FF-24-F8 - Recieved: 8E-08-BF-8B-92-D6-35-FF-24-F8 -- RÄTT
                 byte[] DO8E = BuildDO8E(CC);
-                Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
+                // Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
 
 
                 //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-
                 //8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
                 //                                                                                                                 Recieved: 0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00 
                 byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO87, DO8E);
-                Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
+                // Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
 
                 //---------------------------------------------------------------------- Send and  Receive response APDU of eMRTD’s contactless IC: RAPDU = ‘99-02-90-00-8E-08-FA-85-5A-5D-4C-50-A8-ED-90-00’ ?- RÄTT
                 //                                                                                                 Dummy data wont work here since it gets 69-88. But works with my passport
                 byte[] RAPDU = isoDep.Transceive(protectedAPDU);
-                Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU)}");
+                // Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU)}");
 
 
                 //----------------------------------------------------------------------- 4. Verify RAPDU CC by computing MAC of DO‘99’:
 
                 //----------------------------------------------------------------------- 4.1 Increment SSC with 1:SSC = ‘88-70-22-12-0C-06-C2-28’ - Recieved: 88-70-22-12-0C-06-C2-28  -- RÄTT
                 IncrementSSC(ref SSC);
-                Console.WriteLine($"Incremented SSC (RAPDU ): {BitConverter.ToString(SSC)}");
+                // Console.WriteLine($"Incremented SSC (RAPDU ): {BitConverter.ToString(SSC)}");
 
                 //----------------------------------------------------------------------- 4.2 Concatenate SSC and DO‘99’ and add padding: K = ‘88-70-22-12-0C-06-C2-28-99-02-90-00-80-00-00-00 -- RÄTT
                 //                                                                                                                   Recieved: 88-70-22-12-0C-06-C2-28-99-02-90-00-80-00-00-00
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
-                Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
+                // Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
                 byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
-                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
+                // Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
                 byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
-                Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
+                // Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
                 var extractedDO8E = ExtractDO8E(RAPDU);
                 bool isEqual = ccMac.SequenceEqual(extractedDO8E);
                 if (isEqual)
-                    Console.WriteLine($"CC' == DO‘8E’: {isEqual}");
-                Console.WriteLine($"extracted DO8E: {BitConverter.ToString(extractedDO8E)} = CC: {BitConverter.ToString(ccMac)}");
+                    // Console.WriteLine($"CC' == DO‘8E’: {isEqual}");
+                // Console.WriteLine($"extracted DO8E: {BitConverter.ToString(extractedDO8E)} = CC: {BitConverter.ToString(ccMac)}");
 
 
 
 
                 //----------------------------------------------------------------------- 1 Read Binary of first four bytes
                 Console.WriteLine("/-----------------------------------------------------------------------  Read Binary of DG");
+
                 List<byte[]> dg1Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
                 if (dg1Segments.Count > 0)
                 {
                     byte[] completeDG1 = dg1Segments.SelectMany(segment => segment).ToArray();
-                    Console.WriteLine($"Complete DG1 Data: {BitConverter.ToString(completeDG1)}");
-                    Console.WriteLine($"Complete DG1 Data.Length: {completeDG1.Length}");
+                    // Console.WriteLine($"Complete DG1 Data: {BitConverter.ToString(completeDG1)}");
+                    // Console.WriteLine($"Complete DG1 Data.Length: {completeDG1.Length}");
 
                     // Skriv ut första och sista bytes för att verifiera
-                    Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeDG1.Take(20).ToArray())}");
-                    Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeDG1.Skip(completeDG1.Length - 20).Take(20).ToArray())}");
+                    // Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeDG1.Take(20).ToArray())}");
+                    // Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeDG1.Skip(completeDG1.Length - 20).Take(20).ToArray())}");
 
                     // Om du behöver se all data, kan du skriva ut i chunks
                     const int chunkSize = 100;
@@ -359,14 +360,14 @@ namespace VerifyIdentityProject.Platforms.Android
                         int length = Math.Min(chunkSize, completeDG1.Length - i);
                         var chunk = new byte[length];
                         Array.Copy(completeDG1, i, chunk, 0, length);
-                        Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
+                        // Console.WriteLine($"Chunk {i / chunkSize}: {BitConverter.ToString(chunk)}");
                     }
 
-                    Console.WriteLine($"Parsed nya");
+                    // Console.WriteLine($"Parsed nya");
                     var fullMrz = MRZByteParser.ParseMRZBytes(completeDG1);
                     var splittedMrz = MRZByteParser.FormatMRZForBAC(fullMrz);
-                    Console.WriteLine($"Hel MRZ: {fullMrz}");
-                    Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
+                    // Console.WriteLine($"Hel MRZ: {fullMrz}");
+                    // Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
 
                     var extractedInfoFromMrz = MRZParser.ParseMRZ(splittedMrz);
 
@@ -376,10 +377,10 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     foreach (var field in extractedInfoWithDescription)
                     {
-                        Console.WriteLine($"{field.Key}: {field.Value}");
+                        // Console.WriteLine($"{field.Key}: {field.Value}");
                     }
                 }
-                Console.WriteLine("/----------------------------------------------------------------------- DG1 process finished!");
+                // Console.WriteLine("/----------------------------------------------------------------------- DG1 process finished!");
 
             }
         }
@@ -394,7 +395,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     0x0C, 0xA4, 0x02, 0x0C, 
                     0x80, 0x00, 0x00, 0x00  // Padding (Mask)
                 };
-                Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
+                // Console.WriteLine($"-cmdHeader-: {BitConverter.ToString(cmdHeader)}");
 
 
                 //--------------------------------------------------------------------  1.1 Pad data: Data = ‘01-1E-80-00-00-00-00-00’ - 01-1E-80-00-00-00-00-00 - RÄTT
@@ -403,79 +404,79 @@ namespace VerifyIdentityProject.Platforms.Android
                     0x01, 0x02,  // File ID för EF.COM:1E?/DG1:01?/DG2:02?
                 };
                 byte[] paddedData = PadIso9797Method2(data);
-                Console.WriteLine($"-Data-: {BitConverter.ToString(paddedData)}");
+                // Console.WriteLine($"-Data-: {BitConverter.ToString(paddedData)}");
 
 
                 //--------------------------------------------------------------------  1.2 Encrypt data with KSEnc:EncryptedData = ‘63-75-43-29-08-C0-44-F6’ - Recieved: 63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] encryptedData = EncryptWithKEnc3DES(paddedData, KSEncParitet);
-                Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
+                // Console.WriteLine($"Encrypted Data with KsEnc: {BitConverter.ToString(encryptedData)}");
 
                 //--------------------------------------------------------------------  1.3 Build DO‘87’: DO87 = ‘87-09-01-63-75-43-29-08-C0-44-F6’ - Recieved: 87-09-01-63-75-43-29-08-C0-44-F6 -- RÄTT
                 byte[] DO87 = BuildDO87(encryptedData);
-                Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
+                // Console.WriteLine($"-DO87-: {BitConverter.ToString(DO87)}");
 
                 //--------------------------------------------------------------------  1.4 Concatenate CmdHeader and DO‘87’: M = ‘0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6’ -- RÄTT
                 //                                                                                                       Recieved: 0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6
                 byte[] M = cmdHeader.Concat(DO87).ToArray();
-                Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
+                // Console.WriteLine($"-M-: {BitConverter.ToString(M)}");
 
                 //--------------------------------------------------------------------  2. Compute MAC of M:
 
 
                 //--------------------------------------------------------------------  2.1 Increment SSC with 1: SSC = ‘88-70-22-12-0C-06-C2-27’ -- Rätt
                 IncrementSSC(ref SSC);
-                Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
+                // Console.WriteLine($"Incremented SSC: {BitConverter.ToString(SSC)}");
 
                 //-------------------------------------------------------------------- 2.2 Concatenate SSC + M + padding: N = 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00
                 //                                                                                                  Recieved: 88-70-22-12-0C-06-C2-27-0C-A4-02-0C-80-00-00-00-87-09-01-63-75-43-29-08-C0-44-F6-80-00-00-00-00 -- Rätt
                 byte[] NNopad = SSC.Concat(M).ToArray();
                 //byte[] N = PadIso9797Method2(NNopad);
-                Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
+                // Console.WriteLine($"-N-: {BitConverter.ToString(NNopad)}");
 
                 //--------------------------------------------------------------------  2.3 Compute MAC over N with KSMAC: CC = ‘BF-8B-92-D6-35-FF-24-F8’ - Recieved: BF-8B-92-D6-35-FF-24-F8 -- RÄTT
                 byte[] CC = ComputeMac3DES(NNopad, KSMacParitet); //padding implemented in ComputeMac3DES
-                Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
+                // Console.WriteLine($"-CC- (MAC over N with KSMAC): {BitConverter.ToString(CC)}");
 
 
                 //--------------------------------------------------------------------  3. Build DO‘8E’ - 8E-08-BF-8B-92-D6-35-FF-24-F8 - Recieved: 8E-08-BF-8B-92-D6-35-FF-24-F8 -- RÄTT
                 byte[] DO8E = BuildDO8E(CC);
-                Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
+                // Console.WriteLine($"DO8E: {BitConverter.ToString(DO8E)}");
 
 
                 //--------------------------------------------------------------------  3. Construct & send protected APDU: ProtectedAPDU = ‘0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00’--RÄTT
                 //                                                                                                                 Recieved: 0C-A4-02-0C-15-87-09-01-63-75-43-29-08-C0-44-F6-8E-08-BF-8B-92-D6-35-FF-24-F8-00 
                 byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO87, DO8E);
-                Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
+                // Console.WriteLine($"Protected APDU: {BitConverter.ToString(protectedAPDU)}");
 
                 //---------------------------------------------------------------------- Send and  Receive response APDU of eMRTD’s contactless IC: RAPDU = ‘99-02-90-00-8E-08-FA-85-5A-5D-4C-50-A8-ED-90-00’ ?- RÄTT
                 //                                                                                                 Dummy data wont work here since it gets 69-88. But works with my passport
                 byte[] RAPDU = isoDep.Transceive(protectedAPDU);
-                Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU)}");
+                // Console.WriteLine($"APDU Response: {BitConverter.ToString(RAPDU)}");
 
                 //----------------------------------------------------------------------- 4. Verify RAPDU CC by computing MAC of DO‘99’:
 
                 //----------------------------------------------------------------------- 4.1 Increment SSC with 1:SSC = ‘88-70-22-12-0C-06-C2-28’ - Recieved: 88-70-22-12-0C-06-C2-28  -- RÄTT
                 IncrementSSC(ref SSC);
-                Console.WriteLine($"Incremented SSC (RAPDU ): {BitConverter.ToString(SSC)}");
+                // Console.WriteLine($"Incremented SSC (RAPDU ): {BitConverter.ToString(SSC)}");
 
                 //----------------------------------------------------------------------- 4.2 Concatenate SSC and DO‘99’ and add padding: K = ‘88-70-22-12-0C-06-C2-28-99-02-90-00-80-00-00-00 -- RÄTT
                 //                                                                                                                   Recieved: 88-70-22-12-0C-06-C2-28-99-02-90-00-80-00-00-00
                 byte[] DO99 = new byte[] { 0x99, 0x02, 0x90, 0x00 };
-                Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
+                // Console.WriteLine($"DO99: {BitConverter.ToString(DO99)}");
 
                 byte[] K = SSC.Concat(DO99).ToArray(); //padding implemented in ComputeMac3DES
-                Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
+                // Console.WriteLine($"(K) data for MAC: {BitConverter.ToString(K)}");
 
                 //----------------------------------------------------------------------- 4.3 Compute MAC with KSMAC: CC’ = ‘FA-85-5A-5D-4C-50-A8-ED - Recievied: FA-85-5A-5D-4C-50-A8-ED -- RÄTT
                 byte[] ccMac = ComputeMac3DES(K, KSMacParitet);
-                Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
+                // Console.WriteLine($"(CC) Computed MAC: {BitConverter.ToString(ccMac)}");
 
                 //----------------------------------------------------------------------- 4.4 Compare CC’ with data of DO‘8E’ of RAPDU. ‘FA855A5D4C50A8ED’ == ‘FA855A5D4C50A8ED’ ? YES. -- RÄTT
                 var extractedDO8E = ExtractDO8E(RAPDU);
                 bool isEqual = ccMac.SequenceEqual(extractedDO8E);
                 if (isEqual)
-                    Console.WriteLine($"CC' == DO‘8E’: {isEqual}");
-                Console.WriteLine($"extracted DO8E: {BitConverter.ToString(extractedDO8E)} = CC: {BitConverter.ToString(ccMac)}");
+                    // Console.WriteLine($"CC' == DO‘8E’: {isEqual}");
+                // Console.WriteLine($"extracted DO8E: {BitConverter.ToString(extractedDO8E)} = CC: {BitConverter.ToString(ccMac)}");
 
 
 
@@ -483,24 +484,24 @@ namespace VerifyIdentityProject.Platforms.Android
                 //----------------------------------------------------------------------- Read all data Read Binary
                 Console.WriteLine("/----------------------------------------------------------------------- Read Binary");
                 List<byte[]> dg2Segments = ReadCompleteDG(isoDep, KSEncParitet, KSMacParitet, ref SSC);
-                Console.WriteLine($"amount returned segment data: {dg2Segments.Count}");
+                // Console.WriteLine($"amount returned segment data: {dg2Segments.Count}");
 
                 var completeData = dg2Segments.SelectMany(x => x).ToArray();
-                Console.WriteLine($"Complete DG2 Data: {BitConverter.ToString(completeData)}");
-                Console.WriteLine($"Complete DG2 Data.length: {completeData.Length}");
-                Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
-                Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
+                // Console.WriteLine($"Complete DG2 Data: {BitConverter.ToString(completeData)}");
+                // Console.WriteLine($"Complete DG2 Data.length: {completeData.Length}");
+                // Console.WriteLine($"First 20 bytes: {BitConverter.ToString(completeData.Take(20).ToArray())}");
+                // Console.WriteLine($"Last 20 bytes: {BitConverter.ToString(completeData.Skip(completeData.Length - 20).Take(20).ToArray())}");
 
-                //var bildbit = DG2Parser.ParseDG2(completeData);
+                var bildbit = DG2Parser.ParseDG2(completeData);
 
-                Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
+                // Console.WriteLine("/----------------------------------------------------------------------- DG2-data process finished!");
 
             }
         }
        
         public static void VerifyRapduCC(byte[] rapdu, ref byte[] ssc, byte[] ksMac, byte[] ksEnc)
         {
-            Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
+            // Console.WriteLine($"rapdu: {BitConverter.ToString(rapdu)}");
 
 
             //-----------------------------------------------------------------------ii. Concatenate SSC, DO‘87’ and DO‘99’ and add padding: -extract DO‘87’ and DO‘99’ from RPADU-
@@ -510,40 +511,40 @@ namespace VerifyIdentityProject.Platforms.Android
             byte[] do87 = ExtractDO87(rapdu);
             byte[] do99 = ExtractDO99(rapdu);
 
-            Console.WriteLine($"ksMac: {BitConverter.ToString(ksMac)}");
-            Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
-            Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
-            Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
+            // Console.WriteLine($"ksMac: {BitConverter.ToString(ksMac)}");
+            // Console.WriteLine($"DO87: {BitConverter.ToString(do87)}");
+            // Console.WriteLine($"DO99: {BitConverter.ToString(do99)}");
+            // Console.WriteLine($"SSC: {BitConverter.ToString(ssc)}");
 
 
             // 2. build K SSC, DO‘87’ and DO‘99’ and add padding
             byte[] concatenatedData = ssc.Concat(do87).Concat(do99).ToArray();
             byte[] paddedData = PadIso9797Method2(concatenatedData);
 
-            Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
-            Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+            // Console.WriteLine($"Concatenated (SSC + DO87 + DO99): {BitConverter.ToString(concatenatedData)}");
+            // Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
 
             //-----------------------------------------------------------------------iii. Compute MAC with KSMAC: CC’ = ‘C8-B2-78-7E-AE-A0-7D-74’ - C8-B2-78-7E-AE-A0-7D-74 - Rätt
             byte[] calculatedMacCC = ComputeMac3DES2(concatenatedData, ksMac);
-            Console.WriteLine($"Calculated MAC -(CC)-: {BitConverter.ToString(calculatedMacCC)}");
+            // Console.WriteLine($"Calculated MAC -(CC)-: {BitConverter.ToString(calculatedMacCC)}");
 
             //-----------------------------------------------------------------------iv. Compare CC’ with data of DO‘8E’ of RAPDU ‘C8-B2-78-7E-AE-A0-7D-74’ == ‘C8-B2-78-7E-AE-A0-7D-74’ ? YES. - Rätt
             // 1. Extract DO8E from RAPDU
             byte[] do8e = ExtractDO8E2(rapdu);
-            Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
+            // Console.WriteLine($"do8e from RAPDU: {BitConverter.ToString(do8e)}");
 
             // 2. Extract CC from DO8E in RAPDU
             byte[] ccFromRapdu = do8e.Skip(2).Take(8).ToArray();
-            Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
+            // Console.WriteLine($"CC from RAPDU: {BitConverter.ToString(ccFromRapdu)}");
 
             // 3. Compare CC’ with data of DO‘8E’
             if (calculatedMacCC.SequenceEqual(ccFromRapdu))
             {
-                Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
+                // Console.WriteLine("CC verified successfully! MAC matches CC from RAPDU.");
             }
             else
             {
-                Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
+                // Console.WriteLine("CC verification failed. Calculated MAC does not match CC from RAPDU.");
             }
 
 
@@ -551,11 +552,11 @@ namespace VerifyIdentityProject.Platforms.Android
             //                                                                                                                      Recieved: 04-30-31-30-36-5F-36-06-30-34-30-30-30-30-5C-02-61-75
             byte[] DecryptedData = DecryptDO87WithKSEnc(do87, ksEnc);
             byte[] efComData = BuildEfComData(DecryptedData);
-            Console.WriteLine($"DecryptedData no padding: {BitConverter.ToString(DecryptedData)}");
-            //Console.WriteLine($"EF.COM data: {BitConverter.ToString(efComData)}");
+            // Console.WriteLine($"DecryptedData no padding: {BitConverter.ToString(DecryptedData)}");
+            //// Console.WriteLine($"EF.COM data: {BitConverter.ToString(efComData)}");
             byte lengthField = DecryptedData[1];
             int L = lengthField + 2;
-            Console.WriteLine($"Determined length (L): {L} bytes");
+            // Console.WriteLine($"Determined length (L): {L} bytes");
 
 
 
@@ -576,7 +577,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     // Remove null bytes and trim
                     mrzData = new string(mrzData.Where(c => c != '\0').ToArray()).Trim();
 
-                    Console.WriteLine("\n=== Passport Data (DG1) ===\n");
+                    // Console.WriteLine("\n=== Passport Data (DG1) ===\n");
 
                     // Handle '<' special characters and split names
                     string[] nameParts = mrzData.Split(new[] { "<<" }, StringSplitOptions.None);
@@ -590,26 +591,26 @@ namespace VerifyIdentityProject.Platforms.Android
                     string givenNames = nameParts.Length > 1 ? nameParts[1].Replace("<", " ").Trim() : "";
 
                     // Present the data nicely
-                    Console.WriteLine($"Document Type: {(documentType == "P" ? "Passport" : documentType)}");
-                    Console.WriteLine($"Country Code: {countryCode}");
-                    Console.WriteLine($"Surname: {surname}");
-                    Console.WriteLine($"Given Names: {givenNames}");
+                    // Console.WriteLine($"Document Type: {(documentType == "P" ? "Passport" : documentType)}");
+                    // Console.WriteLine($"Country Code: {countryCode}");
+                    // Console.WriteLine($"Surname: {surname}");
+                    // Console.WriteLine($"Given Names: {givenNames}");
 
                     // Also display raw data for verification
-                    Console.WriteLine("\nRaw MRZ Data:");
-                    Console.WriteLine(mrzData);
+                    // Console.WriteLine("\nRaw MRZ Data:");
+                    // Console.WriteLine(mrzData);
 
                     // Show hexadecimal representation
-                    Console.WriteLine("\nHexadecimal representation:");
-                    Console.WriteLine(BitConverter.ToString(data));
-                    Console.WriteLine($"Raw data: {data}");
+                    // Console.WriteLine("\nHexadecimal representation:");
+                    // Console.WriteLine(BitConverter.ToString(data));
+                    // Console.WriteLine($"Raw data: {data}");
 
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error parsing DG1 data: ❌{ex.Message}❌");
-                    Console.WriteLine("Raw data:");
-                    Console.WriteLine(BitConverter.ToString(data));
+                    // Console.WriteLine($"Error parsing DG1 data: ❌{ex.Message}❌");
+                    // Console.WriteLine("Raw data:");
+                    // Console.WriteLine(BitConverter.ToString(data));
                 }
             }
 
@@ -676,7 +677,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 while (true)
                 {
-                    Console.WriteLine($"Reading DG at offset: {offset}");
+                    // Console.WriteLine($"Reading DG at offset: {offset}");
 
                     // Step 1: Build READ BINARY command for the current offset
                     byte[] cmdHeader = { 0x0C, 0xB0, (byte)(offset >> 8), (byte)(offset & 0xFF), 0x80, 0x00, 0x00, 0x00 };
@@ -692,14 +693,14 @@ namespace VerifyIdentityProject.Platforms.Android
                     byte[] DO8E = BuildDO8E(CC);
                     byte[] protectedAPDU = ConstructProtectedAPDU(cmdHeader, DO97, DO8E);
 
-                    Console.WriteLine($"Sending Protected APDU: {BitConverter.ToString(protectedAPDU)}");
+                    // Console.WriteLine($"Sending Protected APDU: {BitConverter.ToString(protectedAPDU)}");
 
                     // Step 2: Send command to DG1
                     byte[] RAPDU = isoDep.Transceive(protectedAPDU);
 
                     if (RAPDU.Length < 2 || RAPDU[^2] != 0x90 || RAPDU[^1] != 0x00)
                     {
-                        Console.WriteLine($"Error reading DG: {BitConverter.ToString(RAPDU)}");
+                        // Console.WriteLine($"Error reading DG: {BitConverter.ToString(RAPDU)}");
                         break;
                     }
 
@@ -714,14 +715,14 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     // Add decrypted data to fullData
                     fullData.AddRange(decryptedData);
-                    Console.WriteLine($"Decrypted Data added: {BitConverter.ToString(decryptedData)}");
+                    // Console.WriteLine($"Decrypted Data added: {BitConverter.ToString(decryptedData)}");
 
-                    Console.WriteLine($"Decrypted Data (Offset {offset}): {BitConverter.ToString(decryptedData)}");
+                    // Console.WriteLine($"Decrypted Data (Offset {offset}): {BitConverter.ToString(decryptedData)}");
 
                     // Check if the last segment has been read
                     if (decryptedData.Length < 0x20) // Less than the maximum possible per segment
                     {
-                        Console.WriteLine("End of DG reached.");
+                        // Console.WriteLine("End of DG reached.");
                         break;
                     }
 
@@ -734,7 +735,7 @@ namespace VerifyIdentityProject.Platforms.Android
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error reading DG1: ❌{ex.Message}❌");
+                // Console.WriteLine($"Error reading DG1: ❌{ex.Message}❌");
                 return null;
             }
         }
@@ -824,7 +825,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 throw new InvalidOperationException("Invalid DO87 data length.");
 
             byte[] encryptedData = do87.Skip(3).Take(dataLength).ToArray();
-            Console.WriteLine($"Encrypted Data: {BitConverter.ToString(encryptedData)}");
+            // Console.WriteLine($"Encrypted Data: {BitConverter.ToString(encryptedData)}");
 
             // Decrypt using KSEnc
             using (var tripleDes = TripleDES.Create())
@@ -837,7 +838,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 using (var decryptor = tripleDes.CreateDecryptor())
                 {
                     byte[] decryptedData = decryptor.TransformFinalBlock(encryptedData, 0, encryptedData.Length);
-                    Console.WriteLine($"Decrypted Data with padding: {BitConverter.ToString(decryptedData)}");
+                    // Console.WriteLine($"Decrypted Data with padding: {BitConverter.ToString(decryptedData)}");
 
                     // Return without padding
                     return RemovePadding(decryptedData);
@@ -908,7 +909,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 // Add padding to EIFD
                 byte[] paddedData = PadIso9797Method2(data);
-                Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
+                // Console.WriteLine($"Padded Data: {BitConverter.ToString(paddedData)}");
 
                 // MAC Step 1: Encrypt with key 1
                 byte[] intermediate = des1.CreateEncryptor().TransformFinalBlock(paddedData, 0, paddedData.Length);
@@ -957,18 +958,18 @@ namespace VerifyIdentityProject.Platforms.Android
             byte[] receivedRndIc = decryptedR.Take(8).ToArray();   // First 8 bytes
             byte[] receivedKic = decryptedR.Skip(16).Take(16).ToArray(); // Last 16 bytes
 
-            Console.WriteLine($"rndIfd: {BitConverter.ToString(rndIfd)}");
+            // Console.WriteLine($"rndIfd: {BitConverter.ToString(rndIfd)}");
 
-            Console.WriteLine($"Received RndIfd: {BitConverter.ToString(receivedRndIfd)}");
-            Console.WriteLine($"Received RndIc: {BitConverter.ToString(receivedRndIc)}");
-            Console.WriteLine($"Received Kic: {BitConverter.ToString(receivedKic)}");
+            // Console.WriteLine($"Received RndIfd: {BitConverter.ToString(receivedRndIfd)}");
+            // Console.WriteLine($"Received RndIc: {BitConverter.ToString(receivedRndIc)}");
+            // Console.WriteLine($"Received Kic: {BitConverter.ToString(receivedKic)}");
 
             // Compare `RND.IFD` with generated `RND.IFD`
             if (!receivedRndIfd.SequenceEqual(rndIfd)) // `rndIfd` is the generated data
             {
-                Console.WriteLine("Error: Received RND.IFD does not match generated RND.IFD.");
+                // Console.WriteLine("Error: Received RND.IFD does not match generated RND.IFD.");
             }
-            Console.WriteLine("RND.IFD successfully verified.");
+            // Console.WriteLine("RND.IFD successfully verified.");
             return receivedKic;
         }
 
@@ -985,7 +986,7 @@ namespace VerifyIdentityProject.Platforms.Android
                 kSeed[i] = (byte)(kIfd[i] ^ kIc[i]);
             }
 
-            Console.WriteLine($"(kSeed) Response Data: {BitConverter.ToString(kSeed)}");
+            // Console.WriteLine($"(kSeed) Response Data: {BitConverter.ToString(kSeed)}");
             return kSeed;
         }
 
@@ -1079,7 +1080,7 @@ namespace VerifyIdentityProject.Platforms.Android
             Array.Copy(rndIc2, rndIc2.Length - 4, ssc, 0, 4); // Last 4 bytes from RND.IC
             Array.Copy(rndIfd2, rndIfd2.Length - 4, ssc, 4, 4); // Last 4 bytes from RND.IFD
 
-            Console.WriteLine($"ssc: {BitConverter.ToString(ssc)}");
+            // Console.WriteLine($"ssc: {BitConverter.ToString(ssc)}");
             return ssc;
         }
 
@@ -1146,13 +1147,13 @@ namespace VerifyIdentityProject.Platforms.Android
                 int length = rapdu[index + 1];
                 byte[] do8e = new byte[length];
                 Array.Copy(rapdu, index + 2, do8e, 0, length);
-                Console.WriteLine($"DO‘8E’: {BitConverter.ToString(do8e)}");
+                // Console.WriteLine($"DO‘8E’: {BitConverter.ToString(do8e)}");
 
                 return do8e;
             }
             else
             {
-                Console.WriteLine("DO‘8E’ wasnt found in RAPDU.");
+                // Console.WriteLine("DO‘8E’ wasnt found in RAPDU.");
                 return null;
             }
         }

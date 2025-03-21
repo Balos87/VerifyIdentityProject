@@ -116,6 +116,11 @@ namespace VerifyIdentityProject.Platforms.Android
                     var appsettings = GetSecrets.FetchAppSettings();
                     string apiUrl = await APIHelper.GetAvailableUrl(appsettings?.API_URL, appsettings?.LOCAL_SERVER);
 
+                    //Perfrom BAC
+                    BacProcessor bac = new BacProcessor(this);
+                    bac.ProcessBac(isoDep);
+
+
                     // Perform PACE and retrieve MRZ data
                     var paceProcessorDG1 = new PaceProcessorDG1(isoDep);
                     Dictionary<string, string> mrz = paceProcessorDG1.PerformPaceDG1();
