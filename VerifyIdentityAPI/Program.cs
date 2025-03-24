@@ -8,6 +8,9 @@ using System.IO;
 using Microsoft.AspNetCore.Mvc;
 using System.Web.Mvc;
 using ImageMagick;
+using Microsoft.EntityFrameworkCore;
+using VerifyIdentityAPI.Data;
+using VerifyIdentityAPI.Models;
 
 namespace VerifyIdentityAPI
 {
@@ -25,6 +28,16 @@ namespace VerifyIdentityAPI
             {
                 return new TesseractEngine(@"./tessdata", "eng+ocrb+mrz+osd", EngineMode.Default);
             });
+
+            // service for context
+            builder.Services.AddDbContext<VerifyIdentityDbContext>(options =>
+            {
+                options.UseSqlServer(builder.Configuration.GetConnectionString("VerifyConnectionString"));
+            });
+
+            builder.Services.AddAuthentication();
+            builder.Services.AddAuthorization();
+            builder.Services.AddIdentityApiEndpoints<User>().AddEntityFrameworkStores<VerifyIdentityDbContext>();
 
             builder.Services.AddSingleton<IMrzService, MrzService>();
 
@@ -46,6 +59,8 @@ namespace VerifyIdentityAPI
             app.UseRouting(); // Ensure routing is configured first
 
             app.UseAuthorization();
+
+            app.MapGroup("/account").MapIdentityApi<User>();
 
             // Byte[] to JPG conversion endpoint
             app.MapPost("/api/convert/bytetojpg", async (HttpContext context) =>
