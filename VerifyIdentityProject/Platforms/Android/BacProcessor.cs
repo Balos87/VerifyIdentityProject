@@ -32,12 +32,12 @@ namespace VerifyIdentityProject.Platforms.Android
                     0xA0, 0x00, 0x00, 0x02, 0x47, 0x10, 0x01, 0x00
                 };
 
-                // Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
+                 Console.WriteLine($"selectApdu: {BitConverter.ToString(selectApdu)}");
                 byte[] response = isoDep.Transceive(selectApdu);
 
                 if (!IsSuccessfulResponse(response))
                 {
-                    // Console.WriteLine("Failed to select passport application.");
+                     Console.WriteLine("Failed to select passport application.");
                     return;
                 }
 
@@ -367,7 +367,7 @@ namespace VerifyIdentityProject.Platforms.Android
                     var fullMrz = MRZByteParser.ParseMRZBytes(completeDG1);
                     var splittedMrz = MRZByteParser.FormatMRZForBAC(fullMrz);
                     // Console.WriteLine($"Hel MRZ: {fullMrz}");
-                    // Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
+                     Console.WriteLine($"Delad MRZ:\n {splittedMrz}");
 
                     var extractedInfoFromMrz = MRZParser.ParseMRZ(splittedMrz);
 
@@ -377,7 +377,7 @@ namespace VerifyIdentityProject.Platforms.Android
 
                     foreach (var field in extractedInfoWithDescription)
                     {
-                        // Console.WriteLine($"{field.Key}: {field.Value}");
+                         Console.WriteLine($"{field.Key}: {field.Value}");
                     }
                 }
                 // Console.WriteLine("/----------------------------------------------------------------------- DG1 process finished!");
