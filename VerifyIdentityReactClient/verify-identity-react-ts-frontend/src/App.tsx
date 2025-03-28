@@ -12,7 +12,7 @@ function App() {
           <Route path='/' element={<Layout/>}>
             <Route index element={  <HomePage/>}/>
             <Route path='/account' element={<AccountPage/>}/>
-            <Route path='/' element/>
+            <Route path='/settings' element/>
         </Route>
         </Routes>
       </BrowserRouter>
