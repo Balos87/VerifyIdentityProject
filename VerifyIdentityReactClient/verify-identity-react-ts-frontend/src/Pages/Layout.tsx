@@ -1,19 +1,25 @@
 import { Link, Outlet } from 'react-router-dom'
+import { useState } from "react";
 
 const Layout = () => {
+  const[isloggedIn, setIsLoggedIn] = useState(false);
   return (
     <>
     <header>
     <nav>
         <ul>
-          <li>
-            <Link to="/">Home</Link>
-          </li>
-            <li>
-            <Link to="/account">Account</Link>
-          </li>
+          {isloggedIn &&(
+            <>
+              <li>
+                <Link to="/">Home</Link>
+              </li>
+              <li>
+                <Link to="/account">Account</Link>
+              </li>
+            </>
+          )}
         </ul>
-        </nav>  
+      </nav>  
     </header>
 
       <Outlet />
