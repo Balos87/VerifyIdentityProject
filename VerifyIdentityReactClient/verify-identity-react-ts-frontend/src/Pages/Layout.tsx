@@ -18,8 +18,8 @@ const Layout = () => {
 
       <Outlet />
 
-    <footer>
-      <hr className='br-footer'/>
+    <footer className='w-full bg-slate-700 text-gray-100 text-center p-4 absolute bottom-0 left-0'>
+      <hr className='border-t border-gray-500'/>
       <p>&copy; 2025 LearnPoint AB </p>
     </footer>
     </>

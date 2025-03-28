@@ -4,7 +4,7 @@ const HomePage = () => {
   return (
     <>
     <main>
-      <h1 className="text-xl">Welcome to LearnPoint AB</h1>
+      <h1 className="sm:mx-auto sm:w-full  text-3xl/10 tracking-widest text-center py-20">Welcome to LearnPoint AB</h1>
       <LoginCard/>
     </main>
     </>
