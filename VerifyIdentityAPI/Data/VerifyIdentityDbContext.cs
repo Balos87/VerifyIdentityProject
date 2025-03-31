@@ -8,5 +8,7 @@ namespace VerifyIdentityAPI.Data
     {
         public VerifyIdentityDbContext(DbContextOptions<VerifyIdentityDbContext> options) : base(options) { }
 
+        public DbSet<Quiz> Quizzes { get; set; }
+
     }
 }
