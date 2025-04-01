@@ -11,6 +11,9 @@ using ImageMagick;
 using Microsoft.EntityFrameworkCore;
 using VerifyIdentityAPI.Data;
 using VerifyIdentityAPI.Models;
+using VerifyIdentityAPI.Repositories.IRepositories;
+using VerifyIdentityAPI.Repositories;
+using VerifyIdentityAPI.Services.IServices;
 
 namespace VerifyIdentityAPI
 {
@@ -21,7 +24,6 @@ namespace VerifyIdentityAPI
             var builder = WebApplication.CreateBuilder(args);
 
             // Add services to the container.
-            builder.Services.AddAuthorization();
 
             // Register the Tesseract engine
             builder.Services.AddSingleton<TesseractEngine>(sp =>
@@ -40,7 +42,10 @@ namespace VerifyIdentityAPI
             builder.Services.AddIdentityApiEndpoints<User>().AddEntityFrameworkStores<VerifyIdentityDbContext>();
 
             builder.Services.AddSingleton<IMrzService, MrzService>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IUserService, UserService>();
 
+            builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -56,9 +61,28 @@ namespace VerifyIdentityAPI
 
             var app = builder.Build();
 
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment())
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
+
+            app.UseHttpsRedirection();
+
             app.UseRouting(); // Ensure routing is configured first
 
+            app.UseCors(builder => builder
+               .AllowAnyOrigin()
+               .AllowAnyMethod()
+               .AllowAnyHeader());
+
+            app.UseRouting();
+
+            app.UseAuthentication();
             app.UseAuthorization();
+
+            app.MapControllers();
 
             app.MapGroup("/account").MapIdentityApi<User>();
 
@@ -151,18 +175,9 @@ namespace VerifyIdentityAPI
                 }
             }).DisableAntiforgery(); // Allow anonymous access (bypassing anti-forgery)
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.UseSwagger();
-                app.UseSwaggerUI();
-            }
 
-            app.UseHttpsRedirection();
-            app.UseCors(builder => builder
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader());
+
+           
 
             app.Run();
         }
