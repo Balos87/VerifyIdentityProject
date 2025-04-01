@@ -14,6 +14,7 @@ using VerifyIdentityAPI.Models;
 using VerifyIdentityAPI.Repositories.IRepositories;
 using VerifyIdentityAPI.Repositories;
 using VerifyIdentityAPI.Services.IServices;
+using System.Text.Json.Serialization;
 
 namespace VerifyIdentityAPI
 {
@@ -44,6 +45,14 @@ namespace VerifyIdentityAPI
             builder.Services.AddSingleton<IMrzService, MrzService>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();
             builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IQuizRepository, QuizRepository>();
+            builder.Services.AddScoped<IQuizService, QuizService>();
+
+            //For avoiding circle referenses
+            builder.Services.AddControllers().AddJsonOptions(opt =>
+            {
+                opt.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+            });
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();

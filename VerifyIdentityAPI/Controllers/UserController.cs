@@ -21,29 +21,72 @@ namespace VerifyIdentityAPI.Controllers
         [Route("/user/register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO registerDTO)
         {
-            var checkUser = await _userManager.FindByEmailAsync(registerDTO.Email);
-            if (checkUser != null)
+            try
             {
-                return BadRequest("User already exists");
+                var checkUser = await _userManager.FindByEmailAsync(registerDTO.Email);
+                if (checkUser != null)
+                {
+                    return BadRequest("User already exists");
+                }
+                var result = await _userService.RegisterAsync(registerDTO);
+                if (result.Succeeded)
+                {
+                    return Ok(result);
+                }
+                else
+                {
+                    return BadRequest("Registration failed");
+                }
             }
-            var result = await _userService.Register(registerDTO);
-            if (result.Succeeded)
+            catch (Exception ex)
             {
-                return Ok(result);
+                return BadRequest(ex.Message);
             }
-            return BadRequest(result);
         }
 
         [HttpPost]
         [Route("/user/login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO loginDTO)
         {
-            var result = await _userService.Login(loginDTO);
-            if (result)
+            try
             {
-                return Ok("Login successful");
+                var result = await _userService.LoginAsync(loginDTO);
+                return Ok(result);
             }
-            return BadRequest("Login failed");
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        [Route("/user/{email}")]
+        public async Task<IActionResult> GetUserByEmail(string email)
+        {
+            try
+            {
+                var user = await _userService.FindUserByEmailAsync(email);
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
+        [HttpGet]
+        [Route("/user/all")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            try
+            {
+                var users = await _userService.GetAllUsersAsync();
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }

@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using VerifyIdentityAPI.Data;
 using VerifyIdentityAPI.Models;
 using VerifyIdentityAPI.Models.DTOs;
 using VerifyIdentityAPI.Repositories.IRepositories;
@@ -8,12 +10,14 @@ namespace VerifyIdentityAPI.Repositories
     public class UserRepository : IUserRepository
     {
         private readonly UserManager<User> _userManager;
-
-        public UserRepository(UserManager<User> userManager)
+        private readonly VerifyIdentityDbContext _context;
+        public UserRepository(UserManager<User> userManager, VerifyIdentityDbContext context)
         {
             _userManager = userManager;
+            _context = context;
         }
-        public async Task<bool> Login(LoginDTO loginDTO)
+
+        public async Task<bool> LoginAsync(LoginDTO loginDTO)
         {
             var user = await _userManager.FindByEmailAsync(loginDTO.Email);
             if(user== null)
@@ -23,7 +27,7 @@ namespace VerifyIdentityAPI.Repositories
             return await _userManager.CheckPasswordAsync(user, loginDTO.Password);
         }
 
-        public Task<IdentityResult> Register(RegisterDTO registerDTO)
+        public Task<IdentityResult> RegisterAsync(RegisterDTO registerDTO)
         {
             var user = new User
             {
@@ -34,6 +38,22 @@ namespace VerifyIdentityAPI.Repositories
                 BirthDate = registerDTO.BirthDate
             };
             return _userManager.CreateAsync(user, registerDTO.Password);
+        }
+
+        public async Task<User> FindUserByEmailAsync(string email)
+        {
+
+            var user = await _context.Users.Include(u => u.Quizzes).SingleOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                throw new Exception("User not found");
+            }
+            return user;
+        }
+
+        public async Task<List<User>> GetAllUsersAsync()
+        {
+            return await _context.Users.Include(u=>u.Quizzes).ToListAsync();
         }
     }
 }

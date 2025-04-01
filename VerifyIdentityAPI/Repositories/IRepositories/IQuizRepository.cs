@@ -1,6 +1,17 @@
-﻿namespace VerifyIdentityAPI.Repositories.IRepositories
+﻿using VerifyIdentityAPI.Models;
+
+namespace VerifyIdentityAPI.Repositories.IRepositories
 {
     public interface IQuizRepository
     {
+        Task AddQuizAsync(Quiz quiz);
+
+        Task<List<Quiz>> GetAllQuizAsync();
+
+        Task<Quiz> FindQuizAsync(int id);
+
+        Task AddQuizToUserAsync(Quiz quiz);
+
+        Task DeleteQuizAsync(int id);
     }
 }

@@ -7,151 +7,79 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using VerifyIdentityAPI.Data;
 using VerifyIdentityAPI.Models;
+using VerifyIdentityAPI.Models.DTOs;
+using VerifyIdentityAPI.Models.ViewModels;
+using VerifyIdentityAPI.Services.IServices;
 
 namespace VerifyIdentityAPI.Controllers
 {
     public class QuizsController : Controller
     {
-        private readonly VerifyIdentityDbContext _context;
+        private readonly IQuizService _quizService;
 
-        public QuizsController(VerifyIdentityDbContext context)
+        public QuizsController(IQuizService quizService)
         {
-            _context = context;
+            _quizService = quizService;
         }
 
-        // GET: Quizs
-        public async Task<IActionResult> Index()
-        {
-            return View(await _context.Quizzes.ToListAsync());
-        }
-
-        // GET: Quizs/Details/5
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var quiz = await _context.Quizzes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (quiz == null)
-            {
-                return NotFound();
-            }
-
-            return View(quiz);
-        }
-
-        // GET: Quizs/Create
-        public IActionResult Create()
-        {
-            return View();
-        }
-
-        // POST: Quizs/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Name")] Quiz quiz)
+        [Route("/quiz/add")]
+        public async Task<IActionResult> AddQuiz([FromBody] AddQuizDTO addQuizDTO)
         {
-            if (ModelState.IsValid)
+            try
             {
-                _context.Add(quiz);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                await _quizService.AddQuizAsync(addQuizDTO);
+                return Ok("Quiz added");
             }
-            return View(quiz);
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
 
-        // GET: Quizs/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+        [HttpGet]
+        [Route("/quiz/all")]
+        public async Task<ActionResult<List<QuizShowVM>>> GetAllQuiz()
         {
-            if (id == null)
+            try
             {
-                return NotFound();
+                var quizzes = await _quizService.GetAllQuizAsync();
+                return Ok(quizzes);
             }
-
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz == null)
+            catch (Exception ex)
             {
-                return NotFound();
+                return BadRequest(ex.Message);
             }
-            return View(quiz);
         }
 
-        // POST: Quizs/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpGet]
+        [Route("/quiz/{quizId}")]
+        public async Task<ActionResult<Quiz>> FindQuiz(int quizId)
+        {
+            try
+            {
+                var quiz = await _quizService.FindQuizAsync(quizId);
+                return Ok(quiz);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
+        }
+
         [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Name")] Quiz quiz)
+        [Route("/quiz/addToUser")]
+        public async Task<IActionResult> AddQuizToUser([FromBody] AddQuizToUserDTO addQuizToUserDTO)
         {
-            if (id != quiz.Id)
+            try
             {
-                return NotFound();
+                await _quizService.AddQuizToUserAsync(addQuizToUserDTO.QuizId, addQuizToUserDTO.Email);
+                return Ok("Quiz added to user");
             }
-
-            if (ModelState.IsValid)
+            catch (Exception ex)
             {
-                try
-                {
-                    _context.Update(quiz);
-                    await _context.SaveChangesAsync();
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!QuizExists(quiz.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-                return RedirectToAction(nameof(Index));
+                return BadRequest(ex.Message);
             }
-            return View(quiz);
-        }
-
-        // GET: Quizs/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var quiz = await _context.Quizzes
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (quiz == null)
-            {
-                return NotFound();
-            }
-
-            return View(quiz);
-        }
-
-        // POST: Quizs/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var quiz = await _context.Quizzes.FindAsync(id);
-            if (quiz != null)
-            {
-                _context.Quizzes.Remove(quiz);
-            }
-
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
-        }
-
-        private bool QuizExists(int id)
-        {
-            return _context.Quizzes.Any(e => e.Id == id);
         }
     }
 }
