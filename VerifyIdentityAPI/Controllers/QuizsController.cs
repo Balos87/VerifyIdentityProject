@@ -29,7 +29,7 @@ namespace VerifyIdentityAPI.Controllers
             try
             {
                 await _quizService.AddQuizAsync(addQuizDTO);
-                return Ok("Quiz added");
+                return Ok($"Quiz added: {addQuizDTO.Name}");
             }
             catch (Exception ex)
             {

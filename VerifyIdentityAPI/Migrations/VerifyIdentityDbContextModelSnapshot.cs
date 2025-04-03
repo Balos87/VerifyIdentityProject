@@ -178,7 +178,7 @@ namespace VerifyIdentityAPI.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Name")
+                    b.Property<string>("QuizName")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -196,7 +196,6 @@ namespace VerifyIdentityAPI.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("BirthDate")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ConcurrencyStamp")
@@ -211,11 +210,9 @@ namespace VerifyIdentityAPI.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("FirstName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("LastName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")

@@ -43,7 +43,7 @@ namespace VerifyIdentityAPI.Services
                 PhoneNumber = user.PhoneNumber,
                 Quizzes = user?.Quizzes?.Select(q=> new QuizShowVMUser
                 {
-                    Name = q.Name
+                    Name = q.QuizName
                 }).ToList()
             };
             return userDto;
@@ -65,7 +65,7 @@ namespace VerifyIdentityAPI.Services
                     PhoneNumber = user.PhoneNumber,
                     Quizzes = user?.Quizzes?.Select(q=> new QuizShowVMUser
                     {
-                        Name = q.Name
+                        Name = q.QuizName
                     }).ToList()
                 });
             }

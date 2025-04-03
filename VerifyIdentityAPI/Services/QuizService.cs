@@ -20,7 +20,7 @@ namespace VerifyIdentityAPI.Services
         {
             _quizRepository.AddQuizAsync(new Quiz
             {
-                Name = addQuizDTO.Name
+                QuizName = addQuizDTO.Name
             });
             return Task.CompletedTask;
         }
@@ -29,11 +29,12 @@ namespace VerifyIdentityAPI.Services
         {
             var quizzes = await _quizRepository.GetAllQuizAsync();
             var quizShowVMs = new List<QuizShowVM>();
+
             foreach (var quiz in quizzes)
             {
                 quizShowVMs.Add(new QuizShowVM
                 {
-                    Name = quiz.Name,
+                    Name = quiz.QuizName,
                     User = quiz.User.Select(u => new UserShowVMQuiz
                     {
                         Email = u.Email,

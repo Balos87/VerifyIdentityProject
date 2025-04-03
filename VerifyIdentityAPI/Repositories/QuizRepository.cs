@@ -43,7 +43,7 @@ namespace VerifyIdentityAPI.Repositories
         {
             _context.Quizzes.Update(new Quiz
             {
-                Name = quiz.Name,
+                QuizName = quiz.QuizName,
                 User = quiz.User
             });
             await _context.SaveChangesAsync();

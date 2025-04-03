@@ -23,11 +23,17 @@ namespace VerifyIdentityAPI.Controllers
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(registerDTO.FirstName) || string.IsNullOrWhiteSpace(registerDTO.LastName ) || string.IsNullOrWhiteSpace(registerDTO.BirthDate) || string.IsNullOrWhiteSpace(registerDTO.Email))
+                {
+                    return BadRequest($"Required fields(firstname,lastname,birthdate) cant be empty! {registerDTO.FirstName}");
+                }
+
                 var checkUser = await _userManager.FindByEmailAsync(registerDTO.Email);
                 if (checkUser != null)
                 {
-                    return BadRequest("User already exists");
+                    return BadRequest($"User already exists{registerDTO.Email}");
                 }
+
                 var result = await _userService.RegisterAsync(registerDTO);
                 if (result.Succeeded)
                 {
