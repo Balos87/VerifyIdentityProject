@@ -13,7 +13,7 @@ const QuizCard: React.FC<QuizCardProps> = ({ title, description, index }) => {
       className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm text-center hover:scale-105 transition-transform duration-300"
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut', delay: (index ?? 0) * 0.5 }}
+      transition={{ duration: 0.4, ease: 'easeOut', delay: (index ?? 0) * 0.1 }}
       whileHover={{ scale: 1.05 }}
     >
       <h2 className="text-xl font-bold text-gray-800 mb-2">{title}</h2>

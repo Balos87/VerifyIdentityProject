@@ -1,5 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import QuizCard from '../components/QuizCard';
+
+console.log("AccountPage rendered");
 
 interface Quiz {
   id: number;
