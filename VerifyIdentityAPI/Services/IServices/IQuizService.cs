@@ -12,7 +12,7 @@ namespace VerifyIdentityAPI.Services.IServices
 
         Task<Quiz> FindQuizAsync(int quizId);
 
-        Task AddQuizToUserAsync(int quizId, string userEmail);
+        Task AddQuizToUserAsync(AddQuizToUserDTO addQuizToUserDTO);
 
         Task DeleteQuizAsync(int id);
     }

@@ -10,7 +10,7 @@ namespace VerifyIdentityAPI.Repositories.IRepositories
 
         Task<Quiz> FindQuizAsync(int id);
 
-        Task AddQuizToUserAsync(Quiz quiz);
+        Task AddQuizToUserAsync(UserQuiz UserQuiz);
 
         Task DeleteQuizAsync(int id);
     }

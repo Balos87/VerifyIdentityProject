@@ -23,14 +23,14 @@ namespace VerifyIdentityAPI.Repositories
 
         public async Task<List<Quiz>> GetAllQuizAsync()
         {
-            var quiezes = await _context.Quizzes.Include(q=>q.User).ToListAsync();
+            var quiezes = await _context.Quizzes.Include(x=>x.UserQuizzes).ThenInclude(x=>x.User).ToListAsync();
 
             return quiezes;
         }
 
         public async Task<Quiz> FindQuizAsync(int quizId)
         {
-            var quiz = await _context.Quizzes.Include(q=>q.User).FirstOrDefaultAsync(q=> q.Id == quizId);
+            var quiz = await _context.Quizzes.Where(x=>x.Id == quizId).SingleOrDefaultAsync();
             if(quiz == null)
             {
                 throw new Exception("Quiz not found");
@@ -39,12 +39,12 @@ namespace VerifyIdentityAPI.Repositories
 
         }
 
-        public async Task AddQuizToUserAsync(Quiz quiz)
+        public async Task AddQuizToUserAsync(UserQuiz userQuiz)
         {
-            _context.Quizzes.Update(new Quiz
+            _context.UserQuizzes.Update(new UserQuiz
             {
-                QuizName = quiz.QuizName,
-                User = quiz.User
+                Quiz = userQuiz.Quiz,
+                User = userQuiz.User,
             });
             await _context.SaveChangesAsync();
             await Task.CompletedTask;
@@ -54,7 +54,7 @@ namespace VerifyIdentityAPI.Repositories
         {
             try
             {
-                var quiz = await _context.Quizzes.FindAsync(id);
+                var quiz = await _context.Quizzes.Include(x=>x.UserQuizzes).ThenInclude(x=>x.Quiz.Id == id).SingleOrDefaultAsync();
                 if (quiz != null)
                     _context.Quizzes.Remove(quiz);
                 await _context.SaveChangesAsync();

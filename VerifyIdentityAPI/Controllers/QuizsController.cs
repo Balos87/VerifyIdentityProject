@@ -73,7 +73,7 @@ namespace VerifyIdentityAPI.Controllers
         {
             try
             {
-                await _quizService.AddQuizToUserAsync(addQuizToUserDTO.QuizId, addQuizToUserDTO.Email);
+                await _quizService.AddQuizToUserAsync(addQuizToUserDTO);
                 return Ok("Quiz added to user");
             }
             catch (Exception ex)

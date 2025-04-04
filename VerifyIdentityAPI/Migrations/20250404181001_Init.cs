@@ -59,7 +59,7 @@ namespace VerifyIdentityAPI.Migrations
                 {
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    QuizName = table.Column<string>(type: "nvarchar(max)", nullable: false)
+                    QuizName = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -173,24 +173,34 @@ namespace VerifyIdentityAPI.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "QuizUser",
+                name: "UserQuizzes",
                 columns: table => new
                 {
-                    QuizzesId = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<string>(type: "nvarchar(450)", nullable: false)
+                    UserId_FK = table.Column<string>(type: "nvarchar(450)", nullable: false),
+                    QuizId_FK = table.Column<int>(type: "int", nullable: false),
+                    Id = table.Column<int>(type: "int", nullable: false),
+                    VerificationId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    SessionId = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    VerifIdCreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    VerifIdExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    isLocked = table.Column<bool>(type: "bit", nullable: false),
+                    UnlockedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    AccessExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    QuizIsCompleted = table.Column<bool>(type: "bit", nullable: false),
+                    QuizCompletedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_QuizUser", x => new { x.QuizzesId, x.UserId });
+                    table.PrimaryKey("PK_UserQuizzes", x => new { x.UserId_FK, x.QuizId_FK });
                     table.ForeignKey(
-                        name: "FK_QuizUser_AspNetUsers_UserId",
-                        column: x => x.UserId,
+                        name: "FK_UserQuizzes_AspNetUsers_UserId_FK",
+                        column: x => x.UserId_FK,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_QuizUser_Quizzes_QuizzesId",
-                        column: x => x.QuizzesId,
+                        name: "FK_UserQuizzes_Quizzes_QuizId_FK",
+                        column: x => x.QuizId_FK,
                         principalTable: "Quizzes",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -236,9 +246,9 @@ namespace VerifyIdentityAPI.Migrations
                 filter: "[NormalizedUserName] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
-                name: "IX_QuizUser_UserId",
-                table: "QuizUser",
-                column: "UserId");
+                name: "IX_UserQuizzes_QuizId_FK",
+                table: "UserQuizzes",
+                column: "QuizId_FK");
         }
 
         /// <inheritdoc />
@@ -260,7 +270,7 @@ namespace VerifyIdentityAPI.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
-                name: "QuizUser");
+                name: "UserQuizzes");
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");

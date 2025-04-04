@@ -32,18 +32,19 @@ namespace VerifyIdentityAPI.Services
 
             foreach (var quiz in quizzes)
             {
+                var ngt = quiz.UserQuizzes.Select(x => x.User).SingleOrDefault();
                 quizShowVMs.Add(new QuizShowVM
                 {
+                    Id = quiz.Id,
                     Name = quiz.QuizName,
-                    User = quiz.User.Select(u => new UserShowVMQuiz
+                    User = quiz.UserQuizzes.Select(x => x.User).Select(x => new UserShowVMQuiz
                     {
-                        Email = u.Email,
-                        FirstName = u.FirstName,
-                        LastName = u.LastName,
-                        BirthDate = u.BirthDate,
-                        PhoneNumber = u.PhoneNumber
-                    }).ToList(),
-                    Id = quiz.Id
+                        Email = x.Email,
+                        FirstName = x.FirstName,
+                        LastName = x.LastName,
+                        BirthDate = x.BirthDate,
+                        PhoneNumber = x.PhoneNumber
+                    }).ToList()
                 });
             }
             return quizShowVMs;
@@ -55,25 +56,20 @@ namespace VerifyIdentityAPI.Services
             return await _quizRepository.FindQuizAsync(quizId);
         }
 
-        public async Task AddQuizToUserAsync(int quizId, string userEmail)
+        public async Task AddQuizToUserAsync(AddQuizToUserDTO addQuizToUserDTO)
         {
-            var quiz = await _quizRepository.FindQuizAsync(quizId);
-            var user = await _userRepository.FindUserByEmailAsync(userEmail);
+            var quiz = await _quizRepository.FindQuizAsync(addQuizToUserDTO.QuizId);
+            var user = await _userRepository.FindUserByEmailAsync(addQuizToUserDTO.Email);
             if (user == null || quiz == null)
             {
                 throw new Exception("User or quiz not found");
             }
             else
             {
-                quiz.User.Add(user);
-               // await _quizRepository.AddQuizToUserAsync(quiz);
+                var userQuiz = new UserQuiz { User = user, Quiz = quiz };
+                await _quizRepository.AddQuizToUserAsync(userQuiz);
             }
 
-            //quiz = new Quiz
-            //{
-            //    Name = quiz.Name,
-            //    User = user //I quiz så är den en icollection men här får vi ju endast en user.
-            //};
         }
 
         public async Task DeleteQuizAsync(int quizId)

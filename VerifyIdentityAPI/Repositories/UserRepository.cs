@@ -43,7 +43,7 @@ namespace VerifyIdentityAPI.Repositories
         public async Task<User> FindUserByEmailAsync(string email)
         {
 
-            var user = await _context.Users.Include(u => u.Quizzes).SingleOrDefaultAsync(u => u.Email == email);
+            var user = await _context.Users.Include(u => u.UserQuizzes).ThenInclude(x=>x.Quiz).SingleOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 throw new Exception("User not found");
@@ -53,7 +53,7 @@ namespace VerifyIdentityAPI.Repositories
 
         public async Task<List<User>> GetAllUsersAsync()
         {
-            return await _context.Users.Include(u=>u.Quizzes).ToListAsync();
+            return await _context.Users.Include(u=>u.UserQuizzes).ThenInclude(x=>x.Quiz).ToListAsync();
         }
     }
 }

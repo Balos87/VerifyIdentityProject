@@ -12,7 +12,7 @@ using VerifyIdentityAPI.Data;
 namespace VerifyIdentityAPI.Migrations
 {
     [DbContext(typeof(VerifyIdentityDbContext))]
-    [Migration("20250403215535_Init")]
+    [Migration("20250404181001_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -158,21 +158,6 @@ namespace VerifyIdentityAPI.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("QuizUser", b =>
-                {
-                    b.Property<int>("QuizzesId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("UserId")
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("QuizzesId", "UserId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("QuizUser");
-                });
-
             modelBuilder.Entity("VerifyIdentityAPI.Models.Quiz", b =>
                 {
                     b.Property<int>("Id")
@@ -182,7 +167,6 @@ namespace VerifyIdentityAPI.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("QuizName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -264,6 +248,51 @@ namespace VerifyIdentityAPI.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("VerifyIdentityAPI.Models.UserQuiz", b =>
+                {
+                    b.Property<string>("UserId_FK")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("QuizId_FK")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("AccessExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Id")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("QuizCompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("QuizIsCompleted")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("SessionId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("UnlockedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("VerifIdCreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("VerifIdExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VerificationId")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("isLocked")
+                        .HasColumnType("bit");
+
+                    b.HasKey("UserId_FK", "QuizId_FK");
+
+                    b.HasIndex("QuizId_FK");
+
+                    b.ToTable("UserQuizzes");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -315,19 +344,33 @@ namespace VerifyIdentityAPI.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("QuizUser", b =>
+            modelBuilder.Entity("VerifyIdentityAPI.Models.UserQuiz", b =>
                 {
-                    b.HasOne("VerifyIdentityAPI.Models.Quiz", null)
-                        .WithMany()
-                        .HasForeignKey("QuizzesId")
+                    b.HasOne("VerifyIdentityAPI.Models.Quiz", "Quiz")
+                        .WithMany("UserQuizzes")
+                        .HasForeignKey("QuizId_FK")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("VerifyIdentityAPI.Models.User", null)
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("VerifyIdentityAPI.Models.User", "User")
+                        .WithMany("UserQuizzes")
+                        .HasForeignKey("UserId_FK")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Quiz");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("VerifyIdentityAPI.Models.Quiz", b =>
+                {
+                    b.Navigation("UserQuizzes");
+                });
+
+            modelBuilder.Entity("VerifyIdentityAPI.Models.User", b =>
+                {
+                    b.Navigation("UserQuizzes");
                 });
 #pragma warning restore 612, 618
         }
