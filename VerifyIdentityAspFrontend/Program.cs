@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using VerifyIdentityAspFrontend.Data;
+using VerifyIdentityAspFrontend.Services;
+using VerifyIdentityAspFrontend.Services.IServices;
 
 namespace VerifyIdentityAspFrontend
 {
@@ -18,6 +20,9 @@ namespace VerifyIdentityAspFrontend
 
             builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+
+            builder.Services.AddScoped<IVerifyUserService, VerifyUserService>();
 
             //Adding Session for cookie--------------
             builder.Services.AddSession(opt =>
@@ -42,9 +47,12 @@ namespace VerifyIdentityAspFrontend
                 app.UseHsts();
             }
 
-            app.MapGet("/Weather", () =>
+            //endpoint for recieving data from mobile app
+            app.MapPost("/userverification", async (IVerifyUserService verifyUserService, UserDTO userDTO) =>
             {
-                return "Hej";
+                var result = await verifyUserService.CheckUserDataAsync(userDTO);
+
+                return result ? Results.Ok("User verified sueccesfully") : Results.BadRequest("User verification faild");
             });
 
             //activating session using
