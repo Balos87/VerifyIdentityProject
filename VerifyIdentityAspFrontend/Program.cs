@@ -18,6 +18,14 @@ namespace VerifyIdentityAspFrontend
 
             builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ApplicationDbContext>();
+
+            //Adding Session for cookie--------------
+            builder.Services.AddSession(opt =>
+            {
+                opt.IdleTimeout = TimeSpan.FromMinutes(20);
+                opt.Cookie.IsEssential = true;
+            });
+
             builder.Services.AddRazorPages();
 
             var app = builder.Build();
@@ -38,6 +46,9 @@ namespace VerifyIdentityAspFrontend
             {
                 return "Hej";
             });
+
+            //activating session using
+            app.UseSession();
 
             app.UseHttpsRedirection();
             app.UseStaticFiles();
