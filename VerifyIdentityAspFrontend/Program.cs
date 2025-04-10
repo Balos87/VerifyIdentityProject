@@ -34,6 +34,11 @@ namespace VerifyIdentityAspFrontend
                 app.UseHsts();
             }
 
+            app.MapGet("/Weather", () =>
+            {
+                return "Hej";
+            });
+
             app.UseHttpsRedirection();
             app.UseStaticFiles();
 
