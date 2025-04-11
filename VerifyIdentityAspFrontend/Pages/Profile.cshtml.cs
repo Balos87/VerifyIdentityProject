@@ -21,7 +21,7 @@ namespace VerifyIdentityAspFrontend.Pages
 
         public void OnPostVerify()
         {
-            string sessionId = $"SessionId: {HttpContext.Session.Id}"; //fetch session id
+            string sessionId = $"{{'SessionId': '{HttpContext.Session.Id}', 'Email': '{HttpContext.Session.GetString("UserSessionId")}'}}"; //fetch session id
 
             QrCode qr = QrCode.EncodeText(sessionId, QrCode.Ecc.Medium); //Creates the QR code symbol
 

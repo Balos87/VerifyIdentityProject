@@ -31,6 +31,9 @@ namespace VerifyIdentityAspFrontend
                 opt.Cookie.IsEssential = true;
             });
 
+            //-----to use httpcontext as DI
+            builder.Services.AddHttpContextAccessor();
+
             builder.Services.AddRazorPages();
 
             var app = builder.Build();
@@ -50,10 +53,19 @@ namespace VerifyIdentityAspFrontend
             //endpoint for recieving data from mobile app
             app.MapPost("/userverification", async (IVerifyUserService verifyUserService, UserDTO userDTO) =>
             {
-                var result = await verifyUserService.CheckUserDataAsync(userDTO);
+                try
+                {
+                    await verifyUserService.CheckUserDataAsync(userDTO);
+                    return Results.Ok("User verified sueccesfully");
+                }
+                catch (Exception ex)
+                {
+                    return Results.BadRequest($"User verification faild: {ex.Message}");
+                }
 
-                return result ? Results.Ok("User verified sueccesfully") : Results.BadRequest("User verification faild");
             });
+
+            app.MapGet("/test", () => { return "hej"; });
 
             //activating session using
             app.UseSession();

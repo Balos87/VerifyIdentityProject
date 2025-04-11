@@ -8,10 +8,12 @@ namespace VerifyIdentityAspFrontend.Services
     {
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
-        public VerifyUserService(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager)
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        public VerifyUserService(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IHttpContextAccessor httpContextAccessor)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _httpContextAccessor = httpContextAccessor;
         }
 
         public async Task<bool> CheckUserDataAsync(UserDTO userDTO)
@@ -19,9 +21,13 @@ namespace VerifyIdentityAspFrontend.Services
             var user = await _userManager.FindByEmailAsync(userDTO.Email);
             if (user == null)
             {
-                return false;
+                throw new Exception($"couldn't find user with email: {userDTO.Email}");
             }
-
+            var sessId = _httpContextAccessor.HttpContext?.Session.Id;
+            if (sessId != userDTO.SessionId)
+            {
+                throw new Exception($"SessionId didnt match. Incoming-id:{userDTO.SessionId} Stored-id: {sessId}");
+            }
             var claims = new List<Claim>
             {
                 new Claim("FirstName", userDTO.FirstName),
