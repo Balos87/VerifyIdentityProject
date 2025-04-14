@@ -2,7 +2,8 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="VerifyIdentityProject.MainPage"
-             BackgroundColor="{DynamicResource PageBackgroundColor}">
+             BackgroundColor="{DynamicResource PageBackgroundColor}"
+             xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls">
 
     <!-- ✅ Wrap everything inside a Grid to avoid multiple Content properties -->
     <Grid>
@@ -11,66 +12,43 @@
             <VerticalStackLayout Padding="20,10" Spacing="25">
 
                 <!-- App Title -->
-                <Label Text="Verify Identity"
-                       FontSize="26"
-                       FontAttributes="Bold"
-                       TextColor="{DynamicResource PrimaryTextColor}"
-                       HorizontalOptions="Center" />
+                <Label Text="Verify Identity" FontSize="26" FontAttributes="Bold" TextColor="{DynamicResource PrimaryTextColor}" HorizontalOptions="Center" />
 
                 <!-- Status Window Section -->
-                <Border StrokeThickness="1"
-                        Stroke="{DynamicResource SecondaryTextColor}"
-                        Padding="10"
-                        Margin="0,5,0,5"
-                        BackgroundColor="{DynamicResource FrameBackgroundColor}"
-                        HorizontalOptions="Fill"
-                        VerticalOptions="Center">
+                <Border StrokeThickness="1" Stroke="{DynamicResource SecondaryTextColor}" Padding="10" Margin="0,5,0,5" BackgroundColor="{DynamicResource FrameBackgroundColor}" HorizontalOptions="Fill" VerticalOptions="Center">
+                    
                     <VerticalStackLayout Spacing="5">
-                        <Label Text="Status Window"
-                               FontSize="14"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource SecondaryTextColor}"
-                               HorizontalOptions="Center"
-                               Opacity="0.8" />
+                        
+                        <Label Text="Status Window" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" Opacity="0.8" />
+                        
                         <VerticalStackLayout Padding="15">
-                            <Label Text="{Binding PassportData}"
-                                   FontSize="18"
-                                   TextColor="{DynamicResource SecondaryTextColor}"
-                                   HorizontalOptions="Center"
-                                   VerticalOptions="Center"
-                                   LineBreakMode="WordWrap" />
+                            
+                            <Label Text="{Binding PassportData}" FontSize="18" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" VerticalOptions="Center" LineBreakMode="WordWrap" />
+                            
                         </VerticalStackLayout>
+                        
                     </VerticalStackLayout>
+                    
                 </Border>
 
                 <!-- Section: Capture MRZ -->
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                    
                     <VerticalStackLayout Spacing="12">
-                        <Label Text="Scan Your Passport"
-                               FontSize="18"
-                               FontAttributes="Bold"
-                               TextColor="{DynamicResource SecondaryTextColor}" />
+                        
+                        <Label Text="Scan Your Passport" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" />
 
                         <!-- ✅ Extracted MRZ is now permanently updated -->
-                        <Label Text="{Binding ExtractedMrz}"
-                               FontSize="16"
-                               FontAttributes="Italic"
-                               TextColor="{DynamicResource SecondaryTextColor}"
-                               HorizontalOptions="Center" />
+                        <Label Text="{Binding ExtractedMrz}" FontSize="16" FontAttributes="Italic" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" />
 
 
-                        <Button Text="Capture and Process MRZ"
-                                Command="{Binding ScanMrzCommand}"
-                                BackgroundColor="{DynamicResource ButtonBackgroundColor}"
-                                TextColor="{DynamicResource ButtonTextColor}"
-                                CornerRadius="5"
-                                Padding="12,8" />
+                        <Button Text="Capture and Process MRZ" Command="{Binding ScanMrzCommand}" BackgroundColor="{DynamicResource ButtonBackgroundColor}" TextColor="{DynamicResource ButtonTextColor}" CornerRadius="5" Padding="12,8" />
 
-                        <ActivityIndicator IsRunning="{Binding IsScanning}" 
-                                           IsVisible="{Binding IsScanning}"
-                                           Color="{DynamicResource PrimaryTextColor}"
-                                           HeightRequest="40" />
+                        <ActivityIndicator IsRunning="{Binding IsScanning}"  IsVisible="{Binding IsScanning}" Color="{DynamicResource PrimaryTextColor}" HeightRequest="40" />
+
+                        <zxing:CameraBarcodeReaderView x:Name="barcodeReader" BarcodesDetected="barcodeReader_BarcodesDetected" />
                     </VerticalStackLayout>
+                    
                 </Frame>
 
                 <!-- Section: Manual MRZ Entry -->

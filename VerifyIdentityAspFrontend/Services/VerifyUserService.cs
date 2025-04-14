@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
 using System.Security.Claims;
 using VerifyIdentityAspFrontend.Services.IServices;
 
@@ -9,11 +10,15 @@ namespace VerifyIdentityAspFrontend.Services
         private readonly UserManager<IdentityUser> _userManager;
         private readonly SignInManager<IdentityUser> _signInManager;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public VerifyUserService(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IHttpContextAccessor httpContextAccessor)
+
+        private readonly IMemoryCache _cache; //----------
+        string sessId = "";
+        public VerifyUserService(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IHttpContextAccessor httpContextAccessor, IMemoryCache cache)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _httpContextAccessor = httpContextAccessor;
+            _cache = cache; //----------
         }
 
         public async Task<bool> CheckUserDataAsync(UserDTO userDTO)
@@ -23,7 +28,12 @@ namespace VerifyIdentityAspFrontend.Services
             {
                 throw new Exception($"couldn't find user with email: {userDTO.Email}");
             }
-            var sessId = _httpContextAccessor.HttpContext?.Session.Id;
+            string cacheKey = $"verification_{userDTO.Email}"; //----------
+            if (_cache.TryGetValue(cacheKey, out string storedSessionId)) //----------
+            {
+                sessId = storedSessionId; //----------
+            }
+
             if (sessId != userDTO.SessionId)
             {
                 throw new Exception($"SessionId didnt match. Incoming-id:{userDTO.SessionId} Stored-id: {sessId}");

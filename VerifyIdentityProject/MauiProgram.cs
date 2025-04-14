@@ -5,6 +5,7 @@ using TesseractOcrMaui;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using VerifyIdentityProject.Services;
 using VerifyIdentityProject.ViewModels;
+using ZXing.Net.Maui.Controls;
 
 public static class MauiProgram
 {
@@ -19,7 +20,7 @@ public static class MauiProgram
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
                 fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
-            });
+            }).UseBarcodeReader();
 
         builder.Services.AddSingleton<System.Action<System.String>>(str => { });
         builder.Services.AddSingleton<AppShell>();

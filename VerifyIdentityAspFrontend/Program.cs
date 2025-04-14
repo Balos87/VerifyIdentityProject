@@ -23,6 +23,7 @@ namespace VerifyIdentityAspFrontend
 
 
             builder.Services.AddScoped<IVerifyUserService, VerifyUserService>();
+            //builder.Services.AddScoped<HttpContext>();
 
             //Adding Session for cookie--------------
             builder.Services.AddSession(opt =>
@@ -30,6 +31,8 @@ namespace VerifyIdentityAspFrontend
                 opt.IdleTimeout = TimeSpan.FromMinutes(20);
                 opt.Cookie.IsEssential = true;
             });
+
+            builder.Services.AddMemoryCache(); //----------
 
             //-----to use httpcontext as DI
             builder.Services.AddHttpContextAccessor();

@@ -115,7 +115,8 @@ namespace VerifyIdentityAspFrontend.Areas.Identity.Pages.Account
                 if (result.Succeeded)
                 {
                     _logger.LogInformation("User logged in.");
-                    HttpContext.Session.SetString("UserSessionId", Input.Email);
+                    HttpContext.Session.SetString("UserEmail", Input.Email);
+                    HttpContext.Session.SetString("UserSessionId", HttpContext.Session.Id);
                     return LocalRedirect(returnUrl);
                 }
                 if (result.RequiresTwoFactor)
