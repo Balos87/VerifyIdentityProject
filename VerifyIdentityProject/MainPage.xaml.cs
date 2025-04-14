@@ -9,7 +9,7 @@ namespace VerifyIdentityProject
     {
         private MainPageViewModel _viewModel;
         private int count;
-        private string qrData = "";
+        private string? qrData = "";
 
         public MainPage(MainPageViewModel viewModel, INfcReaderManager nfcReaderManager)
         {
@@ -33,11 +33,20 @@ namespace VerifyIdentityProject
 
         private void barcodeReader_BarcodesDetected(object sender, ZXing.Net.Maui.BarcodeDetectionEventArgs e)
         {
-            var first = e.Results.FirstOrDefault();
-            if (first is null)
-                return;
 
-            qrData = first.Value;
+            MainThread.BeginInvokeOnMainThread(() =>
+            {
+                qrData = e.Results.FirstOrDefault()?.Value;
+                barcodeReader.IsVisible = false;
+                barcodeReader.IsDetecting = false;
+                DisplayAlert("QR data:", qrData, "OK");
+            });
+        }
+
+        private void OnStartScanningClicked(object sender, EventArgs e)
+        {
+            barcodeReader.IsDetecting = true;
+            barcodeReader.IsVisible = true;
         }
     }
 }

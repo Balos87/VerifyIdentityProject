@@ -46,7 +46,17 @@
 
                         <ActivityIndicator IsRunning="{Binding IsScanning}"  IsVisible="{Binding IsScanning}" Color="{DynamicResource PrimaryTextColor}" HeightRequest="40" />
 
-                        <zxing:CameraBarcodeReaderView x:Name="barcodeReader" BarcodesDetected="barcodeReader_BarcodesDetected" />
+                        <Button Text="Start QR scanning" Clicked="OnStartScanningClicked" />
+
+                        <zxing:CameraBarcodeReaderView  
+                            x:Name="barcodeReader"
+                            IsDetecting="False"
+                            IsVisible="False"
+                            BarcodesDetected="barcodeReader_BarcodesDetected"
+                            HorizontalOptions="FillAndExpand"
+                            VerticalOptions="FillAndExpand"
+                            HeightRequest="400" />
+
                     </VerticalStackLayout>
                     
                 </Frame>
