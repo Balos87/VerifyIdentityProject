@@ -44,7 +44,7 @@ namespace VerifyIdentityProject
             });
         }
 
-        private void OnStartScanningClicked(object sender, EventArgs e)
+        private async void OnStartScanningClicked(object sender, EventArgs e)
         {
             Permissions.RequestAsync<Permissions.Camera>();
             var status =  Permissions.CheckStatusAsync<Permissions.Camera>();
@@ -54,7 +54,7 @@ namespace VerifyIdentityProject
                 status = Permissions.RequestAsync<Permissions.Camera>();
                 Console.WriteLine($"New Camera permission status: {status}");
             }
-
+            await Task.Delay(100);
             barcodeReader.IsDetecting = true;
             barcodeReader.IsVisible = true;
             cancelButton.IsEnabled = true;
