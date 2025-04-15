@@ -33,20 +33,39 @@ namespace VerifyIdentityProject
 
         private void barcodeReader_BarcodesDetected(object sender, ZXing.Net.Maui.BarcodeDetectionEventArgs e)
         {
-
+            //runs it on the main thread. 
             MainThread.BeginInvokeOnMainThread(() =>
             {
                 qrData = e.Results.FirstOrDefault()?.Value;
                 barcodeReader.IsVisible = false;
                 barcodeReader.IsDetecting = false;
+                cancelButton.IsEnabled = false;
                 DisplayAlert("QR data:", qrData, "OK");
             });
         }
 
         private void OnStartScanningClicked(object sender, EventArgs e)
         {
+            Permissions.RequestAsync<Permissions.Camera>();
+            var status =  Permissions.CheckStatusAsync<Permissions.Camera>();
+            if (status.Result.Equals("Granted") )
+            {
+                Console.WriteLine("Asking for Camera permission...");
+                status = Permissions.RequestAsync<Permissions.Camera>();
+                Console.WriteLine($"New Camera permission status: {status}");
+            }
+
             barcodeReader.IsDetecting = true;
             barcodeReader.IsVisible = true;
+            cancelButton.IsEnabled = true;
+        }
+
+        private void CancelScanning(object sender, EventArgs e)
+        {
+
+            barcodeReader.IsVisible = false;
+            barcodeReader.IsDetecting = false;
+            cancelButton.IsEnabled = false;
         }
     }
 }

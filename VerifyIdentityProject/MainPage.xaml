@@ -30,6 +30,25 @@
                     </VerticalStackLayout>
                     
                 </Border>
+                <Frame >
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Scan QR code" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" />
+                        <HorizontalStackLayout HorizontalOptions="Center" Spacing="15">
+                            <Button Text="Start QR scan" Clicked="OnStartScanningClicked" />
+                            <Button Text="Stop QR scan" Clicked="CancelScanning" IsEnabled="False" x:Name="cancelButton"/>
+                        </HorizontalStackLayout>
+
+                        <zxing:CameraBarcodeReaderView  
+                            x:Name="barcodeReader"
+                            IsDetecting="False"
+                            IsVisible="False"
+                            BarcodesDetected="barcodeReader_BarcodesDetected"
+                            HorizontalOptions="FillAndExpand"
+                            VerticalOptions="FillAndExpand"
+                            HeightRequest="400"
+                        />
+                    </VerticalStackLayout>
+                </Frame>
 
                 <!-- Section: Capture MRZ -->
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
@@ -46,16 +65,7 @@
 
                         <ActivityIndicator IsRunning="{Binding IsScanning}"  IsVisible="{Binding IsScanning}" Color="{DynamicResource PrimaryTextColor}" HeightRequest="40" />
 
-                        <Button Text="Start QR scanning" Clicked="OnStartScanningClicked" />
-
-                        <zxing:CameraBarcodeReaderView  
-                            x:Name="barcodeReader"
-                            IsDetecting="False"
-                            IsVisible="False"
-                            BarcodesDetected="barcodeReader_BarcodesDetected"
-                            HorizontalOptions="FillAndExpand"
-                            VerticalOptions="FillAndExpand"
-                            HeightRequest="400" />
+                        
 
                     </VerticalStackLayout>
                     
@@ -77,7 +87,7 @@
                                          WidthRequest="12"
                                          HeightRequest="12"
                                          Aspect="AspectFit"
-                                         Scale="0.5"
+                                         Scale="1.9"
                                          Margin="5"
                                          HorizontalOptions="End"
                                          VerticalOptions="Center" />
