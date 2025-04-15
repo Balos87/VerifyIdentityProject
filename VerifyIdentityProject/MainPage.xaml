@@ -65,7 +65,7 @@
 
                         <ActivityIndicator IsRunning="{Binding IsScanning}"  IsVisible="{Binding IsScanning}" Color="{DynamicResource PrimaryTextColor}" HeightRequest="40" />
 
-                        
+                        <Button Text="Scan QR" Clicked="GotoScanQrPage" />
 
                     </VerticalStackLayout>
                     

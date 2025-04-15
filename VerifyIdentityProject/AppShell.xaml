@@ -21,4 +21,5 @@
             Route="DeveloperLogPage"/>
     </FlyoutItem>
 
+    <ShellContent ContentTemplate="{DataTemplate local:ScanQrPage}" Route="ScanQrPage"/>
 </Shell>

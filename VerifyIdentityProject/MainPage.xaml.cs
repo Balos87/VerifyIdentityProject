@@ -67,5 +67,10 @@ namespace VerifyIdentityProject
             barcodeReader.IsDetecting = false;
             cancelButton.IsEnabled = false;
         }
+
+        private void GotoScanQrPage(object sender, EventArgs e)
+        {
+            Shell.Current.GoToAsync(nameof(ScanQrPage));
+        }
     }
 }
