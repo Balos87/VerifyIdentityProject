@@ -1,20 +1,26 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.Security.Claims;
 using VerifyIdentityAspFrontend.Services.IServices;
+using VerifyIdentityAspFrontend.Models;
+
 
 namespace VerifyIdentityAspFrontend.Services
 {
     public class VerifyUserService : IVerifyUserService
     {
-        private readonly UserManager<IdentityUser> _userManager;
-        private readonly SignInManager<IdentityUser> _signInManager;
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly IHttpContextAccessor _httpContextAccessor;
-        public VerifyUserService(UserManager<IdentityUser> userManager, SignInManager<IdentityUser> signInManager, IHttpContextAccessor httpContextAccessor)
+        public VerifyUserService(
+            UserManager<ApplicationUser> userManager,
+            SignInManager<ApplicationUser> signInManager,
+            IHttpContextAccessor httpContextAccessor)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _httpContextAccessor = httpContextAccessor;
         }
+
 
         public async Task<bool> CheckUserDataAsync(UserDTO userDTO)
         {
@@ -34,6 +40,14 @@ namespace VerifyIdentityAspFrontend.Services
                 new Claim("LastName", userDTO.LastName),
                 new Claim("SSN", userDTO.SSN)
             };
+
+            var currentSessionId = _httpContextAccessor.HttpContext?.Session.Id;
+            var emailInSession = _httpContextAccessor.HttpContext?.Session.GetString("UserSessionId");
+
+            Console.WriteLine($"Current server-side SessionId: {currentSessionId}");
+            Console.WriteLine($"Stored Email in session: {emailInSession}");
+            Console.WriteLine($"Incoming SessionId: {userDTO.SessionId}");
+            Console.WriteLine($"Incoming Email: {userDTO.Email}");
 
             var result = await _userManager.AddClaimsAsync(user, claims);
             if(!result.Succeeded) return false;
