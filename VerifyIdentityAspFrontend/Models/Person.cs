@@ -11,7 +11,7 @@
 
         public string UserId { get; set; } = string.Empty;
 
-        // Optional: back-reference
+        // back-reference, needed or not?
         public ApplicationUser? User { get; set; }
     }
 }

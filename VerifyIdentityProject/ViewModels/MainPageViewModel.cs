@@ -8,6 +8,10 @@ using Microsoft.Maui.Controls;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+
 
 #if ANDROID
 using Android.Widget;
@@ -15,7 +19,8 @@ using Android.Widget;
 
 namespace VerifyIdentityProject.ViewModels
 {
-    public class MainPageViewModel : INotifyPropertyChanged
+    public partial class MainPageViewModel : ObservableObject
+
     {
         private readonly INfcReaderManager _nfcReaderManager;
         private readonly SecretsManager _secretsManager;
@@ -35,6 +40,13 @@ namespace VerifyIdentityProject.ViewModels
         public ICommand ScanMrzCommand { get; set; }
         public ICommand ShowMrzInfoCommand { get; }
         public ICommand HideMrzInfoCommand { get; }
+
+        [RelayCommand]
+        private async Task OpenQrScanner()
+        {
+            await Shell.Current.GoToAsync("///QrScannerPage");
+
+        }
 
         public string ExtractedMrz
         {

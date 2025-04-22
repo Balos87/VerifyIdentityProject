@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Controls;
 using System;
-using VerifyIdentityProject; // Import DeveloperLogPage
+using VerifyIdentityProject;
 
 namespace VerifyIdentityProject
 {
@@ -17,6 +17,8 @@ namespace VerifyIdentityProject
             // Register routes for navigation
             Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
             Routing.RegisterRoute(nameof(DeveloperLogPage), typeof(DeveloperLogPage));
+            //Routing.RegisterRoute("QrScannerPage", typeof(QrScannerPage));
+
 
             // Add MainPage to Shell items
             Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>(), Route = nameof(MainPage) });

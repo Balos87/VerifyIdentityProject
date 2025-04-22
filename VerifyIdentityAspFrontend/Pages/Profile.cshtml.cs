@@ -16,12 +16,14 @@ namespace VerifyIdentityAspFrontend.Pages
         public string SessionId { get; set; }//for testing
         public string QrCodeImageBase64 { get; set; }
         public bool IsVerified { get; set; }
+
         //public void OnGet()
         //{
         //    Message += $"Server time: {DateTime.Now}";
         //    UserSessionId += HttpContext.Session.GetString("UserSessionId"); //for testing
         //    SessionId += HttpContext.Session.Id; //for testing
         //}
+
         public void OnGet()
         {
             Message += $"Server time: {DateTime.Now}";
@@ -32,6 +34,7 @@ namespace VerifyIdentityAspFrontend.Pages
             var verified = HttpContext.Session.GetString("UserVerified");
             IsVerified = verified == "true";
         }
+
         //public void OnPostVerify()
         //{
         //    string sessionId = $"{{'SessionId': '{HttpContext.Session.Id}', 'Email': '{HttpContext.Session.GetString("UserSessionId")}'}}"; //fetch session id
@@ -43,6 +46,7 @@ namespace VerifyIdentityAspFrontend.Pages
         //    QrCodeImageBase64 = Convert.ToBase64String(qrBytes); //converting to base64 string
 
         //}
+
         public void OnPostVerify()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);

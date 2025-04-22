@@ -112,6 +112,13 @@
                     </VerticalStackLayout>
                 </Frame>
 
+                <Button
+                    Text="Open QR Scanner"
+                    Command="{Binding OpenQrScannerCommand}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center" />
+
+
                 <!-- Section: Developer Tools -->
                 <!--<Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                     <VerticalStackLayout Spacing="12">
