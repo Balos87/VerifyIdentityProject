@@ -16,39 +16,20 @@
 
                 <!-- Status Window Section -->
                 <Border StrokeThickness="1" Stroke="{DynamicResource SecondaryTextColor}" Padding="10" Margin="0,5,0,5" BackgroundColor="{DynamicResource FrameBackgroundColor}" HorizontalOptions="Fill" VerticalOptions="Center">
-                    
-                    <VerticalStackLayout Spacing="5">
-                        
-                        <Label Text="Status Window" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" Opacity="0.8" />
-                        
-                        <VerticalStackLayout Padding="15">
-                            
-                            <Label Text="{Binding PassportData}" FontSize="18" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" VerticalOptions="Center" LineBreakMode="WordWrap" />
-                            
-                        </VerticalStackLayout>
-                        
-                    </VerticalStackLayout>
-                    
-                </Border>
-                <!--<Frame >
-                    <VerticalStackLayout Spacing="10">
-                        <Label Text="Scan QR code" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" />
-                        <HorizontalStackLayout HorizontalOptions="Center" Spacing="15">
-                            <Button Text="Start QR scan" Clicked="OnStartScanningClicked" />
-                            <Button Text="Stop QR scan" Clicked="CancelScanning" IsEnabled="False" x:Name="cancelButton"/>
-                        </HorizontalStackLayout>
 
-                        <zxing:CameraBarcodeReaderView  
-                            x:Name="barcodeReader"
-                            IsDetecting="False"
-                            IsVisible="False"
-                            BarcodesDetected="barcodeReader_BarcodesDetected"
-                            HorizontalOptions="FillAndExpand"
-                            VerticalOptions="FillAndExpand"
-                            HeightRequest="400"
-                        />
+                    <VerticalStackLayout Spacing="5">
+
+                        <Label Text="Status Window" FontSize="14" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" Opacity="0.8" />
+
+                        <VerticalStackLayout Padding="15">
+
+                            <Label Text="{Binding PassportData}" FontSize="18" TextColor="{DynamicResource SecondaryTextColor}" HorizontalOptions="Center" VerticalOptions="Center" LineBreakMode="WordWrap" />
+
+                        </VerticalStackLayout>
+
                     </VerticalStackLayout>
-                </Frame>-->
+
+                </Border>
 
                 <!-- Section: Capture MRZ -->
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
