@@ -1,27 +1,15 @@
-﻿using VerifyIdentityProject.Helpers;
-using VerifyIdentityProject.Resources.Interfaces;
-using VerifyIdentityProject.Services;
-using VerifyIdentityProject.ViewModels;
+﻿using ZXing;
 
 namespace VerifyIdentityProject
 {
-    public partial class MainPage : ContentPage
+    public partial class QrScanPage : ContentPage
     {
-        private MainPageViewModel _viewModel;
-        private int count;
         private string? qrData = "";
-
-        public MainPage(MainPageViewModel viewModel, INfcReaderManager nfcReaderManager)
+        public QrScanPage()
         {
-            InitializeComponent();
-            var copy = new CopySecrets();
-            copy.CopySecretFileToAppData();
-            copy.CopyAppSettingsFileToAppData();
+            this.InitializeComponent();
 
-            _viewModel = viewModel;
-            BindingContext = _viewModel;
-
-            //for QR-code reader
+            ////for QR-code reader
             //barcodeReader.Options = new ZXing.Net.Maui.BarcodeReaderOptions
             //{
             //    Formats = ZXing.Net.Maui.BarcodeFormat.QrCode,
@@ -30,6 +18,7 @@ namespace VerifyIdentityProject
             //    TryHarder = true,
             //};
         }
+
 
         //private void barcodeReader_BarcodesDetected(object sender, ZXing.Net.Maui.BarcodeDetectionEventArgs e)
         //{
@@ -47,8 +36,8 @@ namespace VerifyIdentityProject
         //private async void OnStartScanningClicked(object sender, EventArgs e)
         //{
         //    Permissions.RequestAsync<Permissions.Camera>();
-        //    var status =  Permissions.CheckStatusAsync<Permissions.Camera>();
-        //    if (status.Result.Equals("Granted") )
+        //    var status = Permissions.CheckStatusAsync<Permissions.Camera>();
+        //    if (status.Result.Equals("Granted"))
         //    {
         //        Console.WriteLine("Asking for Camera permission...");
         //        status = Permissions.RequestAsync<Permissions.Camera>();
@@ -67,10 +56,5 @@ namespace VerifyIdentityProject
         //    barcodeReader.IsDetecting = false;
         //    cancelButton.IsEnabled = false;
         //}
-
-        private void GotoScanQrPage(object sender, EventArgs e)
-        {
-            Shell.Current.GoToAsync(nameof(ScanQrPage));
-        }
     }
 }

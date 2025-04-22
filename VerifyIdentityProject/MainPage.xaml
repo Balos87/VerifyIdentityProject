@@ -30,7 +30,7 @@
                     </VerticalStackLayout>
                     
                 </Border>
-                <Frame >
+                <!--<Frame >
                     <VerticalStackLayout Spacing="10">
                         <Label Text="Scan QR code" FontSize="18" FontAttributes="Bold" TextColor="{DynamicResource SecondaryTextColor}" />
                         <HorizontalStackLayout HorizontalOptions="Center" Spacing="15">
@@ -48,7 +48,7 @@
                             HeightRequest="400"
                         />
                     </VerticalStackLayout>
-                </Frame>
+                </Frame>-->
 
                 <!-- Section: Capture MRZ -->
                 <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
