@@ -6,5 +6,7 @@ namespace VerifyIdentityAspFrontend.Models
     public class ApplicationUser : IdentityUser
     {
         public Person? Person { get; set; }
+        public string CustomTag { get; set; }
+
     }
 }

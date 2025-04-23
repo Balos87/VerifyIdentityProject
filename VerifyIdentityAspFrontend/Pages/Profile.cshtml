@@ -28,7 +28,7 @@ else
     </form>
 </div>
 @section Scripts {
-    <script>
+@*     <script>
         // Refresh every 3 seconds if not verified
         const isVerified = @Model.IsVerified.ToString().ToLower();
         if (!isVerified) {
@@ -36,5 +36,5 @@ else
                 window.location.reload();
             }, 3000); // 3 seconds
         }
-    </script>
+    </script> *@
 }

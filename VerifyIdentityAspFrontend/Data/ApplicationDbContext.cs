@@ -12,6 +12,7 @@ namespace VerifyIdentityAspFrontend.Data
         }
 
         public DbSet<Person> People { get; set; }
+        public DbSet<VerifyOperation> VerifyOperations { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
