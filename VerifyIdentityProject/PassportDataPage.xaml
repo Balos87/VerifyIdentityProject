@@ -6,7 +6,13 @@
     <ContentPage.Content>
         <ScrollView>
             <StackLayout Padding="9">
-                 <!--Show picture--> 
+                <Button Text="Send to Server"
+                    Clicked="OnSendToServerClicked"
+                    BackgroundColor="Green"
+                    TextColor="White"
+                    Margin="0,10"/>
+
+                <!--Show picture--> 
                 <Frame BorderColor="White" HasShadow="True" Padding="1" Margin="0,0,0,10"
                        HorizontalOptions="Center">
                     <Grid >

@@ -78,57 +78,117 @@ namespace VerifyIdentityAspFrontend
 
             });
 
+            //app.MapPost("/api/verify", async (
+            //    [FromBody] VerifyRequestDto dto,
+            //    ApplicationDbContext db,
+            //    IHttpContextAccessor httpContextAccessor
+            //) =>
+            //{
+            //    if (!VerificationStore.Verifications.TryGetValue(dto.Token, out var pending) || pending.QrExpired < DateTime.UtcNow)
+
+            //        return Results.BadRequest("Invalid or expired verification token.");
+
+            //    var user = await db.Users.Include(u => u.Person).FirstOrDefaultAsync(u => u.Id == pending.UserId);
+            //    if (user == null)
+            //        return Results.NotFound("User not found.");
+
+            //    //  If user is already linked to a Person
+            //    if (user.Person != null)
+            //    {
+            //        if (user.Person.SSN != dto.SSN)
+            //        {
+            //            return Results.Conflict("User is already linked to a different SSN.");
+            //        }
+
+            //        httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
+            //        return Results.Ok("User already verified.");
+            //    }
+
+            //    //  Check if there's an existing Person with this SSN
+            //    var existingPerson = await db.People.FirstOrDefaultAsync(p => p.SSN == dto.SSN);
+            //    if (existingPerson != null)
+            //    {
+            //        existingPerson.UserId = user.Id;
+            //        await db.SaveChangesAsync();
+
+            //        httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
+            //        return Results.Ok("Existing person linked to user.");
+            //    }
+
+            //    //  Create a new person and link it
+            //    var newPerson = new Person
+            //    {
+            //        FirstName = dto.FirstName,
+            //        LastName = dto.LastName,
+            //        SSN = dto.SSN,
+            //        UserId = user.Id
+            //    };
+
+            //    db.People.Add(newPerson);
+            //    await db.SaveChangesAsync();
+
+            //    httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
+            //    return Results.Ok("New person created and linked to user.");
+            //});
+
             app.MapPost("/api/verify", async (
-                [FromBody] VerifyRequestDto dto,
-                ApplicationDbContext db,
-                IHttpContextAccessor httpContextAccessor
-            ) =>
+                    [FromBody] VerifyRequestDto dto,
+                    ApplicationDbContext db,
+                    IHttpContextAccessor httpContextAccessor
+                ) =>
             {
-                if (!VerificationStore.Verifications.TryGetValue(dto.Token, out var pending) || pending.ExpiresAt < DateTime.UtcNow)
+                // 1. Find the VerifyOperation
+                if (!Guid.TryParse(dto.Token, out var operationId))
+                    return Results.BadRequest("Invalid token format.");
+
+                var verifyOp = await db.VerifyOperations.FindAsync(operationId);
+                if (verifyOp == null || verifyOp.QrExpired < DateTime.UtcNow)
                     return Results.BadRequest("Invalid or expired verification token.");
 
-                var user = await db.Users.Include(u => u.Person).FirstOrDefaultAsync(u => u.Id == pending.UserId);
+                // 2. Find the user linked to this operation
+                var user = await db.Users.Include(u => u.Person).FirstOrDefaultAsync(u => u.Id == verifyOp.UserId);
                 if (user == null)
                     return Results.NotFound("User not found.");
 
-                //  If user is already linked to a Person
-                if (user.Person != null)
+                var session = httpContextAccessor.HttpContext?.Session;
+                if (session == null)
+                    return Results.BadRequest("Session not found.");
+
+                // 3. If user has no Person => Create
+                if (user.Person == null)
                 {
-                    if (user.Person.SSN != dto.SSN)
+                    var newPerson = new Person
                     {
-                        return Results.Conflict("User is already linked to a different SSN.");
-                    }
+                        FirstName = dto.FirstName,
+                        LastName = dto.LastName,
+                        SSN = dto.SSN,
+                        UserId = user.Id
+                    };
 
-                    httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-                    return Results.Ok("User already verified.");
-                }
-
-                //  Check if there's an existing Person with this SSN
-                var existingPerson = await db.People.FirstOrDefaultAsync(p => p.SSN == dto.SSN);
-                if (existingPerson != null)
-                {
-                    existingPerson.UserId = user.Id;
+                    db.People.Add(newPerson);
                     await db.SaveChangesAsync();
 
-                    httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-                    return Results.Ok("Existing person linked to user.");
+                    session.SetString("UserVerified", "true");
+                    session.SetString("VerificationStatus", "success");
+                    return Results.Ok("New person created and linked to user.");
                 }
 
-                //  Create a new person and link it
-                var newPerson = new Person
+                // 4. If person exists, validate values
+                if (user.Person.FirstName == dto.FirstName &&
+                    user.Person.LastName == dto.LastName &&
+                    user.Person.SSN == dto.SSN)
                 {
-                    FirstName = dto.FirstName,
-                    LastName = dto.LastName,
-                    SSN = dto.SSN,
-                    UserId = user.Id
-                };
+                    session.SetString("UserVerified", "true");
+                    session.SetString("VerificationStatus", "success");
+                    return Results.Ok("User verified.");
+                }
 
-                db.People.Add(newPerson);
-                await db.SaveChangesAsync();
-
-                httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-                return Results.Ok("New person created and linked to user.");
+                // ? Mismatch
+                session.SetString("UserVerified", "false");
+                session.SetString("VerificationStatus", "fail");
+                return Results.Conflict("Passport data does not match user’s registered information.");
             });
+
 
 
             app.MapGet("/test", () => { return "hej"; });

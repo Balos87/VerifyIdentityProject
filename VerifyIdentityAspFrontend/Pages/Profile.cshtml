@@ -11,20 +11,25 @@
 
 @if (Model.IsVerified)
 {
-    <p class="text-green-600 font-semibold">✅ You are verified!</p>
+    <p style="color:green;">✅ You are verified</p>
 }
-else
+else if (HttpContext.Session.GetString("VerificationStatus") == "fail")
 {
-    <p class="text-red-600">❌ You are not verified yet.</p>
+    <p style="color:red;"> Passport data does not match your account</p>
 }
+
+<p><strong>Session ID:</strong> @Model.SessionId</p>
 
 <div class="" style="width:280px; height:280px; margin:15px 0;">
     @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
     {
-        <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" style="border: 1px solid grey;" />
+        <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
     }
+
     <form method="post">
-        <button type="submit" asp-page-handler="Verify">Verify</button>
+        <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
+            Generate QR Code for Verification
+        </button>
     </form>
 </div>
 @section Scripts {

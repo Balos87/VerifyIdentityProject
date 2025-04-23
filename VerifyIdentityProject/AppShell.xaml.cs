@@ -17,11 +17,12 @@ namespace VerifyIdentityProject
             // Register routes for navigation
             Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
             Routing.RegisterRoute(nameof(DeveloperLogPage), typeof(DeveloperLogPage));
+            //Routing.RegisterRoute("MainPage", typeof(MainPage));
             //Routing.RegisterRoute("QrScannerPage", typeof(QrScannerPage));
 
 
-            // Add MainPage to Shell items
-            Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>(), Route = nameof(MainPage) });
+            //// Add MainPage to Shell items
+            //Items.Add(new ShellContent { Content = serviceProvider.GetRequiredService<MainPage>(), Route = nameof(MainPage) });
         }
     }
 }

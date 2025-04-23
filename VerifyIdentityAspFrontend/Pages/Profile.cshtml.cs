@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Net.Codecrete.QrCodeGenerator;
 using System.Security.Claims;
 using System.Text;
+using VerifyIdentityAspFrontend.Data;
+using VerifyIdentityAspFrontend.Models;
 using VerifyIdentityAspFrontend.Models.Verification;
 using VerifyIdentityAspFrontend.Services;
 
@@ -16,6 +18,12 @@ namespace VerifyIdentityAspFrontend.Pages
         public string SessionId { get; set; }//for testing
         public string QrCodeImageBase64 { get; set; }
         public bool IsVerified { get; set; }
+        private readonly ApplicationDbContext _db;
+
+        public ProfileModel(ApplicationDbContext db)
+        {
+            _db = db;
+        }
 
         //public void OnGet()
         //{
@@ -26,6 +34,8 @@ namespace VerifyIdentityAspFrontend.Pages
 
         public void OnGet()
         {
+            SessionId = HttpContext.Session.Id;
+
             Message += $"Server time: {DateTime.Now}";
             UserSessionId += HttpContext.Session.GetString("UserSessionId"); //for testing
             SessionId += HttpContext.Session.Id; //for testing
@@ -47,32 +57,34 @@ namespace VerifyIdentityAspFrontend.Pages
 
         //}
 
-        public void OnPostVerify()
+        public async Task<IActionResult> OnPostVerifyAsync()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var email = User.FindFirstValue(ClaimTypes.Email)
-                        ?? HttpContext.Session.GetString("UserSessionId"); // fallback if claim isn't set
+            var sessionId = HttpContext.Session.Id;
 
-            var token = Guid.NewGuid().ToString();
-
-            VerificationStore.Verifications[token] = new PendingVerification
+            // Create and save the operation in DB
+            var operation = new VerifyOperation
             {
-                Token = token,
+                Id = Guid.NewGuid(),
                 UserId = userId,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(10)
+                SessiondId = sessionId,
+                QrCreated = DateTime.UtcNow,
+                QrExpired = DateTime.UtcNow.AddMinutes(10),
+                Status = Status.Pending
             };
 
-            var qrPayload = new
-            {
-                token,
-                email
-            };
+            _db.VerifyOperations.Add(operation);
+            await _db.SaveChangesAsync();
 
-            string json = System.Text.Json.JsonSerializer.Serialize(qrPayload);
-            var qr = QrCode.EncodeText(json, QrCode.Ecc.Medium);
+            // Generate QR Code from the operation Id
+            string idToEncode = operation.Id.ToString();
+            var qr = QrCode.EncodeText(idToEncode, QrCode.Ecc.Medium);
             var qrBytes = qr.ToPng(scale: 10, border: 2);
             QrCodeImageBase64 = Convert.ToBase64String(qrBytes);
+
+            return Page(); // Return to same page and display QR
         }
+
 
 
     }
