@@ -24,6 +24,8 @@ namespace VerifyIdentityProject.ViewModels
     {
         private readonly INfcReaderManager _nfcReaderManager;
         private readonly SecretsManager _secretsManager;
+        private readonly VerifyIdentityProject.Services.QrScannerService _qrScannerService;
+
         private readonly string _secretsFilePath = Path.Combine(FileSystem.AppDataDirectory, "secrets.json");
 
         private string _passportData;
@@ -40,6 +42,8 @@ namespace VerifyIdentityProject.ViewModels
         public ICommand ScanMrzCommand { get; set; }
         public ICommand ShowMrzInfoCommand { get; }
         public ICommand HideMrzInfoCommand { get; }
+        public ICommand ScanQrCommand { get; }
+
 
         [RelayCommand]
         private async Task OpenQrScanner()
@@ -136,9 +140,11 @@ namespace VerifyIdentityProject.ViewModels
 
             _nfcReaderManager.OnNfcProcessingCompleted -= HandleNfcProcessingCompleted;
             _nfcReaderManager.OnNfcProcessingCompleted += HandleNfcProcessingCompleted;
+            _qrScannerService = new VerifyIdentityProject.Services.QrScannerService();
 
             ExtractedMrz = "";
 
+            ScanQrCommand = new Command(async () => await ScanQrAsync());
             _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
@@ -264,6 +270,33 @@ namespace VerifyIdentityProject.ViewModels
                 PassportData = $"⚠️ Error stopping NFC: {ex.Message}";
             }
         }
+
+        private async Task ScanQrAsync()
+        {
+            try
+            {
+                PassportData = "📷 QR Scanner opening...";
+
+                var result = await _qrScannerService.ScanQrCodeAsync();
+
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    AppState.VerifyOperationId = result;
+                    PassportData = $"✅ QR Scanned: {result}";
+
+                }
+                else
+                {
+                    PassportData = "❌ QR Scan failed or canceled.";
+                }
+            }
+            catch (Exception ex)
+            {
+                PassportData = $"⚠️ Error during QR scanning: {ex.Message}";
+            }
+        }
+
+
 
         private void OnPropertyChanged(string propertyName)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

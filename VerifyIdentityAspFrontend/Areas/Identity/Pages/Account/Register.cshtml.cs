@@ -109,8 +109,11 @@ namespace VerifyIdentityAspFrontend.Areas.Identity.Pages.Account
                     }
                     else
                     {
-                        await _signInManager.SignInAsync(user, isPersistent: false);
-                        return LocalRedirect(returnUrl);
+                        //await _signInManager.SignInAsync(user, isPersistent: false);
+                        //return LocalRedirect(returnUrl);
+                        return RedirectToPage(
+                            "/Account/Login",
+                            new { area = "Identity", returnUrl });
                     }
                 }
 

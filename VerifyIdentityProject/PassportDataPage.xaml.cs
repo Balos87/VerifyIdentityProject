@@ -38,6 +38,22 @@ namespace VerifyIdentityProject
                 }
             }
         }
+        private async void OnScanQrClicked(object sender, EventArgs e)
+        {
+            var qrScanner = new QrScannerService();
+            var result = await qrScanner.ScanQrCodeAsync();
+
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                _viewModel.ShowSendButton = true;
+                await DisplayAlert("QR Scanned", "QR code was scanned and stored successfully.", "OK");
+            }
+            else
+            {
+                await DisplayAlert("Scan Cancelled", "No QR code was detected.", "OK");
+            }
+        }
+
         private async void OnSendToServerClicked(object sender, EventArgs e)
         {
             var firstName = _viewModel.DG1Data["FirstName"];

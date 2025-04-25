@@ -2,6 +2,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using VerifyIdentityProject.Helpers;
 
 namespace VerifyIdentityProject.Services
 {
@@ -12,16 +13,26 @@ namespace VerifyIdentityProject.Services
         public VerifyUserService()
         {
             _httpClient = new HttpClient();
+
+            // Fetch app settings
+            var appSettings = GetSecrets.FetchAppSettings();
+
+            // Resolve which URL to use for the ASP.NET Core backend
+            Task.Run(async () =>
+            {
+                var selectedUrl = await APIHelper.GetAvailableUrl(appSettings?.API_URL, appSettings?.ASP_LOCAL_SERVER);
+                _httpClient.BaseAddress = new Uri(selectedUrl);
+            }).Wait();
         }
 
         public async Task<bool> SendVerificationAsync(string firstName, string lastName, string ssn)
         {
-            if (string.IsNullOrWhiteSpace(Helpers.AppState.VerifyOperationId))
+            if (string.IsNullOrWhiteSpace(AppState.VerifyOperationId))
                 return false;
 
             var payload = new
             {
-                token = Helpers.AppState.VerifyOperationId,
+                operationId = AppState.VerifyOperationId,
                 firstName,
                 lastName,
                 ssn
@@ -30,7 +41,7 @@ namespace VerifyIdentityProject.Services
             var json = JsonSerializer.Serialize(payload);
             var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-            var response = await _httpClient.PostAsync("https://localhost:7157/api/verify", content);
+            var response = await _httpClient.PostAsync("api/verify", content);
             return response.IsSuccessStatusCode;
         }
     }

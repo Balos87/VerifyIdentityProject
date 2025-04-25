@@ -17,6 +17,7 @@ namespace VerifyIdentityProject
             // Register routes for navigation
             Routing.RegisterRoute(nameof(PassportDataPage), typeof(PassportDataPage));
             Routing.RegisterRoute(nameof(DeveloperLogPage), typeof(DeveloperLogPage));
+
             //Routing.RegisterRoute("MainPage", typeof(MainPage));
             //Routing.RegisterRoute("QrScannerPage", typeof(QrScannerPage));
 

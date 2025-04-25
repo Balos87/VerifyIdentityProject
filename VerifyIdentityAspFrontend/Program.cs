@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -28,26 +28,46 @@ namespace VerifyIdentityAspFrontend
             })
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
-
-
-
             builder.Services.AddScoped<IVerifyUserService, VerifyUserService>();
 
-            //Adding Session for cookie--------------
+            builder.Services.AddDistributedMemoryCache();
+            ////Adding Session for cookie--------------
+            //builder.Services.AddSession(opt =>
+            //{
+            //    opt.Cookie.Name = ".AspNetCore.Session";
+            //    opt.Cookie.HttpOnly = false; // Needed for Postman or JS to read it
+            //    opt.Cookie.SameSite = SameSiteMode.Lax; // or None for cross-domain
+            //    opt.Cookie.SecurePolicy = CookieSecurePolicy.None; // set to Always if using HTTPS
+            //    opt.IdleTimeout = TimeSpan.FromMinutes(20);
+            //    opt.Cookie.IsEssential = true;
+            //});
+
             builder.Services.AddSession(opt =>
             {
                 opt.Cookie.Name = ".AspNetCore.Session";
-                opt.Cookie.HttpOnly = false; // Needed for Postman or JS to read it
-                opt.Cookie.SameSite = SameSiteMode.Lax; // or None for cross-domain
-                opt.Cookie.SecurePolicy = CookieSecurePolicy.None; // set to Always if using HTTPS
+                opt.Cookie.HttpOnly = true;
+                opt.Cookie.SameSite = SameSiteMode.Lax;
                 opt.IdleTimeout = TimeSpan.FromMinutes(20);
                 opt.Cookie.IsEssential = true;
+
+                //// allow clear‐text during dev, require HTTPS in prod
+                //opt.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
+                //    ? CookieSecurePolicy.None
+                //    : CookieSecurePolicy.Always;
+
+                opt.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
             });
+
 
             //-----to use httpcontext as DI
             builder.Services.AddHttpContextAccessor();
-
             builder.Services.AddRazorPages();
+            builder.Services.AddCors();
+            builder.Services.AddScoped<VerifyUserService>();
+
+            //-------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------------------
 
             var app = builder.Build();
 
@@ -63,7 +83,27 @@ namespace VerifyIdentityAspFrontend
                 app.UseHsts();
             }
 
-            //endpoint for recieving data from mobile app
+            // static files, HTTPS redirect
+            app.UseHttpsRedirection();
+            app.UseStaticFiles();
+
+            // ─── ROUTING & MIDDLEWARE ────────────────────────────────────────────────────
+            // 1) Routing must come first
+            app.UseRouting();
+
+            // 2) Now the session middleware
+            app.UseSession();
+
+            // 3) Any CORS/auth/etc that relies on session or routing
+            app.UseCors(policy => policy
+                .AllowAnyOrigin()
+                .AllowAnyHeader()
+                .AllowAnyMethod());
+
+            app.UseAuthentication();
+            app.UseAuthorization();
+
+            // ─── ENDPOINT MAPPING ────────────────────────────────────────────────────────
             app.MapPost("/userverification", async (IVerifyUserService verifyUserService, UserDTO userDTO) =>
             {
                 try
@@ -78,132 +118,49 @@ namespace VerifyIdentityAspFrontend
 
             });
 
-            //app.MapPost("/api/verify", async (
-            //    [FromBody] VerifyRequestDto dto,
-            //    ApplicationDbContext db,
-            //    IHttpContextAccessor httpContextAccessor
-            //) =>
-            //{
-            //    if (!VerificationStore.Verifications.TryGetValue(dto.Token, out var pending) || pending.QrExpired < DateTime.UtcNow)
-
-            //        return Results.BadRequest("Invalid or expired verification token.");
-
-            //    var user = await db.Users.Include(u => u.Person).FirstOrDefaultAsync(u => u.Id == pending.UserId);
-            //    if (user == null)
-            //        return Results.NotFound("User not found.");
-
-            //    //  If user is already linked to a Person
-            //    if (user.Person != null)
-            //    {
-            //        if (user.Person.SSN != dto.SSN)
-            //        {
-            //            return Results.Conflict("User is already linked to a different SSN.");
-            //        }
-
-            //        httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-            //        return Results.Ok("User already verified.");
-            //    }
-
-            //    //  Check if there's an existing Person with this SSN
-            //    var existingPerson = await db.People.FirstOrDefaultAsync(p => p.SSN == dto.SSN);
-            //    if (existingPerson != null)
-            //    {
-            //        existingPerson.UserId = user.Id;
-            //        await db.SaveChangesAsync();
-
-            //        httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-            //        return Results.Ok("Existing person linked to user.");
-            //    }
-
-            //    //  Create a new person and link it
-            //    var newPerson = new Person
-            //    {
-            //        FirstName = dto.FirstName,
-            //        LastName = dto.LastName,
-            //        SSN = dto.SSN,
-            //        UserId = user.Id
-            //    };
-
-            //    db.People.Add(newPerson);
-            //    await db.SaveChangesAsync();
-
-            //    httpContextAccessor.HttpContext?.Session.SetString("UserVerified", "true");
-            //    return Results.Ok("New person created and linked to user.");
-            //});
-
             app.MapPost("/api/verify", async (
-                    [FromBody] VerifyRequestDto dto,
-                    ApplicationDbContext db,
-                    IHttpContextAccessor httpContextAccessor
-                ) =>
+                [FromBody] PassportDataDto dto,
+                IVerifyUserService verifyUserService
+            ) =>
             {
-                // 1. Find the VerifyOperation
-                if (!Guid.TryParse(dto.Token, out var operationId))
-                    return Results.BadRequest("Invalid token format.");
+                var status = await verifyUserService.ProcessVerificationAsync(
+                    dto.OperationId,
+                    dto.FirstName,
+                    dto.LastName,
+                    dto.SSN
+                );
 
-                var verifyOp = await db.VerifyOperations.FindAsync(operationId);
-                if (verifyOp == null || verifyOp.QrExpired < DateTime.UtcNow)
-                    return Results.BadRequest("Invalid or expired verification token.");
-
-                // 2. Find the user linked to this operation
-                var user = await db.Users.Include(u => u.Person).FirstOrDefaultAsync(u => u.Id == verifyOp.UserId);
-                if (user == null)
-                    return Results.NotFound("User not found.");
-
-                var session = httpContextAccessor.HttpContext?.Session;
-                if (session == null)
-                    return Results.BadRequest("Session not found.");
-
-                // 3. If user has no Person => Create
-                if (user.Person == null)
+                // Return 200 for success, 409 for mismatch, 400 for other failures
+                return status switch
                 {
-                    var newPerson = new Person
-                    {
-                        FirstName = dto.FirstName,
-                        LastName = dto.LastName,
-                        SSN = dto.SSN,
-                        UserId = user.Id
-                    };
-
-                    db.People.Add(newPerson);
-                    await db.SaveChangesAsync();
-
-                    session.SetString("UserVerified", "true");
-                    session.SetString("VerificationStatus", "success");
-                    return Results.Ok("New person created and linked to user.");
-                }
-
-                // 4. If person exists, validate values
-                if (user.Person.FirstName == dto.FirstName &&
-                    user.Person.LastName == dto.LastName &&
-                    user.Person.SSN == dto.SSN)
-                {
-                    session.SetString("UserVerified", "true");
-                    session.SetString("VerificationStatus", "success");
-                    return Results.Ok("User verified.");
-                }
-
-                // ? Mismatch
-                session.SetString("UserVerified", "false");
-                session.SetString("VerificationStatus", "fail");
-                return Results.Conflict("Passport data does not match user�s registered information.");
+                    Status.Success => Results.Ok(new { status = "Success" }),
+                    Status.Denied => Results.Conflict(new { status = "Denied" }),
+                    _ => Results.BadRequest(new { status = "Error" })
+                };
             });
 
+            app.MapGet("/api/verify-status/{sessionId}", async (
+                string sessionId,
+                ApplicationDbContext db
+            ) =>
+            {
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    return Results.BadRequest("Missing session ID.");
 
+                var operation = await db.VerifyOperations
+                    .OrderByDescending(v => v.QrCreated)
+                    .FirstOrDefaultAsync(v => v.SessiondId == sessionId);
 
-            app.MapGet("/test", () => { return "hej"; });
+                if (operation == null)
+                    return Results.NotFound();
 
-            //activating session using
+                return Results.Ok(new
+                {
+                    status = operation.Status.ToString()
+                });
+            });
 
-
-            app.UseHttpsRedirection();
-            app.UseStaticFiles();
-
-            app.UseRouting();
-
-            app.UseSession();
-
-            app.UseAuthorization();
+            app.MapGet("/test", () => { return "API Online"; });
 
             app.MapRazorPages();
 

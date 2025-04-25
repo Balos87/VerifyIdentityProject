@@ -1,91 +1,78 @@
+﻿using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Net.Codecrete.QrCodeGenerator;
 using System.Security.Claims;
-using System.Text;
 using VerifyIdentityAspFrontend.Data;
 using VerifyIdentityAspFrontend.Models;
-using VerifyIdentityAspFrontend.Models.Verification;
-using VerifyIdentityAspFrontend.Services;
 
 namespace VerifyIdentityAspFrontend.Pages
 {
     public class ProfileModel : PageModel
     {
-        [BindProperty]
-        public string Message { get; set; }
-        public string UserSessionId { get; set; }//for testing
-        public string SessionId { get; set; }//for testing
-        public string QrCodeImageBase64 { get; set; }
-        public bool IsVerified { get; set; }
         private readonly ApplicationDbContext _db;
+        public ProfileModel(ApplicationDbContext db) => _db = db;
 
-        public ProfileModel(ApplicationDbContext db)
-        {
-            _db = db;
-        }
-
-        //public void OnGet()
-        //{
-        //    Message += $"Server time: {DateTime.Now}";
-        //    UserSessionId += HttpContext.Session.GetString("UserSessionId"); //for testing
-        //    SessionId += HttpContext.Session.Id; //for testing
-        //}
+        public string SessionId { get; private set; }
+        public string? UserSessionId { get; private set; }
+        public bool IsVerified { get; private set; }
+        public string? QrCodeImageBase64 { get; private set; }
+        public string Message { get; private set; }
 
         public void OnGet()
         {
+            // 1) Lock‐in the same session every time
             SessionId = HttpContext.Session.Id;
+            UserSessionId = HttpContext.Session.GetString("UserSessionId");
+            Message = $"Server time: {DateTime.Now}";
 
-            Message += $"Server time: {DateTime.Now}";
-            UserSessionId += HttpContext.Session.GetString("UserSessionId"); //for testing
-            SessionId += HttpContext.Session.Id; //for testing
+            // 2) Has any op for *this* session succeeded?
+            IsVerified = _db.VerifyOperations
+                .Any(v => v.SessiondId == SessionId && v.Status == Status.Success);
 
-            //  Fetch the verification flag
-            var verified = HttpContext.Session.GetString("UserVerified");
-            IsVerified = verified == "true";
+            // 3) If NOT verified, fetch *the latest* pending op
+            if (!IsVerified)
+            {
+                var pending = _db.VerifyOperations
+                    .Where(v => v.SessiondId == SessionId && v.Status == Status.Pending)
+                    .OrderByDescending(v => v.QrCreated)
+                    .FirstOrDefault();
+
+                if (pending != null)
+                {
+                    var qr = QrCode.EncodeText(pending.Id.ToString(), QrCode.Ecc.Medium);
+                    var png = qr.ToPng(scale: 10, border: 2);
+                    QrCodeImageBase64 = Convert.ToBase64String(png);
+                }
+            }
         }
-
-        //public void OnPostVerify()
-        //{
-        //    string sessionId = $"{{'SessionId': '{HttpContext.Session.Id}', 'Email': '{HttpContext.Session.GetString("UserSessionId")}'}}"; //fetch session id
-
-        //    QrCode qr = QrCode.EncodeText(sessionId, QrCode.Ecc.Medium); //Creates the QR code symbol
-
-        //    byte[] qrBytes = qr.ToPng(scale: 10, border: 2); //conver to png
-
-        //    QrCodeImageBase64 = Convert.ToBase64String(qrBytes); //converting to base64 string
-
-        //}
 
         public async Task<IActionResult> OnPostVerifyAsync()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var sessionId = HttpContext.Session.Id;
 
-            // Create and save the operation in DB
-            var operation = new VerifyOperation
+            // only ever one pending per session
+            var pending = _db.VerifyOperations
+                .Where(v => v.SessiondId == sessionId && v.Status == Status.Pending)
+                .FirstOrDefault();
+
+            if (pending == null)
             {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                SessiondId = sessionId,
-                QrCreated = DateTime.UtcNow,
-                QrExpired = DateTime.UtcNow.AddMinutes(10),
-                Status = Status.Pending
-            };
+                _db.VerifyOperations.Add(new VerifyOperation
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    SessiondId = sessionId,
+                    Status = Status.Pending,
+                    QrCreated = DateTime.UtcNow,
+                    QrExpired = DateTime.UtcNow.AddHours(10)
+                });
+                await _db.SaveChangesAsync();
+            }
 
-            _db.VerifyOperations.Add(operation);
-            await _db.SaveChangesAsync();
-
-            // Generate QR Code from the operation Id
-            string idToEncode = operation.Id.ToString();
-            var qr = QrCode.EncodeText(idToEncode, QrCode.Ecc.Medium);
-            var qrBytes = qr.ToPng(scale: 10, border: 2);
-            QrCodeImageBase64 = Convert.ToBase64String(qrBytes);
-
-            return Page(); // Return to same page and display QR
+            // Post-Redirect-Get: clear the form POST 
+            return RedirectToPage();
         }
-
-
-
     }
+
 }

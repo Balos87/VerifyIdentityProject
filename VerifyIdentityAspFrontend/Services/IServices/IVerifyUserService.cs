@@ -1,8 +1,11 @@
-﻿namespace VerifyIdentityAspFrontend.Services.IServices
+﻿using VerifyIdentityAspFrontend.Models;
+
+namespace VerifyIdentityAspFrontend.Services.IServices
 {
     public interface IVerifyUserService
     {
         Task<bool> CheckUserDataAsync(UserDTO userDTO);
+        Task<Status> ProcessVerificationAsync(Guid operationId, string firstName, string lastName, string ssn);
     }
 
     public class UserDTO

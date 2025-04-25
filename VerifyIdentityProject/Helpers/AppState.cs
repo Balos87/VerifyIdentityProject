@@ -9,5 +9,6 @@ namespace VerifyIdentityProject.Helpers
     public class AppState
     {
         public static string VerifyOperationId { get; set; }
+        public static bool ShouldRestartNfc = false;
     }
 }

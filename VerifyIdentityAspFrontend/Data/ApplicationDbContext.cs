@@ -18,15 +18,19 @@ namespace VerifyIdentityAspFrontend.Data
         {
             base.OnModelCreating(builder);
 
+            // 1:1 Person ↔ User
             builder.Entity<Person>()
-                .HasIndex(p => p.SSN)
-                .IsUnique();
+                   .HasOne(p => p.User)
+                   .WithOne(u => u.Person)
+                   .HasForeignKey<Person>(p => p.UserId)
+                   .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<Person>()
-                .HasOne(p => p.User)
-                .WithOne(u => u.Person)
-                .HasForeignKey<Person>(p => p.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // 1:N VerifyOperation ↔ User
+            builder.Entity<VerifyOperation>()
+                   .HasOne(op => op.User)           // each op has one User
+                   .WithMany(u => u.VerifyOperations) // one user can have many ops
+                   .HasForeignKey(op => op.UserId)  // the FK prop
+                   .OnDelete(DeleteBehavior.Cascade);
         }
     }
 }

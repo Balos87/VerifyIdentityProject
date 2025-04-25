@@ -1,26 +1,28 @@
 ﻿@page
-@using VerifyIdentityAspFrontend.Pages
-@model ProfileModel
+@model VerifyIdentityAspFrontend.Pages.ProfileModel
 @{
     ViewData["Title"] = "Verify";
-
 }
+
 <h3>Push the button to verify your identity!</h3>
-<p>@Model.Message</p>
-<p>SessionId: @Model.SessionId</p>
 
-@if (Model.IsVerified)
-{
-    <p style="color:green;">✅ You are verified</p>
-}
-else if (HttpContext.Session.GetString("VerificationStatus") == "fail")
-{
-    <p style="color:red;"> Passport data does not match your account</p>
-}
+<p>@Model.Message</p>
+
+<div id="status-container">
+    @if (Model.IsVerified)
+    {
+        <p style="color:green;">✅ You are verified</p>
+    }
+    else
+    {
+        <p style="color:orange;">⌛ Awaiting verification...</p>
+    }
+</div>
 
 <p><strong>Session ID:</strong> @Model.SessionId</p>
+<p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p>
 
-<div class="" style="width:280px; height:280px; margin:15px 0;">
+<div style="width:280px; height:280px; margin:15px 0;">
     @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
     {
         <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
@@ -28,18 +30,42 @@ else if (HttpContext.Session.GetString("VerificationStatus") == "fail")
 
     <form method="post">
         <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
-            Generate QR Code for Verification
+            🔐 Generate QR Code for Verification
         </button>
     </form>
 </div>
+
 @section Scripts {
-@*     <script>
-        // Refresh every 3 seconds if not verified
-        const isVerified = @Model.IsVerified.ToString().ToLower();
-        if (!isVerified) {
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000); // 3 seconds
+    <script>
+        const sessionId   = '@Model.SessionId';
+        const checkInterval = 3000;
+        let   pollTimer;
+
+        async function pollStatus() {
+          try {
+            const resp = await fetch(`/api/verify-status/${sessionId}`);
+            if (!resp.ok) throw new Error(resp.statusText);
+            const { status } = await resp.json();
+            console.log("🔁 Status:", status);
+
+            if (status === "Success" || status === "Denied") {
+              clearInterval(pollTimer);
+
+              const container = document.getElementById("status-container");
+              if (status === "Success") {
+                container.innerHTML = `<p style="color:green;">✅ You are verified</p>`;
+              } else {
+                container.innerHTML = `<p style="color:red;">❌ Denied</p>`;
+              }
+            }
+          } catch (err) {
+            console.error("Status check failed ❌", err);
+          }
         }
-    </script> *@
+
+        // Kick off polling _once_ every 3s
+        pollTimer = setInterval(pollStatus, checkInterval);
+        pollStatus(); // also run immediately
+    </script>
 }
+
