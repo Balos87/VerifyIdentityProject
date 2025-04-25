@@ -10,8 +10,6 @@
         public string SSN { get; set; } = string.Empty;
 
         public string UserId { get; set; } = string.Empty;
-
-        // back-reference, needed or not?
         public ApplicationUser? User { get; set; }
     }
 }

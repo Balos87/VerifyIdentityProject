@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using VerifyIdentityAspFrontend.Data;
+using VerifyIdentityAspFrontend.Models;
 using VerifyIdentityAspFrontend.Services;
 using VerifyIdentityAspFrontend.Services.IServices;
 
@@ -18,12 +19,11 @@ namespace VerifyIdentityAspFrontend
                 options.UseSqlServer(connectionString));
             builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-            builder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true)
+            builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true)
                 .AddEntityFrameworkStores<ApplicationDbContext>();
 
 
             builder.Services.AddScoped<IVerifyUserService, VerifyUserService>();
-            //builder.Services.AddScoped<HttpContext>();
 
             //Adding Session for cookie--------------
             builder.Services.AddSession(opt =>

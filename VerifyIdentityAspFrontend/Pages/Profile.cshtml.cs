@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 using Net.Codecrete.QrCodeGenerator;
 using System.Text;
+using VerifyIdentityAspFrontend.Data;
+using VerifyIdentityAspFrontend.Models;
 
 namespace VerifyIdentityAspFrontend.Pages
 {
@@ -15,12 +18,17 @@ namespace VerifyIdentityAspFrontend.Pages
         public string UserSessionId { get; set; }//for testing
         public string SessionId { get; set; }//for testing
         public string QrCodeImageBase64 { get; set; }
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _dbContext;
 
         private readonly IMemoryCache _cache;  //----------
 
-        public ProfileModel(IMemoryCache cache)  //----------
+        public ProfileModel(IMemoryCache cache, UserManager<ApplicationUser> userManager, ApplicationDbContext dbContext)  //----------
         {
             _cache = cache; //----------
+            _userManager = userManager;
+            _dbContext = dbContext;
+
         }
         public void OnGet()
         {
@@ -34,16 +42,38 @@ namespace VerifyIdentityAspFrontend.Pages
             _cache.Set(cacheKey, SessionId, TimeSpan.FromMinutes(10)); //----------
         }
 
-        public void OnPostVerify()
+        public async Task<IActionResult> OnPostVerify()
         {
-            string sessionId = $"{{'SessionId': '{HttpContext.Session.Id}', 'Email': '{HttpContext.Session.GetString("UserEmail")}'}}"; //fetch session id
+            var userEmail = HttpContext.Session.GetString("UserEmail");
+            if (string.IsNullOrEmpty(userEmail))
+            {
+                // Handle the case where the email is null or empty  
+                throw new ArgumentException("User email is not available in the session.");
+            }
 
-            QrCode qr = QrCode.EncodeText(sessionId, QrCode.Ecc.Medium); //Creates the QR code symbol
+            var user = await _userManager.FindByEmailAsync(userEmail);
+            if (user == null)
+            {
+                throw new Exception("User not found.");
+            }
 
-            byte[] qrBytes = qr.ToPng(scale: 10, border: 2); //conver to png
+            var operation = new VerifyOperation
+            {
+                UserId = user.Id,
+                SessiondId = HttpContext.Session.Id,
+            };
+            _dbContext.Operations.Add(operation);
+            await _dbContext.SaveChangesAsync();
 
-            QrCodeImageBase64 = Convert.ToBase64String(qrBytes); //converting to base64 string
+            var operationId = operation.Id.ToString();
 
+            QrCode qr = QrCode.EncodeText(operationId, QrCode.Ecc.Medium); // Creates the QR code symbol  
+
+            byte[] qrBytes = qr.ToPng(scale: 10, border: 2); // Convert to PNG  
+
+            QrCodeImageBase64 = Convert.ToBase64String(qrBytes); // Convert to Base64 string  
+
+            return Page();
         }
     }
 }
