@@ -28,22 +28,22 @@ namespace VerifyIdentityAspFrontend.Services
 
         public async Task<bool> CheckUserDataAsync(UserDTO userDTO)
         {
-            //check if operation exists
+            //1.check if operation exists
             var operation = await _context.Operations.SingleOrDefaultAsync(x => x.Id.ToString() == userDTO.OperationId);
             if (operation == null)
                 return false;
 
-            //check expireation date
+            //2.check expireation date
             if (operation.QrExpired > DateTime.UtcNow)
                 return false;
 
-            // Fetch the user from the operation  
+            //3.Fetch the user from the operation  
             var user = await _userManager.Users.Include(u=>u.Person).SingleOrDefaultAsync(u => u.Id == operation.UserId);
 
-            // Check if the user has a person associated with them  
+            //4.Check if the user has a person associated with them  
             if (user?.Person != null)
             {
-                // If a person is associated, verify the incoming details against that person
+                //5.If a person is associated, verify the incoming details against that person
                 if (user.Person.FirstName == userDTO.FirstName && user.Person.LastName == userDTO.LastName && user.Person.SSN == userDTO.SSN)
                 {
                     operation.Status = Status.Success;
@@ -56,7 +56,7 @@ namespace VerifyIdentityAspFrontend.Services
             }
             else
             {
-                // If not, create a person and then save 
+                //6.If not, create a person and then save 
                 var newPers = new Person
                 {
                     FirstName = userDTO.FirstName,
@@ -66,7 +66,7 @@ namespace VerifyIdentityAspFrontend.Services
                 };
                 _context.People.Add(newPers);
 
-                // Set the status to verified  
+                //7.Set the status to verified  
                 operation.Status = Status.Success;
 
             }
