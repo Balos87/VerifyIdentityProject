@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.Maui.Controls;
+using VerifyIdentityProject.Services;
 
 namespace VerifyIdentityProject
 {
@@ -37,5 +38,36 @@ namespace VerifyIdentityProject
                 }
             }
         }
+        private async void OnScanQrClicked(object sender, EventArgs e)
+        {
+            var qrScanner = new QrScannerService();
+            var result = await qrScanner.ScanQrCodeAsync();
+
+            if (!string.IsNullOrWhiteSpace(result))
+            {
+                _viewModel.ShowSendButton = true;
+                await DisplayAlert("QR Scanned", "QR code was scanned and stored successfully.", "OK");
+            }
+            else
+            {
+                await DisplayAlert("Scan Cancelled", "No QR code was detected.", "OK");
+            }
+        }
+
+        private async void OnSendToServerClicked(object sender, EventArgs e)
+        {
+            var firstName = _viewModel.DG1Data["FirstName"];
+            var lastName = _viewModel.DG1Data["LastName"];
+            var ssn = _viewModel.DG1Data["SSN"];
+
+            var service = new VerifyUserService();
+            var success = await service.SendVerificationAsync(firstName, lastName, ssn);
+
+            if (success)
+                await DisplayAlert("Success ", "Verification sent!", "OK");
+            else
+                await DisplayAlert("Error ", "Could not verify user.", "OK");
+        }
+
     }
 }

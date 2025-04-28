@@ -8,6 +8,10 @@ using Microsoft.Maui.Controls;
 using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.Services;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+
 
 #if ANDROID
 using Android.Widget;
@@ -15,10 +19,13 @@ using Android.Widget;
 
 namespace VerifyIdentityProject.ViewModels
 {
-    public class MainPageViewModel : INotifyPropertyChanged
+    public partial class MainPageViewModel : ObservableObject
+
     {
         private readonly INfcReaderManager _nfcReaderManager;
         private readonly SecretsManager _secretsManager;
+        private readonly VerifyIdentityProject.Services.QrScannerService _qrScannerService;
+
         private readonly string _secretsFilePath = Path.Combine(FileSystem.AppDataDirectory, "secrets.json");
 
         private string _passportData;
@@ -35,6 +42,15 @@ namespace VerifyIdentityProject.ViewModels
         public ICommand ScanMrzCommand { get; set; }
         public ICommand ShowMrzInfoCommand { get; }
         public ICommand HideMrzInfoCommand { get; }
+        public ICommand ScanQrCommand { get; }
+
+
+        [RelayCommand]
+        private async Task OpenQrScanner()
+        {
+            await Shell.Current.GoToAsync("///QrScannerPage");
+
+        }
 
         public string ExtractedMrz
         {
@@ -73,39 +89,39 @@ namespace VerifyIdentityProject.ViewModels
         public bool IsMrzInfoVisible
         {
             get => _isMrzInfoVisible;
-            set
-            {
-                if (_isMrzInfoVisible != value)
-                {
-                    _isMrzInfoVisible = value;
-                    OnPropertyChanged(nameof(IsMrzInfoVisible));
-                }
-            }
+            set => SetProperty(ref _isMrzInfoVisible, value);
+            //{ 
+            //    //if (_isMrzInfoVisible != value)
+            //    //{
+            //    //    _isMrzInfoVisible = value;
+            //    //    OnPropertyChanged(nameof(IsMrzInfoVisible));
+            //    //}
+            //}
         }
         public string PassportData
         {
             get => _passportData;
-            set
-            {
-                if (_passportData != value)
-                {
-                    _passportData = value;
-                    OnPropertyChanged(nameof(PassportData));
-                }
-            }
+            set => SetProperty(ref _passportData, value);
+            //{
+            //    if (_passportData != value)
+            //    {
+            //        _passportData = value;
+            //        OnPropertyChanged(nameof(PassportData));
+            //    }
+            //}
         }
 
         public bool IsScanning
         {
             get => _isScanning;
-            set
-            {
-                if (_isScanning != value)
-                {
-                    _isScanning = value;
-                    OnPropertyChanged(nameof(IsScanning));
-                }
-            }
+            set => SetProperty(ref _isScanning, value);
+            //{
+            //    if (_isScanning != value)
+            //    {
+            //        _isScanning = value;
+            //        OnPropertyChanged(nameof(IsScanning));
+            //    }
+            //}
         }
 
         public MainPageViewModel(INfcReaderManager nfcReaderManager)
@@ -124,9 +140,11 @@ namespace VerifyIdentityProject.ViewModels
 
             _nfcReaderManager.OnNfcProcessingCompleted -= HandleNfcProcessingCompleted;
             _nfcReaderManager.OnNfcProcessingCompleted += HandleNfcProcessingCompleted;
+            _qrScannerService = new VerifyIdentityProject.Services.QrScannerService();
 
             ExtractedMrz = "";
 
+            ScanQrCommand = new Command(async () => await ScanQrAsync());
             _secretsManager = new SecretsManager(_secretsFilePath);
             StartNfcCommand = new Command(StartNfc);
             StopNfcCommand = new Command(StopNfc);
@@ -252,6 +270,33 @@ namespace VerifyIdentityProject.ViewModels
                 PassportData = $"⚠️ Error stopping NFC: {ex.Message}";
             }
         }
+
+        private async Task ScanQrAsync()
+        {
+            try
+            {
+                PassportData = "📷 QR Scanner opening...";
+
+                var result = await _qrScannerService.ScanQrCodeAsync();
+
+                if (!string.IsNullOrWhiteSpace(result))
+                {
+                    AppState.VerifyOperationId = result;
+                    PassportData = $"✅ QR Scanned: {result}";
+
+                }
+                else
+                {
+                    PassportData = "❌ QR Scan failed or canceled.";
+                }
+            }
+            catch (Exception ex)
+            {
+                PassportData = $"⚠️ Error during QR scanning: {ex.Message}";
+            }
+        }
+
+
 
         private void OnPropertyChanged(string propertyName)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

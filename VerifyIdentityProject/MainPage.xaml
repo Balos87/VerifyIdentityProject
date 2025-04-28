@@ -112,8 +112,25 @@
                     </VerticalStackLayout>
                 </Frame>
 
-                <!-- Section: Developer Tools -->
-                <!--<Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
+                <!--Not Used-->
+                
+                <!--<Button Text="Scan QR Code"
+                    Command="{Binding ScanQrCommand}"
+                    BackgroundColor="{DynamicResource ButtonBackgroundColor}"
+                    TextColor="{DynamicResource ButtonTextColor}"
+                    CornerRadius="5"
+                    Padding="12,8" />
+
+                <Button
+                    Text="Open QR Scanner"
+                    Command="{Binding OpenQrScannerCommand}"
+                    HorizontalOptions="Center"
+                    VerticalOptions="Center" />-->
+                
+                <!--Not Used End-->
+
+                 <!--Section: Developer Tools 
+                <Frame BackgroundColor="{DynamicResource FrameBackgroundColor}" Padding="20" CornerRadius="10">
                     <VerticalStackLayout Spacing="12">
                         <Label Text="Developer Tools"
                                FontSize="18"

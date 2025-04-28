@@ -1,4 +1,5 @@
-﻿using VerifyIdentityProject.Helpers;
+﻿using CommunityToolkit.Mvvm.Input;
+using VerifyIdentityProject.Helpers;
 using VerifyIdentityProject.Resources.Interfaces;
 using VerifyIdentityProject.Services;
 using VerifyIdentityProject.ViewModels;
@@ -18,7 +19,12 @@ namespace VerifyIdentityProject
 
             _viewModel = viewModel;
             BindingContext = _viewModel;
+
         }
 
+
+
     }
+
+
 }

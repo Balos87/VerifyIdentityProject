@@ -6,29 +6,29 @@
     <ContentPage.Content>
         <ScrollView>
             <StackLayout Padding="9">
-                 <!--Show picture--> 
+
+                <Button Text="Scan QR Code"
+                        Clicked="OnScanQrClicked"
+                        BackgroundColor="RoyalBlue"
+                        TextColor="White"
+                        Margin="0,10" />
+
+                <Button Text="Send to Server"
+                        Clicked="OnSendToServerClicked"
+                        BackgroundColor="Green"
+                        TextColor="White"
+                        IsVisible="{Binding ShowSendButton}"
+                        Margin="0,10" />
+
+                <!-- Show picture -->
                 <Frame BorderColor="White" HasShadow="True" Padding="1" Margin="0,0,0,10"
                        HorizontalOptions="Center">
-                    <Grid >
+                    <Grid>
                         <Image Source="{Binding PassportImage}"  
-                         Aspect="AspectFit"
-                         HorizontalOptions="Center" HeightRequest="260" WidthRequest="195"/>
+                               Aspect="AspectFit"
+                               HorizontalOptions="Center" HeightRequest="260" WidthRequest="195"/>
                     </Grid>
                 </Frame>
-
-                <!--<Border Stroke="Gray" 
-                        StrokeThickness="1"
-                        Background="White"
-                        StrokeShape="Rectangle"
-                        Padding="1" 
-                        Margin="0,0,0,10" 
-                        HorizontalOptions="Center">
-                    <Grid >
-                        <Image Source="{Binding PassportImage}"  
-                         Aspect="AspectFit"
-                         HorizontalOptions="Center" HeightRequest="260" WidthRequest="195"/>
-                    </Grid>
-                </Border>-->
 
                 <!-- Show MRZ-data -->
                 <Label Text="Passport Data" FontSize="24" FontAttributes="Bold" Margin="0,10,0,10"/>
@@ -56,7 +56,7 @@
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                
+
             </StackLayout>
         </ScrollView>
     </ContentPage.Content>

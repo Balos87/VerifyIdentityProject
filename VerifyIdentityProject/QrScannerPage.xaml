@@ -1,0 +1,34 @@
+<ContentPage  
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"  
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"  
+    xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+    x:Class="VerifyIdentityProject.QrScannerPage">
+
+
+    <Grid>
+
+
+        <zxing:CameraBarcodeReaderView x:Name="cameraView"  
+                                       IsDetecting="True"  
+                                       IsTorchOn="False"  
+                                       BarcodesDetected="OnBarcodesDetected"  
+                                       HorizontalOptions="FillAndExpand"  
+                                       VerticalOptions="FillAndExpand" />
+
+
+        <VerticalStackLayout Padding="20"
+                             VerticalOptions="End"
+                             Spacing="10"
+                             BackgroundColor="#80000000">
+
+            <Button Text="Capture"
+                    Command="{Binding CaptureCommand}"
+                    BackgroundColor="DarkBlue"
+                    TextColor="White"
+                    CornerRadius="8"
+                    Padding="12,6"
+                    HorizontalOptions="Center" />
+        </VerticalStackLayout>
+
+    </Grid>
+</ContentPage>

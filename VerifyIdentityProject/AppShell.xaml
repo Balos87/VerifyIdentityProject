@@ -20,5 +20,13 @@
             ContentTemplate="{DataTemplate local:DeveloperLogPage}" 
             Route="DeveloperLogPage"/>
     </FlyoutItem>
+    
+    <FlyoutItem Title="QR Scanner">
+        <ShellContent 
+        Title="QR Scanner" 
+        ContentTemplate="{DataTemplate local:QrScannerPage}" 
+        Route="QrScannerPage"/>
+    </FlyoutItem>
+
 
 </Shell>

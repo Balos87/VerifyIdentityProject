@@ -12,6 +12,16 @@ namespace VerifyIdentityProject
         private Dictionary<string, string> _dg1Data;
         private byte[] _imageData;
         private ImageSource _passportImage;
+        private bool _showSendButton;
+        public bool ShowSendButton
+        {
+            get => _showSendButton;
+            set
+            {
+                _showSendButton = value;
+                OnPropertyChanged();
+            }
+        }
 
         public Dictionary<string, string> DG1Data
         {

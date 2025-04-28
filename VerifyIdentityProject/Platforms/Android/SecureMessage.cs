@@ -200,9 +200,12 @@ namespace VerifyIdentityProject.Platforms.Android
 
                 var extractedInfoFromMrz = MRZParser.ParseMRZ(splittedMrz);
 
-                _dictionaryMrzData = MRZParser.ToDictionary(extractedInfoFromMrz);
+                //_dictionaryMrzData = MRZParser.ToDictionary(extractedInfoFromMrz);
+                var rawDictionary = MRZParser.ToDictionary(extractedInfoFromMrz);
+                _dictionaryMrzData = MRZMapper.MapToStandardKeys(rawDictionary);
 
-                var parsedMRZ = MRZParser.ParseMRZ(splittedMrz);
+
+                //var parsedMRZ = MRZParser.ParseMRZ(splittedMrz);
 
                 foreach (var field in _dictionaryMrzData)
                 {
