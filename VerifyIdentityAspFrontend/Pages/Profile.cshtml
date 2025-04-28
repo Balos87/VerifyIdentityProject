@@ -22,17 +22,27 @@
 <p><strong>Session ID:</strong> @Model.SessionId</p>
 <p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p>
 
-<div style="width:280px; height:280px; margin:15px 0;">
-    @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
+<div >
+    @if (!Model.IsVerified)
     {
-        <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
+        <div style="width:280px; height:280px; margin:15px 0;">
+            @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
+            {
+                <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
+            }
+
+            <form method="post">
+                <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
+                    🔐 Generate QR Code for Verification
+                </button>
+            </form>
+        </div>
+    }
+    else
+    {
+        <p>NO QR CODE</p>
     }
 
-    <form method="post">
-        <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
-            🔐 Generate QR Code for Verification
-        </button>
-    </form>
 </div>
 
 @section Scripts {

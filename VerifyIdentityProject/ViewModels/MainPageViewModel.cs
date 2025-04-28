@@ -89,39 +89,39 @@ namespace VerifyIdentityProject.ViewModels
         public bool IsMrzInfoVisible
         {
             get => _isMrzInfoVisible;
-            set
-            {
-                if (_isMrzInfoVisible != value)
-                {
-                    _isMrzInfoVisible = value;
-                    OnPropertyChanged(nameof(IsMrzInfoVisible));
-                }
-            }
+            set => SetProperty(ref _isMrzInfoVisible, value);
+            //{ 
+            //    //if (_isMrzInfoVisible != value)
+            //    //{
+            //    //    _isMrzInfoVisible = value;
+            //    //    OnPropertyChanged(nameof(IsMrzInfoVisible));
+            //    //}
+            //}
         }
         public string PassportData
         {
             get => _passportData;
-            set
-            {
-                if (_passportData != value)
-                {
-                    _passportData = value;
-                    OnPropertyChanged(nameof(PassportData));
-                }
-            }
+            set => SetProperty(ref _passportData, value);
+            //{
+            //    if (_passportData != value)
+            //    {
+            //        _passportData = value;
+            //        OnPropertyChanged(nameof(PassportData));
+            //    }
+            //}
         }
 
         public bool IsScanning
         {
             get => _isScanning;
-            set
-            {
-                if (_isScanning != value)
-                {
-                    _isScanning = value;
-                    OnPropertyChanged(nameof(IsScanning));
-                }
-            }
+            set => SetProperty(ref _isScanning, value);
+            //{
+            //    if (_isScanning != value)
+            //    {
+            //        _isScanning = value;
+            //        OnPropertyChanged(nameof(IsScanning));
+            //    }
+            //}
         }
 
         public MainPageViewModel(INfcReaderManager nfcReaderManager)
