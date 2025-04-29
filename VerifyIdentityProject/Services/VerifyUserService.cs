@@ -21,6 +21,7 @@ namespace VerifyIdentityProject.Services
             Task.Run(async () =>
             {
                 var selectedUrl = await APIHelper.GetAvailableUrl(appSettings?.API_URL, appSettings?.ASP_LOCAL_SERVER);
+                Console.WriteLine("👉 Using backend URL: " + selectedUrl);
                 _httpClient.BaseAddress = new Uri(selectedUrl);
             }).Wait();
         }

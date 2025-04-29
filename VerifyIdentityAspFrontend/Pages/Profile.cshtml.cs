@@ -4,6 +4,7 @@ using Net.Codecrete.QrCodeGenerator;
 using System.Security.Claims;
 using VerifyIdentityAspFrontend.Data;
 using VerifyIdentityAspFrontend.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace VerifyIdentityAspFrontend.Pages
 {
@@ -17,6 +18,7 @@ namespace VerifyIdentityAspFrontend.Pages
         public bool IsVerified { get; private set; }
         public string? QrCodeImageBase64 { get; private set; }
         public string Message { get; private set; }
+        public Person PersonInfo { get; private set; }
 
         public void OnGet()
         {
@@ -24,6 +26,10 @@ namespace VerifyIdentityAspFrontend.Pages
             SessionId = HttpContext.Session.Id;
             UserSessionId = HttpContext.Session.GetString("UserSessionId");
             Message = $"Server time: {DateTime.Now}";
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var pers = _db.People.Include(p => p.User).Where(u => u.UserId == userId).FirstOrDefault();
+            PersonInfo = pers;
 
             // 2) Has any op for *this* session succeeded?
             IsVerified = _db.VerifyOperations
@@ -48,6 +54,7 @@ namespace VerifyIdentityAspFrontend.Pages
 
         public async Task<IActionResult> OnPostVerifyAsync()
         {
+            HttpContext.Session.Remove("reloaded");
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var sessionId = HttpContext.Session.Id;
 

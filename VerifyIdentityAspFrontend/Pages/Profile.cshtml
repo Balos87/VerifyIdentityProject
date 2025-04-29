@@ -4,9 +4,9 @@
     ViewData["Title"] = "Verify";
 }
 
-<h3>Push the button to verify your identity!</h3>
+<h3 id="verify-h3">Push the button to verify your identity!</h3>
 
-<p>@Model.Message</p>
+@* <p>@Model.Message</p> *@
 
 <div id="status-container">
     @if (Model.IsVerified)
@@ -19,8 +19,8 @@
     }
 </div>
 
-<p><strong>Session ID:</strong> @Model.SessionId</p>
-<p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p>
+@* <p><strong>Session ID:</strong> @Model.SessionId</p>
+<p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p> *@
 
 <div >
     @if (!Model.IsVerified)
@@ -40,7 +40,12 @@
     }
     else
     {
-        <p>NO QR CODE</p>
+    @*     <h3>Verified user information</h3>
+        <p>@Model.PersonInfo.FirstName</p>
+        <p>@Model.PersonInfo.LastName</p>
+        <p>@Model.PersonInfo.SSN</p> *@
+
+       
     }
 
 </div>
@@ -62,8 +67,22 @@
               clearInterval(pollTimer);
 
               const container = document.getElementById("status-container");
+              const verifyHeader = document.getElementById("verify-h3");
+
               if (status === "Success") {
-                container.innerHTML = `<p style="color:green;">✅ You are verified</p>`;
+                container.innerHTML = `✅<span>@Model.PersonInfo.FirstName @Model.PersonInfo.LastName</span> <p style="color:green;">✅ You are verified</p>`;
+                verifyHeader.style.display = 'none';
+
+                const button = document.querySelector('form button');
+                if (button) {
+                    button.style.display = 'none';
+                }
+
+                 if (!sessionStorage.getItem("reloaded")) {
+                    sessionStorage.setItem("reloaded", "true");
+                    window.location.reload();
+                }
+
               } else {
                 container.innerHTML = `<p style="color:red;">❌ Denied</p>`;
               }

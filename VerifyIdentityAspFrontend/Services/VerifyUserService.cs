@@ -79,11 +79,7 @@ namespace VerifyIdentityAspFrontend.Services
         //    return verifyOp.Status;
         //}
 
-        public async Task<Status> ProcessVerificationAsync(
-    Guid operationId,
-    string firstName,
-    string lastName,
-    string ssn)
+        public async Task<Status> ProcessVerificationAsync( Guid operationId,string firstName, string lastName,string ssn)
         {
             // 1) Fetch the VerifyOperation + its linked user
             var verifyOp = await _db.VerifyOperations
