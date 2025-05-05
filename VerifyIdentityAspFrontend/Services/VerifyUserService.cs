@@ -25,65 +25,12 @@ namespace VerifyIdentityAspFrontend.Services
             _httpContextAccessor = httpContextAccessor;
             _db = db;
         }
-        //public async Task<Status> ProcessVerificationAsync(Guid operationId, string firstName, string lastName, string ssn)
-        //{
-        //    var verifyOp = await _db.VerifyOperations
-        //                            .Include(v => v.User)
-        //                                .ThenInclude(u => u.Person)
-        //                            .FirstOrDefaultAsync(v => v.Id == operationId);
-        //    if (verifyOp == null)
-        //        return Status.Denied;
-
-        //    var user = verifyOp.User!;
-        //    // Store email in session for later display
-        //    _httpContextAccessor.HttpContext?.Session.SetString("UserSessionId", user.Email);
-
-        //    if (user.Person is null)
-        //    {
-        //        // 1) No Person → create it
-        //        var newPerson = new Person
-        //        {
-        //            FirstName = firstName,
-        //            LastName = lastName,
-        //            SSN = ssn,
-        //            UserId = user.Id
-        //        };
-        //        _db.People.Add(newPerson);
-        //        verifyOp.Status = Status.Success;
-        //    }
-        //    else if (user.Person.FirstName == firstName
-        //          && user.Person.LastName == lastName
-        //          && user.Person.SSN == ssn)
-        //    {
-        //        // 2) Person exists and matches
-        //        verifyOp.Status = Status.Success;
-        //    }
-        //    else
-        //    {
-        //        // 3) Person exists but mismatch
-        //        verifyOp.Status = Status.Denied;
-        //    }
-
-        //    // **Explicitly tell EF to pick up the status change**
-        //    _db.VerifyOperations.Update(verifyOp);
-        //    // Always persist both the new Person (if any) and the updated status
-        //    await _db.SaveChangesAsync();
-
-        //    // Set flags for the Razor page to render the correct green/red UI
-        //    var ok = verifyOp.Status == Status.Success;
-        //    var session = _httpContextAccessor.HttpContext?.Session;
-        //    session?.SetString("UserVerified", ok ? "true" : "false");
-        //    session?.SetString("VerificationStatus", verifyOp.Status.ToString().ToLower());
-
-        //    Console.WriteLine($"✅ User {user.Email} verification: {verifyOp.Status}");
-        //    return verifyOp.Status;
-        //}
 
         public async Task<Status> ProcessVerificationAsync(
-    Guid operationId,
-    string firstName,
-    string lastName,
-    string ssn)
+            Guid operationId,
+            string firstName,
+            string lastName,
+            string ssn)
         {
             // 1) Fetch the VerifyOperation + its linked user
             var verifyOp = await _db.VerifyOperations

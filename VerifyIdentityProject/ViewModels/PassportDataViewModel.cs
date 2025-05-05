@@ -13,6 +13,7 @@ namespace VerifyIdentityProject
         private byte[] _imageData;
         private ImageSource _passportImage;
         private bool _showSendButton;
+
         public bool ShowSendButton
         {
             get => _showSendButton;
