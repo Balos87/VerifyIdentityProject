@@ -3,53 +3,53 @@
 @{
     ViewData["Title"] = "Verify";
 }
+<div class="d-flex flex-column align-items-center mt-xxl-5">
+    <h3 id="verify-h3">Push the button to verify your identity!</h3>
 
-<h3 id="verify-h3">Push the button to verify your identity!</h3>
+    @* <p>@Model.Message</p> *@
 
-@* <p>@Model.Message</p> *@
+    <div id="status-container">
+        @if (Model.IsVerified)
+        {
+            <p style="color:green;">✅ You are verified</p>
+        }
+        else
+        {
+            <p style="color:orange;">⌛ Awaiting verification...</p>
+        }
+    </div>
 
-<div id="status-container">
-    @if (Model.IsVerified)
-    {
-        <p style="color:green;">✅ You are verified</p>
-    }
-    else
-    {
-        <p style="color:orange;">⌛ Awaiting verification...</p>
-    }
+    @* <p><strong>Session ID:</strong> @Model.SessionId</p>
+    <p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p> *@
+
+    <div>
+        @if (!Model.IsVerified)
+        {
+            <div style="width:280px; height:280px; margin:15px 0;" class="d-flex flex-column align-items-center">
+                @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
+                {
+                    <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
+                }
+
+                <form method="post">
+                    <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
+                        🔐 Generate QR Code for Verification
+                    </button>
+                </form>
+            </div>
+        }
+        else
+        {
+            @*     <h3>Verified user information</h3>
+            <p>@Model.PersonInfo.FirstName</p>
+            <p>@Model.PersonInfo.LastName</p>
+            <p>@Model.PersonInfo.SSN</p> *@
+
+
+        }
+
+    </div>
 </div>
-
-@* <p><strong>Session ID:</strong> @Model.SessionId</p>
-<p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p> *@
-
-<div >
-    @if (!Model.IsVerified)
-    {
-        <div style="width:280px; height:280px; margin:15px 0;">
-            @if (!string.IsNullOrEmpty(Model.QrCodeImageBase64))
-            {
-                <img src="data:image/png;base64,@Model.QrCodeImageBase64" alt="QR Code" />
-            }
-
-            <form method="post">
-                <button type="submit" asp-page-handler="Verify" class="btn btn-primary">
-                    🔐 Generate QR Code for Verification
-                </button>
-            </form>
-        </div>
-    }
-    else
-    {
-    @*     <h3>Verified user information</h3>
-        <p>@Model.PersonInfo.FirstName</p>
-        <p>@Model.PersonInfo.LastName</p>
-        <p>@Model.PersonInfo.SSN</p> *@
-
-       
-    }
-
-</div>
-
 @section Scripts {
     <script>
         const sessionId   = '@Model.SessionId';
@@ -70,17 +70,21 @@
               const verifyHeader = document.getElementById("verify-h3");
 
               if (status === "Success") {
-                container.innerHTML = `✅<span>@Model.PersonInfo.FirstName @Model.PersonInfo.LastName</span> <p style="color:green;">✅ You are verified</p>`;
+                container.innerHTML = `<span class="display-5 d-flex justify-content-center mt-5">@Model.PersonInfo.FirstName @Model.PersonInfo.LastName</span> <p class="display-1 text-center" style="color:green;">You are verified✅</p>`;
                 verifyHeader.style.display = 'none';
 
-                const button = document.querySelector('form button');
-                if (button) {
-                    button.style.display = 'none';
-                }
+                // const button = document.querySelector('form button');
+                // if (button) {
+                //     button.style.display = 'none';
+                // }
 
                  if (!sessionStorage.getItem("reloaded")) {
                     sessionStorage.setItem("reloaded", "true");
                     window.location.reload();
+                  } else {
+                    setTimeout(() => {
+                        sessionStorage.removeItem("reloaded");
+                    }, 5000);
                 }
 
               } else {
