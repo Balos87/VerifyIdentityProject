@@ -1,4 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using VerifyIdentityAspFrontend.Models
 
 @inject SignInManager<ApplicationUser> SignInManager
@@ -8,10 +9,14 @@
     string displayName = "";
     if (SignInManager.IsSignedIn(User))
     {
-        var user = await UserManager.GetUserAsync(User);
-        if (user?.Person != null)
+        var user = await UserManager.Users
+            .Include(u => u.Person)
+            .FirstOrDefaultAsync(u => u.Id == UserManager.GetUserId(User));
+
+        if (user?.Person?.FirstName != null)
         {
-            displayName = $"{user.Person.FirstName.ToLowerInvariant()}!";
+            var name = user.Person.FirstName;
+            displayName = $"{char.ToUpper(name[0])}{name.Substring(1).ToLower()}!";
         }
         else
         {
@@ -19,6 +24,7 @@
         }
     }
 }
+
 
 
 <ul class="navbar-nav">

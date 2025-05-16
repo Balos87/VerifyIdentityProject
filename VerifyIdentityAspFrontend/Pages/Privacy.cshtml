@@ -1,8 +1,32 @@
 ﻿@page
 @model PrivacyModel
 @{
-    ViewData["Title"] = "Privacy Policy";
+    ViewData["Title"] = "Integritetspolicy";
 }
-<h1>@ViewData["Title"]</h1>
 
-<p>Use this page to detail your site's privacy policy.</p>
+<div class="container py-5">
+    <h1 class="mb-4">@ViewData["Title"]</h1>
+
+    <p class="lead">Din integritet är viktig för oss. Nedan förklarar vi vilken information hämtas in, hur den används och hur vi skyddar den.</p>
+
+    <h5 class="mt-4">Vilken data samlas in?</h5>
+    <ul>
+        <li>Grundläggande kontoinformation (e-post och lösenord – lagras krypterat)</li>
+        <li>Personuppgifter från ditt pass (namn, födelsedatum, nationalitet, m.m.) vid verifiering</li>
+        <li>Verifieringsstatus kopplat till ditt konto</li>
+    </ul>
+
+    <h5 class="mt-4">Vad används datan till?</h5>
+    <p>Vi använder uppgifterna endast för att verifiera att du är du – inget annat.</p>
+
+    <h5 class="mt-4">Vad vi inte gör</h5>
+    <ul>
+        <li>Vi delar inte din data med tredje part</li>
+        <li>Vi lagrar inte mer information än vad som är nödvändigt för verifiering</li>
+        <li>Vi använder inte dina uppgifter i marknadsföringssyfte</li>
+    </ul>
+
+    <h5 class="mt-4">Så skyddar vi din data</h5>
+    <p>All kommunikation mellan mobilapp, webbsida och servrar är krypterad med moderna säkerhetsprotokoll. Data behandlas enligt god praxis för dataskydd.</p>
+
+</div>
