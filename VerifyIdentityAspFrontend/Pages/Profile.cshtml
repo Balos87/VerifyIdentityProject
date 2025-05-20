@@ -18,6 +18,12 @@
             <p style="color:orange;">⌛ Awaiting verification...</p>
         }
     </div>
+    @{
+        var fullName = Model.PersonInfo != null
+        ? $"{Model.PersonInfo.FirstName} {Model.PersonInfo.LastName}"
+        : "Verifierad användare";
+    }
+
 
     @* <p><strong>Session ID:</strong> @Model.SessionId</p>
     <p><strong>Debug Email in Session:</strong> @Model.UserSessionId</p> *@
@@ -70,8 +76,8 @@
               const verifyHeader = document.getElementById("verify-h3");
 
               if (status === "Success") {
-                container.innerHTML = `<span class="display-5 d-flex justify-content-center mt-5">@Model.PersonInfo.FirstName @Model.PersonInfo.LastName</span> <p class="display-1 text-center" style="color:green;">You are verified✅</p>`;
-                verifyHeader.style.display = 'none';
+                        container.innerHTML = `<span class="display-5 d-flex justify-content-center mt-5">@fullName</span> <p class="display-1 text-center" style="color:green;">You are verified✅</p>`;
+                        verifyHeader.style.display = 'none';
 
                 // const button = document.querySelector('form button');
                 // if (button) {

@@ -28,7 +28,18 @@ namespace VerifyIdentityAspFrontend.Pages
             Message = $"Server time: {DateTime.Now}";
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var pers = _db.People.Include(p => p.User).Where(u => u.UserId == userId).FirstOrDefault();
+            if (string.IsNullOrEmpty(userId))
+            {
+                Message = "Ingen användare inloggad.";
+                return;
+            }
+
+            var pers = _db.People.Include(p => p.User).FirstOrDefault(u => u.UserId == userId);
+            if (pers == null)
+            {
+                Message = "Person hittades inte.";
+                return;
+            }
             PersonInfo = pers;
 
             // 2) Has any op for *this* session succeeded?
