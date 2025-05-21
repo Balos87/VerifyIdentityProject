@@ -86,10 +86,10 @@
                             <ImageButton Source="info_icon_2.png"
                                          Command="{Binding ShowMrzInfoCommand}"
                                          BackgroundColor="{DynamicResource FrameBackgroundColor}"
-                                         WidthRequest="12"
-                                         HeightRequest="12"
+                                         WidthRequest="22"
+                                         HeightRequest="22"
                                          Aspect="AspectFit"
-                                         Scale="0.5"
+                                         Scale="0.8"
                                          Margin="5"
                                          HorizontalOptions="End"
                                          VerticalOptions="Center" />

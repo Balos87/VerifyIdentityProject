@@ -31,14 +31,14 @@ namespace VerifyIdentityAspFrontend.Pages
             if (string.IsNullOrEmpty(userId))
             {
                 Message = "Ingen användare inloggad.";
-                return;
+                
             }
 
             var pers = _db.People.Include(p => p.User).FirstOrDefault(u => u.UserId == userId);
             if (pers == null)
             {
                 Message = "Person hittades inte.";
-                return;
+             
             }
             PersonInfo = pers;
 
